@@ -1,0 +1,27 @@
+machine:
+  services:
+    - docker
+
+deployment:
+  #production:
+  #  tag: /release-.*/
+  #  commands:
+  #    - lein clean
+  #    - lein uberjar
+  #    - docker build -t mastodonc/witan.workspace-peer .
+  #    - docker tag -f mastodonc/witan.workspace-peer mastodonc/witan.workspace-peer:latest
+  #    - docker tag -f mastodonc/witan.workspace-peer mastodonc/witan.workspace-peer:git-$(echo $CIRCLE_SHA1 | cut -c1-12)
+  #    - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+  #    - docker push mastodonc/witan.workspace-peer
+  #    - ./deploy.sh $DEPLOY_IP production
+  staging:
+    branch: metrics
+    commands:
+      - lein clean
+      - lein uberjar
+      - docker build -t mastodonc/kixi.datastore --build-arg environment=staging -f deployment/Dockerfile .
+      - docker tag -f mastodonc/kixi.datastore mastodonc/kixi.datastore:latest
+      - docker tag -f mastodonc/kixi.datastore mastodonc/kixi.datastore:git-$(echo $CIRCLE_SHA1 | cut -c1-12)
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+      - docker push mastodonc/kixi.datastore
+      - ./deployment/deploy.sh kixi.datastore sandpit-staging-deploy.mastodonc.net staging 1 git-$(echo $CIRCLE_SHA1 | cut -c1-12)
