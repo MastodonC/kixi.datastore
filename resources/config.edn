@@ -1,0 +1,6 @@
+{:web-server {:port #or [#env WEB_SERVER_PORT 8080]}
+ :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
+           ;; Control log filtering by namespaces/patterns. Useful for turning off
+           ;; logging in noisy libraries, etc.:
+           ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
+           :ns-blacklist ["org.eclipse.jetty"]}}
