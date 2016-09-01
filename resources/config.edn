@@ -1,4 +1,27 @@
-{:web-server {:port #or [#env WEB_SERVER_PORT 8080]}
+{:service-name "kixi.datastore"
+ :web-server {:port #or [#env WEB_SERVER_PORT 8080]}
+ :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
+                                             :local "localhost"}                
+                             :port 8086
+                                        ;                             :auth 
+                             :connect-timeout 1500
+                             :read-timeout 1500
+                             :group-gauges true
+                                        ;                             :duration-unit 
+                             :measurement-mappings {"jvm_threads" "jvm\\.thread.*"
+                                                    "jvm_gc" "jvm\\.gc\\..*"
+                                                    "jvm_memory" "jvm\\.memory\\..*"
+                                                    "resources" "resources\\..*"
+                                                    "log" "log\\..*"}
+                                        ;                             :excludes 
+                             :prefix ^:ref [:service-name]
+                             :db-name "metrics"
+                             :fields {"meters" #{"m1_rate" "m5_rate" "m15_rate"}}
+                             :tags {"env" #or [#env ENVIRONMENT "local"]
+                                    "service" ^:ref [:service-name]
+                                    "taskid" #or [#env MESOS_TASK_ID #rand-uuid "rand"]}
+                             :seconds #profile {:staging 60
+                                                :local 1}}}
  :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
