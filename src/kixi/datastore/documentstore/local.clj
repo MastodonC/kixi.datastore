@@ -7,7 +7,7 @@
 (def meta-data->file-name :name)
 
 (defrecord Local
-    [base-dir]
+    [base-dir ^java.io.File dir]
     DocumentStore
     (output-stream [this meta-data ]
       (let [^java.io.File file (io/file base-dir 
@@ -20,9 +20,9 @@
     (start [component]
       (let [dir (io/file base-dir)]
         (.mkdirs dir)
-        (assoc component :base-dir dir)))
+        (assoc component :dir dir)))
     (stop [component]
-      (doseq [f (.listFiles base-dir)]
+      (doseq [^java.io.File f (.listFiles dir)]
         (.delete f))
-      (.delete base-dir)
+      (.delete dir)
       (dissoc component :base-dir)))

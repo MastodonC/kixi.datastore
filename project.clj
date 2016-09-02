@@ -25,5 +25,8 @@
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
                  [yada "1.1.31"]]
 
+  :global-vars {*warn-on-reflection* true
+                *assert* false}
+
   :profiles {:uberjar {:aot [kixi.datastore.bootstrap]
                        :uberjar-name "kixi.datastore-standalone.jar"}})

@@ -51,8 +51,8 @@
   system starting). This is a pattern described in
   https://juxt.pro/blog/posts/aero.html"
   [system config]
-  (merge-with merge 
-              system 
+  (merge-with merge
+              system
               (raise-first config :documentstore)))
 
 (defn new-system
@@ -61,4 +61,3 @@
     (-> (new-system-map config)
         (configure-components config)
         (system-using (component-dependencies)))))
-

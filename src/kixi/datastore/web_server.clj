@@ -55,31 +55,86 @@
       :produces "text/plain"
       :response say-hello}}}))
 
+(defn uuid
+  []
+  (str (java.util.UUID/randomUUID)))
+
+(defn add-part
+  [part state]
+  (update state :parts (fnil conj []) 
+          (yada.multipart/map->DefaultPart part)))
+
+(defn transfer-piece!
+  [^java.io.OutputStream output-stream piece & [close]]
+  (try
+    (let [body-offset (or (:body-offset piece) 0)]
+      (.write output-stream
+              ^bytes (:bytes piece)
+              body-offset
+              (- (alength ^bytes (:bytes piece))
+                 body-offset)))
+    (.flush output-stream)
+    (finally
+      (when (or close false)
+        (.close output-stream)))))
+
+(defrecord StreamingPartial [id output-stream initial]
+  yada.multipart/Partial
+  (continue [this piece] 
+    (transfer-piece! output-stream piece (:body-offset piece))
+    (update this :pieces-count (fnil inc 0)))
+  (complete [this state piece]
+    (transfer-piece! output-stream piece true)
+    (-> initial
+        (assoc :type :part
+               :count (:pieces-count this)
+               :id id)
+        (add-part state))))
+
+(defn flush-tiny-file!
+  "Files smaller than the buffer size (?) come through as complete parts"
+  [documentstore id part]
+  (transfer-piece! (protocols/output-stream documentstore {:name id}) 
+                   part
+                   true))
+
+(defn file-part?
+  [part]
+  (= "application/octet-stream" 
+     (get-in part [:headers "content-type"])))
+
+(defrecord DocumentMeta
+    [id pieces-count name])
+
 (defrecord PartConsumer
     [documentstore]
     yada.multipart/PartConsumer
     (consume-part [_ state part]
-      "Return state with part attached"
-      (info "Part: " part)
-      (if (= "file" (get-in part [:content-disposition :params "name"]))
-        (let [out (get-in state [:output-stream] (protocols/output-stream documentstore {:name "dupido"}))]
-          (bs/transfer (:bytes part) out)
-          (-> state
-              (assoc :output-stream out)
-              (update :parts (fnil conj []) (yada.multipart/map->DefaultPart (dissoc part :bytes))))) ;hopefully clear the bytes, do a BIG test"
-        (update state :parts (fnil conj []) (yada.multipart/map->DefaultPart part))))
+      (if (file-part? part)
+        (let [id (uuid)]
+          (flush-tiny-file! documentstore id part)         
+          (-> part
+              (assoc :id id
+                     :count 1)
+              (dissoc :bytes)
+              (add-part state)))
+        (add-part part state)))
     (start-partial [_ piece]
-      "Return a partial"
-      (info "Partial")
-      (yada.multipart/->DefaultPartial piece))
+      (let [id (uuid)
+            out (protocols/output-stream documentstore {:name id})]
+        (transfer-piece! out piece)
+        (->StreamingPartial id out (dissoc piece :bytes))))
     (part-coercion-matcher [s]
       "Return a map between a target type and the function that coerces this type into that type"
-      (info "coercion: " s)
       {s/Str (fn [part]
-               (info "C " part)
-               (let [offset (get part :body-offset 0)]
-                 (String. (:bytes part) offset (- (count (:bytes part)) offset))))
-       s/Any (constantly "ASd")}))
+               (let [offset (or (:body-offset part) 0)]
+                 (String. ^bytes (:bytes part) 
+                          ^int offset 
+                          ^int (- (alength ^bytes (:bytes part)) offset))))
+       DocumentMeta (fn [part]
+                      (DocumentMeta. (:id part)
+                                     (:count part)
+                                     (get-in part [:content-disposition :params "name"])))}))
 
 (defn file-delivery-resource
   [metrics documentstore]
@@ -88,12 +143,13 @@
    {:methods
     {:post
      {:consumes "multipart/form-data"
-      :parameters {:body {:file s/Any
+      :parameters {:body {:file DocumentMeta
                           :name s/Str}}
       :part-consumer (map->PartConsumer {:documentstore documentstore})
-      :response (fn [ctx] 
-                  (info "Params: " (get-in ctx [:parameters :body]))
-                  (format "Thank you, saved upload content to file: %s\n" ctx))}}}))
+      :response (fn [ctx]
+                  (let [params  (get-in ctx [:parameters :body])]
+                    (info "Params: " params)
+                    (format "Thank you, saved upload content to file: %s\n" params)))}}}))
 
 (defn healthcheck
   [ctx]
