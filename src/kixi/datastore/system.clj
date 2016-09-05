@@ -9,7 +9,8 @@
             [kixi.datastore
              [logging :as logging]
              [metrics :as metrics]
-             [web-server :as web-server]]
+             [web-server :as web-server]
+             [schemaextracter :as se]]
             [kixi.datastore.documentstore
              [local :as local]
              [s3 :as s3]]
@@ -33,8 +34,10 @@
   {:metrics [] 
    :communications []
    :logging [:metrics]
-   :web-server [:metrics :logging :documentstore :communications]
-   :metadatastore [:communications]})
+   :web-server [:metrics :logging :documentstore :metadatastore :communications]
+   :documentstore []
+   :metadatastore [:communications]
+   :schemaextracter [:communications]})
 
 (defn new-system-map
   [config]
@@ -48,7 +51,8 @@
    :metadatastore (case (first (keys (:metadatastore config)))
                     :inmemory (inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
-                     :coreasync (coreasync/map->CoreAsync {}))))
+                     :coreasync (coreasync/map->CoreAsync {}))
+   :schemaextracter se/map->SchemaExtracter))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"
@@ -63,9 +67,10 @@
   [system config]
   (merge-with merge
               system
-              (raise-first config :documentstore)
-              (raise-first config :metadatastore)
-              (raise-first config :communications)))
+              (-> config
+                  (raise-first :documentstore)
+                  (raise-first :metadatastore)
+                  (raise-first :communications))))
 
 (defn new-system
   [profile]

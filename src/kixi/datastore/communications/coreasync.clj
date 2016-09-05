@@ -29,12 +29,12 @@
     [buffer-size new-metadata-chan update-metadata-chan]
     Communications
     (new-metadata [this meta-data]
-      (async/>!! new-metadata-chan
+      (async/>!! (:in new-metadata-chan)
                  meta-data))
     (attach-new-metadata-processor [this processor]
       (tap-channel-with new-metadata-chan processor))
     (update-metadata [this metadata-update]
-      (async/>!! update-metadata-chan
+      (async/>!! (:in update-metadata-chan)
                  metadata-update))
     (attach-update-metadata-processor [this processor]
       (tap-channel-with update-metadata-chan processor))
@@ -44,11 +44,11 @@
       (info "Starting CoreAsync Communications")
       (merge component 
              (zipmap channels 
-                     (repeat (chan-mult buffer-size)))))
+                     (repeatedly #(chan-mult buffer-size)))))
     (stop [component]
       (info "Destroying CoreAsync Communications")
-      (doseq [cm (map component channels)]
+      (doseq [cm (map #(get component %) channels)]
         (async/go
-          (async/>! (:in cm) nil))
+          (async/close! (:in cm)))
         (async/untap-all (:out cm)))
       (apply dissoc component channels)))

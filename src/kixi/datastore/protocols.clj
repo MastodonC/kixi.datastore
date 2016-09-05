@@ -13,3 +13,5 @@
   (attach-new-metadata-processor [this processor])
   (update-metadata [this meta-update])
   (attach-update-metadata-processor [this processor]))
+
+(defprotocol SchemaExtracter)

@@ -8,11 +8,23 @@
 
 (defn new-metadata-processor
   [data] 
-  (fn [metadata]))
+  (fn [metadata]
+    (info "New: " metadata)
+    (swap! data 
+           #(update % (:id metadata)
+                    (fn [current-metadata]
+                      (merge current-metadata
+                             metadata))))))
 
 (defn update-metadata-processor
   [data]
-  (fn [metadata]))
+  (fn [metadata]
+    (info "Update: " metadata)
+    (swap! data 
+           #(update % (:id metadata)
+                    (fn [current-metadata]
+                      (merge current-metadata
+                             metadata))))))
 
 (defrecord InMemory
     [data communications]

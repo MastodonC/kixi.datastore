@@ -18,6 +18,10 @@
 
 (def file-url (str "http://" (service-url) "/file"))
 
+(defn metadata-url
+  [id]
+  (str file-url "/" id "/meta"))
+
 (defn uuid
   []
   (str (java.util.UUID/randomUUID)))
@@ -44,6 +48,16 @@
                  f)
     f))
 
+(defn get-metadata
+  [id]
+  (client/get (metadata-url id) {:as :json
+                                 :accept :json}))
+
+(defn extract-id
+  [file-response]
+  (let [locat (get-in file-response [:headers "Location"])]
+    (subs locat (inc (clojure.string/last-index-of locat "/")))))
+
 (defn files-match?
   [^String one ^File two]
   (= (d/md5 (File. one))
@@ -63,10 +77,17 @@
     (is (files-match?  "./test-resources/10MB-file.txt"
                        f)))
   (let [r (post-file "./test-resources/300MB-file.txt")
-        f (dload-file (get-in r [:headers "Location"]))]
+        ^File f (dload-file (get-in r [:headers "Location"]))]
     (is (= 201
            (:status r)))
     (is (files-match?  "./test-resources/300MB-file.txt"
                        f))
     (.delete f)))
 
+(deftest metadata-manipulation
+  (let [r (post-file "./test-resources/10B-file.txt")
+        m (get-metadata (extract-id r))]
+    (is (= 201
+           (:status r)))
+    (is (= 200
+           (:status m)))))

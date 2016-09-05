@@ -155,7 +155,7 @@
                                      (:size-bytes part)))}))
 
 (defn create-file
-  [metrics documentstore]
+  [metrics documentstore communications]
   (resource
    metrics
    {:id :create
@@ -167,6 +167,7 @@
       :part-consumer (map->PartConsumer {:documentstore documentstore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])]
+                    (protocols/new-metadata communications params)
                     (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
 
 (defn file-resource 
@@ -185,12 +186,13 @@
   [metrics metadatastore]
   (resource
    metrics
-   {:id :entry
+   {:id :meta
     :methods
-    {:get {:produces [{:media-type #{"application/octet-stream"}}]
+    {:get {:produces "application/json"
            :response
            (fn [ctx]
-             )}}}))
+             (let [id (get-in ctx [:parameter :path :id])]
+               (protocols/fetch metadatastore id)))}}}))
 
 (defn healthcheck
   [ctx]
@@ -198,17 +200,17 @@
   "All is well")
 
 (defn service-routes 
-  [metrics documentstore metadatastore]
-  ["/file" [["" (create-file metrics documentstore)]
+  [metrics documentstore metadatastore communications]
+  ["/file" [["" (create-file metrics documentstore communications)]
             [["/" :id] (file-resource metrics documentstore)]
-            [["/meta"] (file-meta metrics metadatastore)]]])
+            [["/" :id "/meta"] (file-meta metrics metadatastore)]]])
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics documentstore metadatastore]
+  [metrics documentstore metadatastore communications]
   [""
    [(hello-routes metrics)
-    (service-routes metrics documentstore)
+    (service-routes metrics documentstore metadatastore communications)
     ["/healthcheck" healthcheck]
     
     #_      ["/api" (-> roots
@@ -237,7 +239,7 @@
 
 
 (defrecord WebServer 
-    [port listener log-config metrics documentstore metadatastore]
+    [port listener log-config metrics documentstore metadatastore communications]
     component/Lifecycle
     (start [component]
       (if listener
@@ -245,7 +247,7 @@
         (let [vhosts-model
               (vhosts-model
                [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics documentstore metadatastore)])
+                (routes metrics documentstore metadatastore communications)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))
