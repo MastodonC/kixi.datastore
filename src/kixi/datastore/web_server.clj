@@ -55,6 +55,11 @@
       :produces "text/plain"
       :response say-hello}}}))
 
+(defn hello-routes
+  [metrics]
+  ["" [["/hello" (yada/handler "Hello World!\n")]
+       ["/hello-param" (hello-parameters-resource metrics)]]])
+
 (defn uuid
   []
   (str (java.util.UUID/randomUUID)))
@@ -63,6 +68,11 @@
   [part state]
   (update state :parts (fnil conj []) 
           (yada.multipart/map->DefaultPart part)))
+
+(defn payload-size
+  [{:keys [bytes body-offset] :as piece-or-part}]
+  (- (alength ^bytes bytes)
+     (or body-offset 0)))
 
 (defn transfer-piece!
   [^java.io.OutputStream output-stream piece & [close]]
@@ -78,23 +88,27 @@
       (when (or close false)
         (.close output-stream)))))
 
-(defrecord StreamingPartial [id output-stream initial]
+(defrecord StreamingPartial [id output-stream initial size-bytes]
   yada.multipart/Partial
   (continue [this piece] 
     (transfer-piece! output-stream piece (:body-offset piece))
-    (update this :pieces-count (fnil inc 0)))
+    (-> this
+        (update :pieces-count (fnil inc 0))
+        (update :size-bytes (partial + (payload-size piece)))))
   (complete [this state piece]
     (transfer-piece! output-stream piece true)
     (-> initial
         (assoc :type :part
                :count (:pieces-count this)
-               :id id)
+               :id id
+               :size-bytes (+ size-bytes
+                              (payload-size piece)))
         (add-part state))))
 
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
   [documentstore id part]
-  (transfer-piece! (protocols/output-stream documentstore {:name id}) 
+  (transfer-piece! (protocols/output-stream documentstore {:id id}) 
                    part
                    true))
 
@@ -104,7 +118,7 @@
      (get-in part [:headers "content-type"])))
 
 (defrecord DocumentMeta
-    [id pieces-count name])
+    [id pieces-count name size-bytes])
 
 (defrecord PartConsumer
     [documentstore]
@@ -112,18 +126,21 @@
     (consume-part [_ state part]
       (if (file-part? part)
         (let [id (uuid)]
-          (flush-tiny-file! documentstore id part)         
+          (flush-tiny-file! documentstore id part)
           (-> part
               (assoc :id id
-                     :count 1)
+                     :count 1
+                     :size-bytes (payload-size part))
               (dissoc :bytes)
               (add-part state)))
         (add-part part state)))
     (start-partial [_ piece]
       (let [id (uuid)
-            out (protocols/output-stream documentstore {:name id})]
+            out (protocols/output-stream documentstore {:id id})]
         (transfer-piece! out piece)
-        (->StreamingPartial id out (dissoc piece :bytes))))
+        (->StreamingPartial id out 
+                            (dissoc piece :bytes) 
+                            (payload-size piece))))
     (part-coercion-matcher [s]
       "Return a map between a target type and the function that coerces this type into that type"
       {s/Str (fn [part]
@@ -134,22 +151,46 @@
        DocumentMeta (fn [part]
                       (DocumentMeta. (:id part)
                                      (:count part)
-                                     (get-in part [:content-disposition :params "name"])))}))
+                                     (get-in part [:content-disposition :params "name"])
+                                     (:size-bytes part)))}))
 
-(defn file-delivery-resource
+(defn create-file
   [metrics documentstore]
   (resource
    metrics
-   {:methods
+   {:id :create
+    :methods
     {:post
      {:consumes "multipart/form-data"
       :parameters {:body {:file DocumentMeta
                           :name s/Str}}
       :part-consumer (map->PartConsumer {:documentstore documentstore})
       :response (fn [ctx]
-                  (let [params  (get-in ctx [:parameters :body])]
-                    (info "Params: " params)
-                    (format "Thank you, saved upload content to file: %s\n" params)))}}}))
+                  (let [params (get-in ctx [:parameters :body])]
+                    (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
+
+(defn file-resource 
+  [metrics documentstore]
+  (resource
+   metrics
+   {:id :entry
+    :methods
+    {:get {:produces [{:media-type #{"application/octet-stream"}}]
+           :response
+           (fn [ctx]
+             (let [id (get-in ctx [:parameters :path :id])]
+               (protocols/retrieve documentstore {:id id})))}}}))
+
+(defn file-meta
+  [metrics metadatastore]
+  (resource
+   metrics
+   {:id :entry
+    :methods
+    {:get {:produces [{:media-type #{"application/octet-stream"}}]
+           :response
+           (fn [ctx]
+             )}}}))
 
 (defn healthcheck
   [ctx]
@@ -157,47 +198,46 @@
   "All is well")
 
 (defn service-routes 
-  [metrics documentstore]
-  ["" [["/hello" (yada/handler "Hello World!\n")]
-       ["/hello-param" (yada/handler (hello-parameters-resource metrics))]
-       ["/file" (yada/handler (file-delivery-resource metrics documentstore))]]])
+  [metrics documentstore metadatastore]
+  ["/file" [["" (create-file metrics documentstore)]
+            [["/" :id] (file-resource metrics documentstore)]
+            [["/meta"] (file-meta metrics metadatastore)]]])
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics documentstore]
-  (let [roots (service-routes metrics documentstore)]
-    [""
-     [
-      roots
-      ["/healthcheck" (yada/handler healthcheck)]
-      
-#_      ["/api" (-> roots
-                  ;; Wrap this route structure in a Swagger
-                  ;; wrapper. This introspects the data model and
-                  ;; provides a swagger.json file, used by Swagger UI
-                  ;; and other tools.
-                  (yada/swaggered
-                   {:info {:title "Kixi Datastore"
-                           :version "1.0"
-                           :description "Testing api resource UI"}
-                    :basePath "/api"})
-                  ;; Tag it so we can create an href to this API
-                  (tag :edge.resources/api))]
+  [metrics documentstore metadatastore]
+  [""
+   [(hello-routes metrics)
+    (service-routes metrics documentstore)
+    ["/healthcheck" healthcheck]
+    
+    #_      ["/api" (-> roots
+                        ;; Wrap this route structure in a Swagger
+                        ;; wrapper. This introspects the data model and
+                        ;; provides a swagger.json file, used by Swagger UI
+                        ;; and other tools.
+                        (yada/swaggered
+                         {:info {:title "Kixi Datastore"
+                                 :version "1.0"
+                                 :description "Testing api resource UI"}
+                          :basePath "/api"})
+                        ;; Tag it so we can create an href to this API
+                        (tag :edge.resources/api))]
 
-      ["/metrics" (yada/handler (yada/resource (:expose-metrics-resource metrics)))]
+    ["/metrics" (yada/resource (:expose-metrics-resource metrics))]
 
-      ;; Swagger UI
-      ["/swagger" (-> (new-webjar-resource "/swagger-ui" {})
-                      ;; Tag it so we can create an href to the Swagger UI
-                      (tag :edge.resources/swagger))]
+    ;; Swagger UI
+    ["/swagger" (-> (new-webjar-resource "/swagger-ui" {})
+                    ;; Tag it so we can create an href to the Swagger UI
+                    (tag :edge.resources/swagger))]
 
-      ;; This is a backstop. Always produce a 404 if we ge there. This
-      ;; ensures we never pass nil back to Aleph.
-      [true (yada/handler nil)]]]))
+    ;; This is a backstop. Always produce a 404 if we ge there. This
+    ;; ensures we never pass nil back to Aleph.
+    [true (yada/handler nil)]]])
 
 
 (defrecord WebServer 
-    [port listener log-config metrics documentstore]
+    [port listener log-config metrics documentstore metadatastore]
     component/Lifecycle
     (start [component]
       (if listener
@@ -205,7 +245,7 @@
         (let [vhosts-model
               (vhosts-model
                [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics documentstore)])
+                (routes metrics documentstore metadatastore)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))
