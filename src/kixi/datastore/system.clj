@@ -12,7 +12,11 @@
              [web-server :as web-server]]
             [kixi.datastore.documentstore
              [local :as local]
-             [s3 :as s3]]))
+             [s3 :as s3]]
+            [kixi.datastore.communications
+             [coreasync :as coreasync]]
+            [kixi.datastore.metadatastore
+             [inmemory :as inmemory]]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -27,8 +31,10 @@
 (defn component-dependencies
   []
   {:metrics [] 
+   :communications []
    :logging [:metrics]
-   :web-server [:metrics :logging :documentstore]})
+   :web-server [:metrics :logging :documentstore :communications]
+   :metadatastore [:communications]})
 
 (defn new-system-map
   [config]
@@ -38,7 +44,11 @@
    :logging (logging/map->Log {})
    :documentstore (case (first (keys (:documentstore config)))
                     :local (local/map->Local {})
-                    :s3 (s3/map->S3 {}))))
+                    :s3 (s3/map->S3 {}))
+   :metadatastore (case (first (keys (:metadatastore config)))
+                    :inmemory (inmemory/map->InMemory {}))
+   :communications (case (first (keys (:communications config)))
+                     :coreasync (coreasync/map->CoreAsync {}))))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"
@@ -53,7 +63,9 @@
   [system config]
   (merge-with merge
               system
-              (raise-first config :documentstore)))
+              (raise-first config :documentstore)
+              (raise-first config :metadatastore)
+              (raise-first config :communications)))
 
 (defn new-system
   [profile]
