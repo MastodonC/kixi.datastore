@@ -1,9 +1,11 @@
 (ns kixi.datastore.metadatastore.inmemory
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.protocols 
-             :refer [MetaDataStore
-                     attach-new-metadata-processor
-                     attach-update-metadata-processor]]
+            [kixi.datastore.metadatastore.metadatastore
+             :refer [MetaDataStore]]
+            [kixi.datastore.communications.communications
+             :refer [attach-processor 
+                     metadata-new-selector 
+                     metadata-update-selector]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defn new-metadata-processor
@@ -38,8 +40,12 @@
       (when-not data
         (info "Starting InMemory Metadata Store")
         (let [new-data (atom {})]
-          (attach-new-metadata-processor communications (new-metadata-processor new-data))
-          (attach-update-metadata-processor communications (update-metadata-processor new-data))
+          (attach-processor communications
+                            metadata-new-selector
+                            (new-metadata-processor new-data))
+          (attach-processor communications 
+                            metadata-update-selector
+                            (update-metadata-processor new-data))
           (assoc component :data new-data))))
     (stop [component]
       (info "Destroying InMemory Metadata Store")

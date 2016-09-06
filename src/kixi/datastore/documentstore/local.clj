@@ -1,7 +1,7 @@
 (ns kixi.datastore.documentstore.local
   (:require [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.protocols :refer [DocumentStore]]
+            [kixi.datastore.documentstore.documentstore :refer [DocumentStore]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (def meta-data->file-name :id)

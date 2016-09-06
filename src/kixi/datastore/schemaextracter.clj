@@ -1,10 +1,10 @@
 (ns kixi.datastore.schemaextracter
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.protocols 
-             :as p
+            [kixi.datastore.communications.communications
              :refer [update-metadata
-                     attach-new-metadata-processor
-                     attach-update-metadata-processor]]
+                     attach-processor
+                     metadata-new-selector
+                     metadata-update-selector]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defn download
@@ -19,17 +19,21 @@
   [communications]
   (fn [metadata]))
 
+(defprotocol ISchemaExtracter)
+
 (defrecord SchemaExtracter
     [communications]
-    p/SchemaExtracter
+    ISchemaExtracter
     component/Lifecycle
     (start [component]
       (info "Starting SchemaExtracter")
-      (attach-new-metadata-processor communications
-                                     (new-metadata-processor communications))
-      (attach-update-metadata-processor communications
-                                        (update-metadata-processor communications)))
+      (attach-processor communications
+                        metadata-new-selector
+                        (new-metadata-processor communications))
+      (attach-processor communications
+                        metadata-update-selector
+                        (update-metadata-processor communications)))
     (stop [component]
       (info "Stopping SchemaExtracter")
-      ;Need a 'detach' processor ability
+                                        ;Need a 'detach' processor ability
       ))

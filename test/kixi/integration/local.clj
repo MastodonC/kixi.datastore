@@ -11,5 +11,4 @@
 (use-fixtures :once cycle-system-fixture)
 
 (deftest run-locally
-  (is (successful? (run-tests 'kixi.integration.upload))))
-
+  (is (successful? (run-tests 'kixi.integration.upload-test))))

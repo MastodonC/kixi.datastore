@@ -5,7 +5,9 @@
             [byte-streams :as bs]
             [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.protocols :as protocols]
+            [kixi.datastore.documentstore.documentstore :as ds]
+            [kixi.datastore.metadatastore.metadatastore :as ms]
+            [kixi.datastore.communications.communications :as c]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada             
@@ -108,7 +110,7 @@
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
   [documentstore id part]
-  (transfer-piece! (protocols/output-stream documentstore {:id id}) 
+  (transfer-piece! (ds/output-stream documentstore {:id id}) 
                    part
                    true))
 
@@ -136,7 +138,7 @@
         (add-part part state)))
     (start-partial [_ piece]
       (let [id (uuid)
-            out (protocols/output-stream documentstore {:id id})]
+            out (ds/output-stream documentstore {:id id})]
         (transfer-piece! out piece)
         (->StreamingPartial id out 
                             (dissoc piece :bytes) 
@@ -167,7 +169,7 @@
       :part-consumer (map->PartConsumer {:documentstore documentstore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])]
-                    (protocols/new-metadata communications params)
+                    (c/new-metadata communications params)
                     (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
 
 (defn file-resource 
@@ -180,7 +182,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (protocols/retrieve documentstore {:id id})))}}}))
+               (ds/retrieve documentstore {:id id})))}}}))
 
 (defn file-meta
   [metrics metadatastore]
@@ -192,7 +194,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameter :path :id])]
-               (protocols/fetch metadatastore id)))}}}))
+               (ms/fetch metadatastore id)))}}}))
 
 (defn healthcheck
   [ctx]

@@ -52,7 +52,7 @@
                     :inmemory (inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
                      :coreasync (coreasync/map->CoreAsync {}))
-   :schemaextracter se/map->SchemaExtracter))
+   :schemaextracter (se/map->SchemaExtracter {})))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"
