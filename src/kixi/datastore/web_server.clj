@@ -110,7 +110,7 @@
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
   [documentstore id part]
-  (transfer-piece! (ds/output-stream documentstore {:id id}) 
+  (transfer-piece! (ds/output-stream documentstore id) 
                    part
                    true))
 
@@ -138,7 +138,7 @@
         (add-part part state)))
     (start-partial [_ piece]
       (let [id (uuid)
-            out (ds/output-stream documentstore {:id id})]
+            out (ds/output-stream documentstore id)]
         (transfer-piece! out piece)
         (->StreamingPartial id out 
                             (dissoc piece :bytes) 
@@ -168,8 +168,10 @@
                           :name s/Str}}
       :part-consumer (map->PartConsumer {:documentstore documentstore})
       :response (fn [ctx]
-                  (let [params (get-in ctx [:parameters :body])]
-                    (c/new-metadata communications params)
+                  (let [params (get-in ctx [:parameters :body])
+                        p (merge params
+                                 {:type :csv})]
+                    (c/submit-metadata communications p)
                     (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
 
 (defn file-resource 
@@ -182,7 +184,8 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (ds/retrieve documentstore {:id id})))}}}))
+               (ds/retrieve documentstore 
+                            id)))}}}))
 
 (defn file-meta
   [metrics metadatastore]

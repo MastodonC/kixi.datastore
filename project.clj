@@ -13,6 +13,7 @@
                  [bidi "2.0.9"]
                  [byte-streams "0.2.2"]
                  [clj-http "2.2.0"]
+                 [clojure-csv/clojure-csv "2.0.1"]
                  [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
                  [com.stuartsierra/component "0.3.1"]

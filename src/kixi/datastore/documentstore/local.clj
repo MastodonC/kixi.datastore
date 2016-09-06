@@ -4,21 +4,19 @@
             [kixi.datastore.documentstore.documentstore :refer [DocumentStore]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
-(def meta-data->file-name :id)
-
 (defrecord Local
     [base-dir ^java.io.File dir]
     DocumentStore
-    (output-stream [this meta-data]
+    (output-stream [this id]
       (let [^java.io.File file (io/file base-dir 
-                                        (meta-data->file-name meta-data))
+                                        id)
             _ (.createNewFile file)]
         (io/output-stream file)))
-    (retrieve [this meta-data]
-      (let [^java.io.File file (io/file base-dir 
-                                        (meta-data->file-name meta-data))]
+    (retrieve [this id]      
+      (let [^java.io.File file (io/file base-dir
+                                        id)]
         (when (.exists file)
-          file)))
+          (io/input-stream file))))
 
     component/Lifecycle
     (start [component]

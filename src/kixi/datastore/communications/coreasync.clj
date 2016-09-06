@@ -11,13 +11,16 @@
      :out (async/mult c)}))
 
 (defn tap-channel-with
-  [cm selector processor]
+  [cm selector processor put-result]
   (let [tapper (async/chan)]
     (async/go-loop [msg (async/<! tapper)]
       (when msg
         (try
           (when (selector msg)
-            (processor {:payload msg}))
+            (let [result (processor msg)]
+              (when put-result
+                (async/>! (:in cm)
+                          result))))
           (catch Exception e
             (error e (str "Exception while processing: " msg))))
         (recur (async/<! tapper))))
@@ -28,18 +31,17 @@
 (defrecord CoreAsync
     [buffer-size msg-chan processors-atom]
     Communications
-    (new-metadata [this meta-data]
+    (submit-metadata [this metadata]
       (async/>!! (:in msg-chan)
-                 {:type :metadata-new
-                  :payload meta-data}))
-    (update-metadata [this metadata-update]
-      (async/>!! (:in msg-chan)
-                 {:type :metadata-update
-                  :payload metadata-update}))
-    (attach-processor [this selector processor]
+                 metadata))
+    (attach-pipeline-processor [this selector processor]
       (swap! processors-atom 
              assoc processor
-             (tap-channel-with msg-chan selector processor)))
+             (tap-channel-with msg-chan selector processor true)))
+    (attach-sink-processor [this selector processor]
+      (swap! processors-atom 
+             assoc processor
+             (tap-channel-with msg-chan selector processor false)))
     (detach-processor [this processor]
       (when-let [detach-chan (get @processors-atom processor)]
         (async/untap (:out msg-chan)
