@@ -30,8 +30,7 @@
   [profile]
   (aero/read-config (io/resource "config.edn") {:profile profile}))
 
-(defn component-dependencies
-  []
+(def component-dependencies
   {:metrics [] 
    :communications []
    :logging [:metrics]
@@ -80,4 +79,4 @@
   (let [config (config profile)]
     (-> (new-system-map config)
         (configure-components config)
-        (system-using (component-dependencies)))))
+        (system-using component-dependencies))))
