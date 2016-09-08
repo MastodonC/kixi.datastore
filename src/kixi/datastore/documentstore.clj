@@ -1,4 +1,4 @@
-(ns kixi.datastore.documentstore.documentstore)
+(ns kixi.datastore.documentstore)
 
 (defprotocol DocumentStore
   (output-stream [this meta-data]

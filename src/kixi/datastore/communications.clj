@@ -1,4 +1,4 @@
-(ns kixi.datastore.communications.communications)
+(ns kixi.datastore.communications)
 
 (defprotocol Communications
   (submit-metadata [this metadata])

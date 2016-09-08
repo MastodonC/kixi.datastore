@@ -1,6 +1,6 @@
 (ns kixi.datastore.documentstore.s3
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.documentstore.documentstore :refer [DocumentStore]]))
+            [kixi.datastore.documentstore :refer [DocumentStore]]))
 
 (defrecord S3
     [region bucket key-prefix]

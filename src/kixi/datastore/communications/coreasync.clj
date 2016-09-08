@@ -1,7 +1,7 @@
 (ns kixi.datastore.communications.coreasync
   (:require [com.stuartsierra.component :as component]
             [clojure.core.async :as async]
-            [kixi.datastore.communications.communications :refer [Communications]]
+            [kixi.datastore.communications :refer [Communications]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defn chan-mult

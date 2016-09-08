@@ -3,10 +3,10 @@
             [clojure-csv.core :as csv :refer [parse-csv]]
             [clojure.string :refer [lower-case]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications.communications
+            [kixi.datastore.communications
              :refer [attach-pipeline-processor
                      detach-processor]]
-            [kixi.datastore.documentstore.documentstore
+            [kixi.datastore.documentstore
              :refer [retrieve]]
             [medley.core :refer [find-first assoc-some]]
             [taoensso.timbre :as timbre :refer [error info infof]]

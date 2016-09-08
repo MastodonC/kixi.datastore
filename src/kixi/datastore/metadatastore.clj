@@ -1,4 +1,4 @@
-(ns kixi.datastore.metadatastore.metadatastore)
+(ns kixi.datastore.metadatastore)
 
 (defprotocol MetaDataStore
   (fetch [this id])

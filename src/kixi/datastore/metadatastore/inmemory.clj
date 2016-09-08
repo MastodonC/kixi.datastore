@@ -1,8 +1,8 @@
 (ns kixi.datastore.metadatastore.inmemory
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.metadatastore.metadatastore
+            [kixi.datastore.metadatastore
              :refer [MetaDataStore]]
-            [kixi.datastore.communications.communications
+            [kixi.datastore.communications
              :refer [attach-sink-processor]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 

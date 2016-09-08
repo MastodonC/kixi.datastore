@@ -5,9 +5,9 @@
             [byte-streams :as bs]
             [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.documentstore.documentstore :as ds]
-            [kixi.datastore.metadatastore.metadatastore :as ms]
-            [kixi.datastore.communications.communications :as c]
+            [kixi.datastore.documentstore :as ds]
+            [kixi.datastore.metadatastore :as ms]
+            [kixi.datastore.communications :as c]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada             

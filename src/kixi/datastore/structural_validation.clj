@@ -2,10 +2,10 @@
   (:require [byte-streams :as bs]
             [clojure-csv.core :as csv :refer [parse-csv]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications.communications
+            [kixi.datastore.communications
              :refer [attach-pipeline-processor
                      detach-processor]]
-            [kixi.datastore.documentstore.documentstore
+            [kixi.datastore.documentstore
              :refer [retrieve]]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
