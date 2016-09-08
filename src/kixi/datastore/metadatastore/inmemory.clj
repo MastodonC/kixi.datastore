@@ -4,11 +4,12 @@
              :refer [MetaDataStore]]
             [kixi.datastore.communications
              :refer [attach-sink-processor]]
-            [taoensso.timbre :as timbre :refer [error info infof]]))
+            [taoensso.timbre :as timbre :refer [error info infof]])
+  (:import [kixi.datastore.metadatastore DocumentMetaData]))
 
 (defn update-metadata-processor
   [data]
-  (fn [metadata]
+  (fn [^DocumentMetaData metadata]
     (info "Update: " metadata)
     (swap! data 
            #(update % (:id metadata)
@@ -25,13 +26,14 @@
 
     component/Lifecycle
     (start [component]
-      (when-not data
-        (info "Starting InMemory Metadata Store")
+      (if-not data
         (let [new-data (atom {})]
+          (info "Starting InMemory Metadata Store")
           (attach-sink-processor communications
                                  (constantly true)
                                  (update-metadata-processor new-data))
-          (assoc component :data new-data))))
+          (assoc component :data new-data))
+        component))
     (stop [component]
       (info "Destroying InMemory Metadata Store")
       (when data

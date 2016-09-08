@@ -17,10 +17,11 @@
       (when msg
         (try
           (when (selector msg)
-            (let [result (processor msg)]
-              (when put-result
-                (async/>! (:in cm)
-                          result))))
+            (async/go
+              (let [result (processor msg)]
+                (when put-result
+                  (async/>! (:in cm)
+                            result)))))
           (catch Exception e
             (error e (str "Exception while processing: " msg))))
         (recur (async/<! tapper))))

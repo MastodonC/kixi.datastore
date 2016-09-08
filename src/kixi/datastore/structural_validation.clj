@@ -19,7 +19,7 @@
 
 (defn metadata->file
   [documentstore metadata]
-  (let [id (get-in metadata [:file :id])
+  (let [id (:id metadata)
         f (File/createTempFile id ".tmp")]
     (.deleteOnExit f)
     (bs/transfer
@@ -75,5 +75,3 @@
           (dissoc component 
                   :structural-validator-fn))
         component)))
-
-

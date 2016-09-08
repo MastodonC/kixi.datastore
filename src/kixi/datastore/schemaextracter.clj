@@ -15,7 +15,7 @@
 
 (defn metadata->file
   [documentstore metadata]
-  (let [id (get-in metadata [:file :id])
+  (let [id (get-in metadata [:id])
         f (File/createTempFile id ".tmp")]
     (.deleteOnExit f)
     (bs/transfer
@@ -26,9 +26,8 @@
 (defn requires-schema-extraction?
   [metadata]
   (and
-   (get-in metadata [:structual-validation :valid])
+   (get-in metadata [:structural-validation :valid])
    ((complement :schema) metadata)))
-
 
 
 (def gss-code {:header {:matcher #(some->> % lower-case (re-matches #"^gss[\.\-\ ]?code$"))

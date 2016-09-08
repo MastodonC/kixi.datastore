@@ -14,7 +14,8 @@
             [yada             
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]])
+  (:import [kixi.datastore.metadatastore DocumentMetaData]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -120,9 +121,6 @@
   (= "application/octet-stream" 
      (get-in part [:headers "content-type"])))
 
-(defrecord DocumentMeta
-    [id pieces-count name size-bytes])
-
 (defrecord PartConsumer
     [documentstore]
     yada.multipart/PartConsumer
@@ -151,11 +149,11 @@
                  (String. ^bytes (:bytes part) 
                           ^int offset 
                           ^int (- (alength ^bytes (:bytes part)) offset))))
-       DocumentMeta (fn [part]
-                      (DocumentMeta. (:id part)
-                                     (:count part)
-                                     (get-in part [:content-disposition :params "name"])
-                                     (:size-bytes part)))}))
+       DocumentMetaData (fn [part]
+                          (ms/map->DocumentMetaData {:id (:id part)
+                                                     :pieces-count (:count part)
+                                                     :name (get-in part [:content-disposition :params "name"])
+                                                     :size-bytes (:size-bytes part)}))}))
 
 (defn file-create
   [metrics documentstore communications]
@@ -165,15 +163,15 @@
     :methods
     {:post
      {:consumes "multipart/form-data"
-      :parameters {:body {:file DocumentMeta
+      :parameters {:body {:file DocumentMetaData
                           :name s/Str}}
       :part-consumer (map->PartConsumer {:documentstore documentstore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
-                        p (merge params
+                        p (merge (:file params)
                                  {:type :csv})]
                     (c/submit-metadata communications p)
-                    (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
+                    (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (:id p)}})))))}}}))
 
 (defn file-entry 
   [metrics documentstore]
@@ -197,7 +195,7 @@
     {:get {:produces "application/json"
            :response
            (fn [ctx]
-             (let [id (get-in ctx [:parameter :path :id])]
+             (let [id (get-in ctx [:parameters :path :id])]
                (ms/fetch metadatastore id)))}}}))
 
 (defn schema-create

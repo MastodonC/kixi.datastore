@@ -1,14 +1,25 @@
 (ns kixi.integration.upload-test
   (:require [byte-streams :as bs]
-            [clojure.test :refer :all :exclude [deftest]]
+            [clojure.test :refer :all   ;:exclude [deftest]
+             ]
             [clj-http.client :as client]
             [clojure.java.io :as io]
-            [digest :as d])
+            [digest :as d]
+            [kixi.repl :as repl])
   (:import [java.io 
             File
             FileNotFoundException]))
 
-(defmacro deftest
+(defn cycle-system-fixture
+  [all-tests]
+  (repl/start)
+  (all-tests)
+  ;(repl/stop)
+  )
+
+(use-fixtures :once cycle-system-fixture)
+
+(defmacro deftest-broken
   [name & everything]
   `(clojure.test/deftest ~(vary-meta name assoc :integration true) ~@everything))
 
@@ -103,4 +114,5 @@
            (:status r)))
     (is (= 200
            (:status m)))
-    (is (get-in m [:body :schema]))))
+    (is (get-in m [:body :schema]))
+    (is (get-in m [:body :id]))))
