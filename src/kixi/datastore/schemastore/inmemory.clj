@@ -4,10 +4,21 @@
             [kixi.datastore.schemastore :refer [SchemaStore]]
             [kixi.datastore.communications
              :refer [attach-sink-processor]]
-            [taoensso.timbre :as timbre :refer [error info infof]]))
+            [taoensso.timbre :as timbre :refer [error info infof]])
+  (:import [kixi.datastore.schemastore Schema]))
+
+(defn update-schema-processor
+  [data]
+  (fn [^Schema schema]
+    (info "Update: " schema)
+    (swap! data 
+           #(update % (:id schema)
+                    (fn [current-schema]
+                      (merge current-schema
+                             schema))))))
 
 (defrecord InMemory
-    [data write-schema communications]
+    [data communications]
     SchemaStore
     (fetch [id]
       (get @data id))
@@ -16,9 +27,14 @@
       (if-not data
         (let [new-data (atom {})]
           (info "Starting InMemory Schema Store")
-          #_(attach-sink-processor communications
-                                 (constantly true)
-                                 (update-metadata-processor new-data))
-          (assoc component :data new-data)))      component)
+          (attach-sink-processor communications
+                                 (partial instance? Schema)
+                                 (update-schema-processor new-data))
+          (assoc component :data new-data))
+        component))
     (stop [component]
-      component))
+      (if data
+        (do (info "Destroying InMemory Schema Store")
+            (reset! data {})
+            (dissoc component :data))
+        component)))

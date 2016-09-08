@@ -39,7 +39,7 @@
    :web-server [:metrics :logging :documentstore :metadatastore :schemastore :communications]
    :documentstore []
    :metadatastore [:communications]
-   :schemastore []
+   :schemastore [:communications]
    :schema-extracter [:communications :documentstore]
    :structural-validator [:communications :documentstore]})
 

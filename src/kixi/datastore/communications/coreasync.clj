@@ -12,7 +12,7 @@
 
 (defn tap-channel-with
   [cm selector processor put-result]
-  (let [tapper (async/chan)]
+  (let [tapper (async/chan 5)]
     (async/go-loop [msg (async/<! tapper)]
       (when msg
         (try

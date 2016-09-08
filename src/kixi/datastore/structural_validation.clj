@@ -56,6 +56,7 @@
 
 (defrecord StructuralValidator
     [communications documentstore structural-validator-fn]
+    IStructuralValidator
     component/Lifecycle
     (start [component]
       (if-not structural-validator-fn
@@ -65,7 +66,8 @@
                                      requires-structural-validation?
                                      (structural-validator documentstore))
           (assoc component
-                 :structural-validator-fn sv-fn))))
+                 :structural-validator-fn sv-fn))
+        component))
     (stop [component]
       (info "Stopping Structural Validator")
       (if structural-validator-fn

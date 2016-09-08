@@ -30,12 +30,13 @@
         (let [new-data (atom {})]
           (info "Starting InMemory Metadata Store")
           (attach-sink-processor communications
-                                 (constantly true)
+                                 (partial instance? DocumentMetaData)
                                  (update-metadata-processor new-data))
           (assoc component :data new-data))
         component))
     (stop [component]
-      (info "Destroying InMemory Metadata Store")
-      (when data
-        (reset! data {})
-        (dissoc component :data))))
+      (if data
+        (do (info "Destroying InMemory Metadata Store")
+            (reset! data {})
+            (dissoc component :data))
+        component)))
