@@ -2,10 +2,11 @@ machine:
   services:
     - docker
 
+test:
+  pre:
+    - ./test-resources/create-test-files.sh
+
 deployment:
-  test:
-    pre:
-      - ./test-resources/create-test-files.sh
   #production:
   #  tag: /release-.*/
   #  commands:
