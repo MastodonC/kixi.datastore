@@ -3,6 +3,9 @@ machine:
     - docker
 
 deployment:
+  test:
+    pre:
+      - ./test-resources/create-test-files.sh
   #production:
   #  tag: /release-.*/
   #  commands:

@@ -30,7 +30,5 @@
   "00AAFA0001,2,City Living,2a,Transient Communities,2a2,Transient Communities (2),00AAFA,Aldersgate,00AA,City of London,London")
 
 (deftest oa-classification-london-2001-schema-extraction
-  (is (= true
-         (header-details oa-classification-london-2001-header)))
-  (is (= true
-         (value-schema oa-classification-london-2001-first-line))))
+  (is (header-details oa-classification-london-2001-header))
+  (is (value-schema oa-classification-london-2001-first-line)))

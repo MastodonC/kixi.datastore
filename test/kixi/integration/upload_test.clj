@@ -9,8 +9,8 @@
             FileNotFoundException]))
 
 (defmacro deftest
-  [& everything]
-  `(clojure.test/deftest ^:integration ~@everything))
+  [name & everything]
+  `(clojure.test/deftest ~(vary-meta name assoc :integration true) ~@everything))
 
 (defn service-url
   []

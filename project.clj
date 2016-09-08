@@ -30,7 +30,7 @@
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
                  [yada "1.1.33"]]
 
-  :test-selectors {:default (fn [m] (not (:integration m)))
+  :test-selectors {:default (complement :integration)
                    :integration :integration}
 
   :global-vars {*warn-on-reflection* true

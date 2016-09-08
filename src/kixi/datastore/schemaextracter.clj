@@ -83,7 +83,7 @@
 
 (def numeric {:header {:matcher (constantly true)
                        :contractions []}
-              :value {:matcher (partial re-matches #"$\d+\.?\d*$")
+              :value {:matcher (partial re-matches #"^\d+\.?\d*$")
                       :contractions [oac-super-group]}
               :schema "numeric"})
 
@@ -124,10 +124,10 @@
 
 (defn value-schema
   [value-line]
-  (->> value-line
-       parse-csv
-       first
-       (map (partial schema-for :value [string]))))
+  (some->> value-line
+           parse-csv
+           first
+           (map (partial schema-for :value [string]))))
 
 (defn extract-schema-csv
   [documentstore metadata]
