@@ -1,0 +1,10 @@
+BOROUGH,HPSC_Survey,Total number of toilets,Local authority flush toilets,Local authority steet urinals,Toilets in other public buildings,Community Toilet Scheme,Other private toilets accessible to public,Street or park name,Address or description,Postcode,Map,Disabled access,Charging,Opening hours,Staffing,Baby changing facilities,Website
+Barking and Dagenham,no,10,8,0,0,0,2,No information available,,,,No information available,,,,,
+Barnet,no,,,,,,,No information available,,,,No information available,,,,,http://www.barnet.gov.uk/public-conveniences
+Bexley,no,16,16,0,0,0,0,Yes,No,No,Yes,Some,Some,Some,No,No,http://www.bexley.gov.uk/index.aspx?articleid=5988
+Brent,no,32,13,0,19,0,0,Yes,Yes,Yes,Yes,Yes,No,Yes,No,Yes,http://www.brent.gov.uk/streetcare2.nsf/Public%20toilets/LBB-136
+Bromley,no,29,16,0,0,13,0,Yes,Only CTS,No,No,Only LA,No,Only LA,Yes,No,http://www.bromley.gov.uk/transportandstreets/neatstreet/public_toilets.htm
+Camden,yes,35,27,0,1,6,1,Yes,Yes,Yes,Yes,Yes,No,Only LA,No,Only LA,http://www.camden.gov.uk/ccm/content/contacts/categories/public-toilets-in-camden.en
+City of London,no,50,19,0,0,31,0,Yes,Only LA,No,No,Only LA,Yes,Only LA,Yes,No,http://www.cityoflondon.gov.uk/scripts/htm_hl.pl?DB=col&STEMMER=en&WORDS=toilet&ALL=&ANY=&EXACTB=0&PHRASE=&EXACTP=0&CATEGORIES=&SIMPLE=toilet&COLOUR=Red&STYLE=s&URL=http://www.cityoflondon.gov.uk/Corporation/LGNL_Services/Transport_and_streets/Street_care_and_cleaning/Public_toilets.htm#muscat_highlighter_first_match
+Croydon,yes,20,20,0,0,0,0,Yes,Yes,No,No,Yes,No,Yes,No,Yes,http://www.croydon.gov.uk/transportandstreets/streets/pcs
+Ealing,no,19,11,0,0,8,0,Yes,Only CTS,No,No,Yes,Yes,Yes,No,Only CTS,http://www2.ealing.gov.uk/services/environment/public_toilets/
