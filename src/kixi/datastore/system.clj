@@ -11,7 +11,7 @@
              [metrics :as metrics]
              [web-server :as web-server]
              [schemaextracter :as se]
-             [structual-validation :as sv]]
+             [structural-validation :as sv]]
             [kixi.datastore.documentstore
              [local :as local]
              [s3 :as s3]]
@@ -38,7 +38,7 @@
    :documentstore []
    :metadatastore [:communications]
    :schema-extracter [:communications :documentstore]
-   :structual-validator [:communications :documentstore]})
+   :structural-validator [:communications :documentstore]})
 
 (defn new-system-map
   [config]
@@ -54,7 +54,7 @@
    :communications (case (first (keys (:communications config)))
                      :coreasync (coreasync/map->CoreAsync {}))
    :schema-extracter (se/map->SchemaExtracter {})
-   :structual-validator (sv/map->StructuralValidator {})))
+   :structural-validator (sv/map->StructuralValidator {})))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"
