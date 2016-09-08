@@ -19,6 +19,7 @@
                  [com.stuartsierra/component "0.3.1"]
                  [com.taoensso/timbre "4.7.0"]
                  [digest "1.4.4"]
+                 [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]
                  [metrics-clojure-jvm ~metrics-version]
                  [metrics-clojure-ring ~metrics-version]

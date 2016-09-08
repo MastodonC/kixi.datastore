@@ -1,0 +1,21 @@
+dataset_url,filename,file_url
+http://data.london.gov.uk/dataset/london-average-air-quality-levels,air-quality-london-time-of-day.csv,https://files.datapress.com/london/dataset/london-average-air-quality-levels/2016-07-25T10:56:55/air-quality-london-time-of-day.csv
+http://data.london.gov.uk/dataset/recorded-crime-summary-data-london-lsoa-level,lsoa.csv,https://files.datapress.com/london/dataset/recorded-crime-summary-data-london-lsoa-level/2015-11-19T10:50:45/lsoa.csv
+http://data.london.gov.uk/dataset/migrants-united-kingdom-decade-arrival-borough,year-of-arrival-into-UK.csv,https://files.datapress.com/london/dataset/migrants-united-kingdom-decade-arrival-borough/year-of-arrival-into-UK.csv
+http://data.london.gov.uk/dataset/public-toilets,public-toilet-borough-grid.csv,https://files.datapress.com/london/dataset/public-toilets/public-toilet-borough-grid.csv
+http://data.london.gov.uk/dataset/london-elections-results-2012-wards-boroughs-constituency,gla-elections-votes-ward-2012-+Wards+&+Postals.csv ,https://files.datapress.com/london/dataset/london-elections-results-2012-wards-boroughs-constituency/gla-elections-votes-ward-2012-+Wards+&+Postals.csv
+http://data.london.gov.uk/dataset/london-underground-signals-passed-danger,tfl-lu-spad-2011-2012.csv,https://files.datapress.com/london/dataset/london-underground-signals-passed-danger/tfl-lu-spad-2011-2012.csv
+http://data.london.gov.uk/dataset/mylondon,summary.csv,https://files.datapress.com/london/dataset/mylondon/2015-10-22T07:53:10/summary.csv
+http://data.london.gov.uk/dataset/mylondon,bbox.csv,https://files.datapress.com/london/dataset/mylondon/bbox.csv
+http://data.london.gov.uk/dataset/mylondon,modelled_OA_rents.csv,https://files.datapress.com/london/dataset/mylondon/modelled_OA_rents.csv
+http://data.london.gov.uk/dataset/mylondon,MyLondon_traveltime_to_Bank_station_OA.csv,https://files.datapress.com/london/dataset/mylondon/MyLondon_traveltime_to_Bank_station_OA.csv
+http://data.london.gov.uk/dataset/census-2001-output-area-classification,2001-oa-classification-london.csv,https://files.datapress.com/london/dataset/census-2001-output-area-classification/2001-oa-classification-london.csv
+http://data.london.gov.uk/dataset/property-build-period-lsoa,dwelling-period-built-2015-lsoa-msoa.csv,https://files.datapress.com/london/dataset/property-build-period-lsoa/dwelling-period-built-2015-lsoa-msoa.csv
+http://data.london.gov.uk/dataset/areas-intensification-points-london-plan-consultation-2009,lp-consultation-oct-2009-areas-for-intensification-points.csv,https://files.datapress.com/london/dataset/areas-intensification-points-london-plan-consultation-2009/lp-consultation-oct-2009-areas-for-intensification-points.csv
+http://data.london.gov.uk/dataset/average-house-prices-ward-lsoa-msoa,house-prices-Wards.csv,https://files.datapress.com/london/dataset/average-house-prices-ward-lsoa-msoa/2016-07-06T14:33:13/house-prices-Wards.csv
+http://data.london.gov.uk/dataset/physically-active-children,active-children-borough.csv,https://files.datapress.com/london/dataset/physically-active-children/active-children-borough.csv
+http://data.london.gov.uk/dataset/census-2001-key-statistics-17-cars-and-vans,census-2001-ks17-borough.csv,https://files.datapress.com/london/dataset/census-2001-key-statistics-17-cars-and-vans/census-2001-ks17-borough.csv
+http://data.london.gov.uk/dataset/lfepa-expenditure,201608-AP-over-250.csv,https://files.datapress.com/london/dataset/lfepa-expenditure/2016-09-02T08:56:59/201608-AP-over-250.csv
+http://data.london.gov.uk/dataset/london-assembly-cycle-survey-responses,assembly-bike-survey-data.csv,https://files.datapress.com/london/dataset/london-assembly-cycle-survey-responses/assembly-bike-survey-data.csv
+http://data.london.gov.uk/dataset/lfepa-procurement-information---current-contracts,Full%20list%20of%20current%20contracts%20at%2031%20August%202016.csv,https://files.datapress.com/london/dataset/lfepa-procurement-information---current-contracts/2016-09-06T13:53:48/Full%20list%20of%20current%20contracts%20at%2031%20August%202016.csv
+http://data.london.gov.uk/dataset/tourism-trips-borough,tourism-trips-borough.csv,https://files.datapress.com/london/dataset/tourism-trips-borough/tourism-trips-borough.csv

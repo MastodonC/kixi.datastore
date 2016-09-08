@@ -51,7 +51,8 @@
 (defn get-metadata
   [id]
   (client/get (metadata-url id) {:as :json
-                                 :accept :json}))
+                                 :accept :json
+                                 :throw-exceptions false}))
 
 (defn extract-id
   [file-response]
@@ -84,10 +85,22 @@
                        f))
     (.delete f)))
 
-(deftest metadata-manipulation
+(defn wait-for-metadata-key
+  ([id k]
+   (wait-for-metadata-key id k 10))
+  ([id k tries]
+   (when (pos? tries)
+     (Thread/sleep 500)
+     (let [md (get-metadata id)]
+       (if-not (get-in md [:body k])
+         (recur id k (dec tries))
+         md)))))
+
+(deftest wait-for-schema-works
   (let [r (post-file "./test-resources/10B-file.txt")
-        m (get-metadata (extract-id r))]
+        m (wait-for-metadata-key (extract-id r) :schema)]
     (is (= 201
            (:status r)))
     (is (= 200
-           (:status m)))))
+           (:status m)))
+    (is (get-in m [:body :schema]))))
