@@ -18,7 +18,9 @@
             [kixi.datastore.communications
              [coreasync :as coreasync]]
             [kixi.datastore.metadatastore
-             [inmemory :as inmemory]]))
+             [inmemory :as md-inmemory]]
+            [kixi.datastore.schemastore
+             [inmemory :as ss-inmemory]]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -34,9 +36,10 @@
   {:metrics [] 
    :communications []
    :logging [:metrics]
-   :web-server [:metrics :logging :documentstore :metadatastore :communications]
+   :web-server [:metrics :logging :documentstore :metadatastore :schemastore :communications]
    :documentstore []
    :metadatastore [:communications]
+   :schemastore []
    :schema-extracter [:communications :documentstore]
    :structural-validator [:communications :documentstore]})
 
@@ -50,7 +53,9 @@
                     :local (local/map->Local {})
                     :s3 (s3/map->S3 {}))
    :metadatastore (case (first (keys (:metadatastore config)))
-                    :inmemory (inmemory/map->InMemory {}))
+                    :inmemory (md-inmemory/map->InMemory {}))
+   :schemastore (case (first (keys (:schemastore config)))
+                    :inmemory (ss-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
                      :coreasync (coreasync/map->CoreAsync {}))
    :schema-extracter (se/map->SchemaExtracter {})
@@ -72,7 +77,8 @@
               (-> config
                   (raise-first :documentstore)
                   (raise-first :metadatastore)
-                  (raise-first :communications))))
+                  (raise-first :communications)
+                  (raise-first :schemastore))))
 
 (defn new-system
   [profile]

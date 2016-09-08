@@ -8,6 +8,7 @@
             [kixi.datastore.documentstore :as ds]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.communications :as c]
+            [kixi.datastore.schemastore :as ss]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada             
@@ -156,11 +157,11 @@
                                      (get-in part [:content-disposition :params "name"])
                                      (:size-bytes part)))}))
 
-(defn create-file
+(defn file-create
   [metrics documentstore communications]
   (resource
    metrics
-   {:id :create
+   {:id :file-create
     :methods
     {:post
      {:consumes "multipart/form-data"
@@ -172,13 +173,13 @@
                         p (merge params
                                  {:type :csv})]
                     (c/submit-metadata communications p)
-                    (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
+                    (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
 
-(defn file-resource 
+(defn file-entry 
   [metrics documentstore]
   (resource
    metrics
-   {:id :entry
+   {:id :file-entry
     :methods
     {:get {:produces [{:media-type #{"application/octet-stream"}}]
            :response
@@ -191,7 +192,7 @@
   [metrics metadatastore]
   (resource
    metrics
-   {:id :meta
+   {:id :file-meta
     :methods
     {:get {:produces "application/json"
            :response
@@ -199,23 +200,49 @@
              (let [id (get-in ctx [:parameter :path :id])]
                (ms/fetch metadatastore id)))}}}))
 
+(defn schema-create
+  [metrics schemastore]
+  (resource
+   metrics
+   {:id :schema-create
+    :methods
+    {:post
+     {:consumes "application/json"
+      :response (fn [ctx]
+                  true)}}}))
+
+(defn schema-entry
+  [metrics schemastore]
+  (resource
+   metrics
+   {:id :schema-entry
+    :methods
+    {:get {:produces "application/json"
+           :response
+           (fn [ctx]
+             (let [id (get-in ctx [:parameter :path :id])]
+               (ms/fetch schemastore id)))}}}))
+
 (defn healthcheck
   [ctx]
   ;Return truthy for now, but later check dependancies
   "All is well")
 
 (defn service-routes 
-  [metrics documentstore metadatastore communications]
-  ["/file" [["" (create-file metrics documentstore communications)]
-            [["/" :id] (file-resource metrics documentstore)]
-            [["/" :id "/meta"] (file-meta metrics metadatastore)]]])
+  [metrics documentstore metadatastore communications schemastore]
+  ["" 
+   [["/file" [["" (file-create metrics documentstore communications)]
+              [["/" :id] (file-entry metrics documentstore)]
+              [["/" :id "/meta"] (file-meta metrics metadatastore)]]]
+    ["/schema" [["" (schema-create metrics schemastore)]
+                [["/" :id] (schema-entry metrics schemastore)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics documentstore metadatastore communications]
+  [metrics documentstore metadatastore communications schemastore]
   [""
    [(hello-routes metrics)
-    (service-routes metrics documentstore metadatastore communications)
+    (service-routes metrics documentstore metadatastore communications schemastore)
     ["/healthcheck" healthcheck]
     
     #_      ["/api" (-> roots
@@ -244,7 +271,7 @@
 
 
 (defrecord WebServer 
-    [port listener log-config metrics documentstore metadatastore communications]
+    [port listener log-config metrics documentstore metadatastore communications schemastore]
     component/Lifecycle
     (start [component]
       (if listener
@@ -252,7 +279,7 @@
         (let [vhosts-model
               (vhosts-model
                [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics documentstore metadatastore communications)])
+                (routes metrics documentstore metadatastore communications schemastore)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))

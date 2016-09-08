@@ -1,3 +1,4 @@
 (ns kixi.datastore.schemastore)
 
-(defprotocol SchemaStore)
+(defprotocol SchemaStore
+  (fetch [id]))

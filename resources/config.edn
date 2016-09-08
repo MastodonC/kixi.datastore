@@ -29,4 +29,5 @@
            :ns-blacklist ["org.eclipse.jetty"]}
  :documentstore {:local {:base-dir "/tmp/kixi-datastore"}}
  :metadatastore {:inmemory {}}
+ :schemastore {:inmemory {}}
  :communications {:coreasync {:buffer-size 1}}}
