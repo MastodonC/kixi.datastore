@@ -2,7 +2,6 @@
   (:require [bidi
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
-            [byte-streams :as bs]
             [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
             [kixi.datastore.documentstore :as ds]
