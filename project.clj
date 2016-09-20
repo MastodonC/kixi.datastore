@@ -14,6 +14,7 @@
                  [byte-streams "0.2.2"]
                  [clj-http "2.2.0"]
                  [clojure-csv/clojure-csv "2.0.1"]
+                 [com.cognitect/transit-clj "0.8.288"]
                  [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
                  [com.stuartsierra/component "0.3.1"]

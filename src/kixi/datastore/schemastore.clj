@@ -1,7 +1,6 @@
 (ns kixi.datastore.schemastore)
 
-(defrecord Schema
-    [])
-
 (defprotocol SchemaStore
-  (fetch [id]))
+  (fetch-definition [this spec-name])
+  (fetch-spec [this spec-name])
+  (persist [this spec-name spec-definition]))

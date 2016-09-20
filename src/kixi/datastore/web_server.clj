@@ -8,12 +8,14 @@
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.communications :as c]
             [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.transit :as t]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada             
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]])
+            [yada.resources.webjar-resource :refer [new-webjar-resource]]
+            [kixi.datastore.transit :as t])
   (:import [kixi.datastore.metadatastore DocumentMetaData]))
 
 (defn say-hello [ctx]
@@ -197,28 +199,25 @@
              (let [id (get-in ctx [:parameters :path :id])]
                (ms/fetch metadatastore id)))}}}))
 
-(defn schema-create
+(defn schema-resources
   [metrics schemastore]
   (resource
    metrics
    {:id :schema-create
     :methods
-    {:post
-     {:consumes "application/json"
-      :response (fn [ctx]
-                  true)}}}))
-
-(defn schema-entry
-  [metrics schemastore]
-  (resource
-   metrics
-   {:id :schema-entry
-    :methods
-    {:get {:produces "application/json"
+    {:post {:consumes "application/transit+json"
+            :response (fn [ctx]                  
+                        (let [name (get-in ctx [:parameters :path :name])
+                              body (get-in ctx [:body])]
+                          (ss/persist schemastore name (:definition body))
+                          true))}
+     :get {:produces "application/transit+json"
            :response
            (fn [ctx]
-             (let [id (get-in ctx [:parameter :path :id])]
-               (ms/fetch schemastore id)))}}}))
+             (let [name (get-in ctx [:parameters :path :name])]
+               (some->> name
+                        (ss/fetch-definition schemastore)
+                        (hash-map :definition))))}}}))
 
 (defn healthcheck
   [ctx]
@@ -231,8 +230,7 @@
    [["/file" [["" (file-create metrics documentstore communications)]
               [["/" :id] (file-entry metrics documentstore)]
               [["/" :id "/meta"] (file-meta metrics metadatastore)]]]
-    ["/schema" [["" (schema-create metrics schemastore)]
-                [["/" :id] (schema-entry metrics schemastore)]]]]])
+    ["/schema" [[["/" :name] (schema-resources metrics schemastore)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."

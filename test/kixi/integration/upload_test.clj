@@ -5,37 +5,18 @@
             [clj-http.client :as client]
             [clojure.java.io :as io]
             [digest :as d]
-            [kixi.repl :as repl])
+            [kixi.integration.base :refer [service-url cycle-system-fixture uuid]])
   (:import [java.io 
             File
             FileNotFoundException]))
 
-(defn cycle-system-fixture
-  [all-tests]
-  (repl/start)
-  (all-tests)
-  ;(repl/stop)
-  )
-
 (use-fixtures :once cycle-system-fixture)
-
-(defmacro deftest-broken
-  [name & everything]
-  `(clojure.test/deftest ~(vary-meta name assoc :integration true) ~@everything))
-
-(defn service-url
-  []
-  (or (System/getenv "SERVICE_URL") "localhost:8080"))
 
 (def file-url (str "http://" (service-url) "/file"))
 
 (defn metadata-url
   [id]
   (str file-url "/" id "/meta"))
-
-(defn uuid
-  []
-  (str (java.util.UUID/randomUUID)))
 
 (defn check-file
   [file-name]
