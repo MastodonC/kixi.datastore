@@ -5,25 +5,27 @@
             [kixi.datastore.communications
              :refer [attach-pipeline-processor
                      detach-processor]]
-            [kixi.datastore.documentstore
+            [kixi.datastore.filestore
              :refer [retrieve]]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
-  (:import [java.io File]))
+  (:import [java.io File]
+           [kixi.datastore.metadatastore FileMetaData]))
 
 
 (defn requires-structural-validation?
-  [metadata]
-  ((complement :structural-validation) metadata))
+  [msg]
+  (and (instance? FileMetaData msg)
+       ((complement :structural-validation) msg)))
 
 
 (defn metadata->file
-  [documentstore metadata]
+  [filestore metadata]
   (let [id (:id metadata)
         f (File/createTempFile id ".tmp")]
     (.deleteOnExit f)
     (bs/transfer
-     (retrieve documentstore id)
+     (retrieve filestore id)
      f)
     f))
 
@@ -41,9 +43,9 @@
          :e e}))))
 
 (defn structural-validator
-  [documentstore]
+  [filestore]
   (fn [metadata]
-    (let [^File file (metadata->file documentstore metadata)]
+    (let [^File file (metadata->file filestore metadata)]
       (try
         (assoc metadata
                :structural-validation
@@ -55,16 +57,16 @@
 (defprotocol IStructuralValidator)
 
 (defrecord StructuralValidator
-    [communications documentstore structural-validator-fn]
+    [communications filestore structural-validator-fn]
     IStructuralValidator
     component/Lifecycle
     (start [component]
       (if-not structural-validator-fn
-        (let [sv-fn (structural-validator documentstore)]
+        (let [sv-fn (structural-validator filestore)]
           (info "Starting Structural Validator")
           (attach-pipeline-processor communications
                                      requires-structural-validation?
-                                     (structural-validator documentstore))
+                                     (structural-validator filestore))
           (assoc component
                  :structural-validator-fn sv-fn))
         component))

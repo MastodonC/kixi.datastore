@@ -61,7 +61,7 @@
       (if-not data
         (let [new-data (atom {})]
           (info "Starting InMemory Schema Store")
-          (attach-sink-processor communications
+        #_  (attach-sink-processor communications
                                  (partial instance? ::spec-definition) ;this needs a good upgrade
                                  (partial persist-new-schema new-data) ;this won't work!
                                  )

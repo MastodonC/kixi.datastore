@@ -1,4 +1,7 @@
-(ns kixi.datastore.schemastore)
+(ns kixi.datastore.schemastore
+  (:require [clojure.spec :as s]))
+
+(s/def id string?)
 
 (defprotocol SchemaStore
   (fetch-definition [this spec-name])

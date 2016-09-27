@@ -27,7 +27,8 @@
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]}
- :documentstore {:local {:base-dir "/tmp/kixi-datastore"}}
+ :filestore {:local {:base-dir "/tmp/kixi-datastore"}}
  :metadatastore {:inmemory {}}
  :schemastore {:inmemory {}}
+ :segmentation {:inmemory {}}
  :communications {:coreasync {:buffer-size 1}}}
