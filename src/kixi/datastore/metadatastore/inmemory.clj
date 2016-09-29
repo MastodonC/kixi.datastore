@@ -20,6 +20,10 @@
 (defrecord InMemory
     [data communications]
     MetaDataStore
+    (exists [this id]
+      ((set 
+        (keys @data))
+       id))
     (fetch [this id]
       (get @data id))
     (query [this criteria])

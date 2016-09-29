@@ -56,5 +56,6 @@
           :opt [::segmentations ::segment]))
 
 (defprotocol MetaDataStore
+  (exists [this id])
   (fetch [this id])
   (query [this criteria]))

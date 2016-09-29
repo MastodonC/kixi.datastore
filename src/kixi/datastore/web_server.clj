@@ -215,7 +215,7 @@
                 (ms/fetch metadatastore id)))}}}))
 
 (defn file-segmentation-create
-  [metrics communications]
+  [metrics communications metadatastore]
   (resource 
    metrics
    {:id :file-segmentation
@@ -227,15 +227,19 @@
                     file-id (get-in ctx [:parameters :path :id])
                     body (get-in ctx [:body])
                     type (:type body)]
-                (case type
-                  "column" (let [col-name (:column-name body)]
-                             (c/submit communications
-                                       {:kixi.datastore.request/type ::seg/group-rows-by-column
-                                        ::seg/id id
-                                        ::ms/id file-id
-                                        ::seg/column-name col-name})))
-                (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
-                                                                                                :id file-id}})))))}}}))
+                (if (ms/exists metadatastore file-id)
+                  (do 
+                    (case type
+                      "column" (let [col-name (:column-name body)]
+                                 (c/submit communications
+                                           {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                            ::seg/id id
+                                            ::ms/id file-id
+                                            ::seg/column-name col-name})))
+                    (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
+                                                                                                    :id file-id}}))))
+                  (assoc (:response ctx) ;don't know why i'm having to do this here...
+                         :status 404))))}}}))
 
 (defn file-segmentation-entry 
   [metrics filestore]
@@ -284,7 +288,7 @@
    [["/file" [["" (file-create metrics filestore communications)]
               [["/" :id] (file-entry metrics filestore)]
               [["/" :id "/meta"] (file-meta metrics metadatastore)]
-              [["/" :id "/segmentation"] (file-segmentation-create metrics communications)]
+              [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
 ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
