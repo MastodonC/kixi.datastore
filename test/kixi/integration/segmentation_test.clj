@@ -55,7 +55,6 @@
                  (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
                  (dload-file-by-id seg-id)))))))))
 
-
 (deftest group-rows-by-invalid-column
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv")
         base-file-id (extract-id pfr)]
@@ -72,7 +71,9 @@
             segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
         (is-submap
          {:status 200
-          :body {::ms/segmentations [{::seg/created false}]}}
+          :body {::ms/segmentations [{::seg/created false
+                                      ::seg/error {::seg/reason "invalid-column"
+                                                   ::seg/cause "foo"}}]}}
          base-file-meta-resp)))))
 
 
