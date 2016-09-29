@@ -252,7 +252,7 @@
                             id)))}}}))
 
 (defn schema-resources
-  [metrics schemastore]
+  [metrics schemastore communications]
   (resource
    metrics
    {:id :schema-create
@@ -261,7 +261,9 @@
             :response (fn [ctx]                  
                         (let [name (get-in ctx [:parameters :path :name])
                               body (get-in ctx [:body])]
-                          (ss/persist schemastore name (:definition body))
+                          (c/submit communications
+                                    {::ss/name name
+                                     ::ss/definition (:definition body)})
                           true))}
      :get {:produces "application/transit+json"
            :response
@@ -286,7 +288,7 @@
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
 ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
-    ["/schema" [[["/" :name] (schema-resources metrics schemastore)]]]]])
+    ["/schema" [[["/" :name] (schema-resources metrics schemastore communications)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."

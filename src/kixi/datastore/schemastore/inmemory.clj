@@ -2,33 +2,18 @@
   (:require [clojure.spec :as s]
             [com.stuartsierra.component :as component]
             [kixi.datastore.communications :refer [Communications]]
-            [kixi.datastore.schemastore :refer [SchemaStore]]
+            [kixi.datastore.schemastore :refer [SchemaStore] :as ss]
             [kixi.datastore.communications
              :refer [attach-sink-processor]]
             [kixi.datastore.transit :as t]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
-(s/def ::spec-name 
-  keyword?)
-
-(s/def ::predicate symbol?)
-
-(s/def ::spec-definition
-  (s/or 
-   :predicate ::predicate
-   ::expression (s/cat :conformer symbol?
-                       :args (s/* (constantly true)))))
-
-(s/fdef persist-new-schema
-        :args (s/cat :spec-name ::spec-name
-                     :spec-definition ::spec-definition))
-
 (defn persist-new-schema
-  [data spec-name spec-definition]
+  [data create-request]
   (swap! data 
          assoc
-         spec-name
-         (t/clj-form->json-str spec-definition)))
+         (::ss/name create-request)
+         (t/clj-form->json-str (::ss/definition create-request))))
 
 (defn read-definition
   [data name]
@@ -53,18 +38,14 @@
       (read-definition data name))
     (fetch-spec [_ name]
       (read-spec data name))
-    (persist [_ spec-name spec-definition]
-      (persist-new-schema
-       data spec-name spec-definition))
     component/Lifecycle
     (start [component]
       (if-not data
         (let [new-data (atom {})]
           (info "Starting InMemory Schema Store")
-        #_  (attach-sink-processor communications
-                                 (partial instance? ::spec-definition) ;this needs a good upgrade
-                                 (partial persist-new-schema new-data) ;this won't work!
-                                 )
+          (attach-sink-processor communications
+                                 #(s/valid? ::ss/create-request %)
+                                 (partial persist-new-schema new-data))
           (assoc component :data new-data))
         component))
     (stop [component]

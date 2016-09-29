@@ -21,6 +21,7 @@
               (let [result (processor msg)]
                 (when (and put-result 
                            result)
+                  
                   (async/>! (:in cm)
                             result)))))
           (catch Exception e
