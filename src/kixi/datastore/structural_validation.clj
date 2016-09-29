@@ -1,27 +1,27 @@
 (ns kixi.datastore.structural-validation
   (:require [byte-streams :as bs]
             [clojure-csv.core :as csv :refer [parse-csv]]
+            [clojure.spec :as s]
             [com.stuartsierra.component :as component]
             [kixi.datastore.communications
              :refer [attach-pipeline-processor
                      detach-processor]]
             [kixi.datastore.filestore
              :refer [retrieve]]
+            [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
-  (:import [java.io File]
-           [kixi.datastore.metadatastore FileMetaData]))
+  (:import [java.io File]))
 
 
 (defn requires-structural-validation?
   [msg]
-  (and (instance? FileMetaData msg)
+  (and (s/valid? ::ms/filemetadata msg)
        ((complement :structural-validation) msg)))
-
 
 (defn metadata->file
   [filestore metadata]
-  (let [id (:id metadata)
+  (let [id (::ms/id metadata)
         f (File/createTempFile id ".tmp")]
     (.deleteOnExit f)
     (bs/transfer
@@ -49,8 +49,8 @@
       (try
         (assoc metadata
                :structural-validation
-               (case (:type metadata)
-                 :csv (csv-structural-validator file)))
+               (case (::ms/type metadata)
+                 "csv" (csv-structural-validator file)))
         (finally
           (.delete file))))))
 

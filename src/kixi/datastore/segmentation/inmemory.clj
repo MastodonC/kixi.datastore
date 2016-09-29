@@ -3,15 +3,14 @@
             [com.stuartsierra.component :as component]
             [clj-time.core :refer [now]]
             [clojure.java.io :as io]
+            [clojure.spec :as s]
             [clojure-csv.core :as csv :refer [parse-csv write-csv]]
-            [kixi.datastore.segmentation :as seg :refer [Segmentation SegmentationRequest]]
+            [kixi.datastore.segmentation :as seg :refer [Segmentation]]
             [kixi.datastore.communications :refer [Communications] :as comms]
             [kixi.datastore.filestore :as kdfs]
-            [kixi.datastore.metadatastore :as kdmds]
+            [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
-            [kixi.datastore.communications :as c])
-  (:import [kixi.datastore.segmentation ColumnSegmentationRequest]
-           [kixi.datastore.metadatastore FileMetaData]))
+            [kixi.datastore.communications :as c]))
 
 (defn uuid
   []
@@ -81,34 +80,41 @@
     (let [_ (.close ^java.io.OutputStream (:output-stream segment-data))
           _ (bs/transfer (:file segment-data)
                          (kdfs/output-stream filestore (:id segment-data)))
-          _ (comms/submit communications (kdmds/map->FileMetaData {:id (:id segment-data)
-                                                                   :type (:type basemetadata)
-                                                                   :schema-id (:schema-id basemetadata)
-                                                                   :segment {:source-file-id (:id basemetadata)
-                                                                             :request request
-                                                                             :value (:value segment-data)}
-                                                                   :size-bytes (:size-bytes segment-data)}))]
+          _ (comms/submit communications 
+                          (assoc (select-keys basemetadata 
+                                              [::ms/type
+                                               ::ms/name
+                                               ::kixi.datastore.schemastore/id]) 
+                                 ::ms/id (:id segment-data)
+                                 ::ms/size-bytes (:size-bytes segment-data)
+                                 ::ms/provanance {::ms/source "segmentation"
+                                                  ::ms/parent-id (::ms/id basemetadata)}
+                                 ::seg/segment {::seg/request request
+                                                ::seg/line-count (:lines segment-data)
+                                                ::seg/value (:value segment-data)}))]
       (:id segment-data))))
 
 (defn column-segmentation-request-processor
   [filestore metadatastore communications]
   (fn [request]
-    (when-let [metadata (kdmds/fetch metadatastore (:file-id request))]
-      (case (:type metadata)
-        :csv (->>  (:file-id request)
-                    (retrieve-file-to-local filestore)
-                    (segmentate-file-by-column-values (:column-name request))                   
-                    (map (upload-segment filestore communications metadata request))
-                    (hash-map :created true :segmentation-request request :timestamp (now) :segment-ids)
-                    vector
-                    (update metadata :segmentation concat))
+    (prn "RRR: " request)
+    (when-let [metadata (ms/fetch metadatastore (::ms/id request))]
+      (prn "MM: " metadata)  
+      (case (::ms/type metadata)
+        "csv" (->> (::ms/id request)
+                   (retrieve-file-to-local filestore)
+                   (segmentate-file-by-column-values (::seg/column-name request))                   
+                   (map (upload-segment filestore communications metadata request))
+                   doall
+                   (hash-map ::seg/created true :kixi.datastore.request/request request ::seg/segment-ids)
+                   vector
+                   (update metadata ::ms/segmentations concat))
         (update metadata
-                :segmentation
+                ::ms/segmentations
                 concat
-                [{:created false
-                  :timestamp (now)
-                  :segmentation-request request
-                  :msg :unknown-file-type}])))))
+                [{::seg/created false
+                  ::seg/request request
+                  ::seg/msg :unknown-file-type}])))))
 
 (defrecord InMemory
     [communications filestore metadatastore]
@@ -117,7 +123,9 @@
     (start [component]
       (info "Starting InMemory Segmentation Processor")
       (c/attach-pipeline-processor communications
-                                   #(= (type %) ColumnSegmentationRequest)
+                                   #(and 
+                                         (s/valid? :kixi.datastore.request/request %)
+                                         (s/valid? ::seg/type (:kixi.datastore.request/type %)))
                                    (column-segmentation-request-processor filestore metadatastore communications))
       component)
     (stop [component]))

@@ -1,18 +1,14 @@
 (ns kixi.datastore.segmentation
-  (:require [clojure.spec :as s]
-            [kixi.datastore.filestore :as kdfs]))
+  (:require [clojure.spec :as s]))
 
 (s/def ::id string?)
-
 (s/def ::column-name string?)
+(s/def ::line-count int?)
+(s/def ::value (constantly true))
+(s/def ::created boolean?)
+(s/def ::msg #{:unknown-file-type})
+(s/def ::type #{::group-rows-by-column})
 
-(s/def column-segmentation-request
-  (s/keys :req [::id :kdfs/id ::column-name]))
-
-(defprotocol SegmentationRequest)
-
-(defrecord ColumnSegmentationRequest
-    [id file-id column-name]
-  SegmentationRequest)
+(s/def ::segment-ids (s/cat :ids (s/+ ::id)))
 
 (defprotocol Segmentation)

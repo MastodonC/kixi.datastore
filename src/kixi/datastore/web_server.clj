@@ -3,6 +3,7 @@
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
             [clojure.java.io :as io]
+            [clojure.spec :as spec]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
@@ -16,9 +17,7 @@
              [resource :as yr]
              [yada :as yada]]
             [yada.resources.webjar-resource :refer [new-webjar-resource]]
-            [kixi.datastore.transit :as t])
-  (:import [kixi.datastore.metadatastore FileMetaData]
-           [kixi.datastore.segmentation ColumnSegmentationRequest]))
+            [kixi.datastore.transit :as t]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -124,6 +123,8 @@
   (= "application/octet-stream" 
      (get-in part [:headers "content-type"])))
 
+(def Map {s/Keyword s/Any})
+
 (defrecord PartConsumer
     [filestore]
     yada.multipart/PartConsumer
@@ -152,11 +153,11 @@
                  (String. ^bytes (:bytes part) 
                           ^int offset 
                           ^int (- (alength ^bytes (:bytes part)) offset))))
-       FileMetaData (fn [part]
-                      (ms/map->FileMetaData {:id (:id part)
-                                             :pieces-count (:count part)
-                                             :name (get-in part [:content-disposition :params "name"])
-                                             :size-bytes (:size-bytes part)}))}))
+       Map (fn [part]
+             {:id (:id part)
+              :pieces-count (:count part)
+              :name (get-in part [:content-disposition :params "name"])
+              :size-bytes (:size-bytes part)})}))
 
 (defn file-create
   [metrics filestore communications]
@@ -166,17 +167,27 @@
     :methods
     {:post
      {:consumes "multipart/form-data"
-      :parameters {:body {:file FileMetaData
-                          :name s/Str}}
+      :produces "application/json"
+      :parameters {:body {:file Map
+                          :name s/Str
+                          :schema-id s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
-                        p (assoc (:file params)
-                                 :type :csv
-                                 :name (get-in ctx [:parameters :name])
-                                 :schema-id (get-in ctx [:parameters :schema-id]))]
-                    (c/submit communications p)
-                    (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (:id p)}})))))}}}))
+                        file (:file params)
+                        metadata {::ms/id (:id file)
+                                  ::ss/id (:schema-id params)
+                                  ::ms/type "csv"
+                                  ::ms/name (:name params)
+                                  ::ms/size-bytes (:size-bytes file)
+                                  ::ms/provanance {::ms/source "upload"                                                  
+                                                   ::ms/pieces-count (:pieces-count file)}}]
+                    (if (spec/valid? ::ms/filemetadata metadata)
+                      (do (c/submit communications metadata)                          
+                          (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))
+                      (assoc (:response ctx)
+                             :status 400
+                             :body (spec/explain-data ::ms/filemetadata metadata)))))}}}))
 
 (defn file-entry 
   [metrics filestore]
@@ -219,7 +230,10 @@
                 (case type
                   "column" (let [col-name (:column-name body)]
                              (c/submit communications
-                                       (seg/->ColumnSegmentationRequest id file-id col-name))))
+                                       {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                        ::seg/id id
+                                        ::ms/id file-id
+                                        ::seg/column-name col-name})))
                 (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                 :id file-id}})))))}}}))
 
@@ -327,13 +341,3 @@
 
 (defn new-web-server [config]
   (map->WebServer (:web-server config)))
-
-
-(extend-protocol yada.body/MessageBody
-  FileMetaData
-  (to-body [s representation]
-    (yada.body/encode-message (yada.body/render-map s representation) representation))
-
-  ColumnSegmentationRequest
-  (to-body [s representation]
-    (yada.body/encode-message (yada.body/render-map s representation) representation)))

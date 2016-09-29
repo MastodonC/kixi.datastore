@@ -2,6 +2,7 @@
   (:require [byte-streams :as bs]
             [clojure.test :refer :all   ;:exclude [deftest]
              ]
+            [cheshire.core :as json]
             [kixi.repl :as repl]
             [clj-http.client :as client]
             [clojure.java.io :as io]
@@ -10,6 +11,22 @@
             File
             FileNotFoundException]))
 
+(defmacro is-submap
+  [expected actual]
+  `(try
+     (let [act# ~actual
+           exp# ~expected
+           [only-in-ex# only-in-ac# shared#] (clojure.data/diff exp# act#)]
+       (if only-in-ex#
+         (clojure.test/do-report {:type :fail
+                                  :message "Missing expected elements."
+                                  :expected only-in-ex# :actual act#})
+         (clojure.test/do-report {:type :pass
+                                  :message "Matched"
+                                  :expected exp# :actual act#})))
+     (catch Throwable t#
+       (clojure.test/do-report {:type :error :message "Exception diffing"
+                   :expected nil :actual t#}))))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -29,6 +46,9 @@
   []
   (or (System/getenv "SERVICE_URL") "localhost:8080"))
 
+(defn parse-json
+  [s]
+  (json/parse-string s))
 
 (def file-url (str "http://" (service-url) "/file"))
 
@@ -54,7 +74,10 @@
   (check-file file-name)
   (client/post file-url
                {:multipart [{:name "file" :content (io/file file-name)}
-                            {:name "name" :content "foo"}]}))
+                            {:name "name" :content "foo"}
+                            {:name "schema-id" :content (uuid)}]
+                :throw-exceptions false
+                :accept :json}))
 
 (defn post-segmentation
   [url seg]

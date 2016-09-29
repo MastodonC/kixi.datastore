@@ -4,7 +4,12 @@
              ]
             [clj-http.client :as client]
             [clojure.java.io :as io]
-            [kixi.integration.base :refer :all]))
+            [kixi.integration.base :refer :all]
+            [kixi.datastore.metadatastore :as ms]))
+
+(alias 'ms 'kixi.datastore.metadatastore)
+(alias 'ss 'kixi.datastore.schemastore)
+(alias 'seg 'kixi.datastore.segmentation)
 
 (use-fixtures :once cycle-system-fixture)
 
@@ -22,21 +27,23 @@
                                  :column-name "cola"})]
       (is (= 201
              (:status sr)))
-      (wait-for-metadata-key base-file-id :segmentation)
-      (let [sgr (get-metadata base-file-id)
-            segment-ids (:segment-ids (first (:segmentation (:body sgr))))]
+      (wait-for-metadata-key base-file-id ::ms/segmentations)
+      (let [base-file-meta-resp (get-metadata base-file-id)
+            base-file-meta (:body base-file-meta-resp)
+            _ (prn "XXX: " base-file-meta)
+            segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
         (is (= 200
-               (:status sgr)))
+               (:status base-file-meta-resp)))
         (is (= 3
                (count segment-ids)))
         (doseq [seg-id segment-ids]
-          (let [seg-meta-resp (get-metadata seg-id)
-                seg-meta (:body seg-meta-resp)
-                _ (prn seg-meta)]
-            (is (= 200
-                   (:status seg-meta-resp)))
-            (is (= base-file-id
-                   (get-in seg-meta [:segment :source-file-id])))
-            (is (files-match?                  
-                 (str base-segmented-file-name (get-in seg-meta [:segment :value]) ".csv")
-                 (dload-file-by-id (:id seg-meta))))))))))
+          (let [seg-meta-resp (get-metadata seg-id)]
+            (is-submap {:status 200
+                        :body {::ss/id (::ss/id base-file-meta)
+                               ::ms/type (::ms/type base-file-meta)
+                               ::ms/provanance {::ms/parent-id base-file-id}
+                               ::ms/size-bytes 27}}
+                       seg-meta-resp)
+            (is (files-match?
+                 (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
+                 (dload-file-by-id seg-id)))))))))

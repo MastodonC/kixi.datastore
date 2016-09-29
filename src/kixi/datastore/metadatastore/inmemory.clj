@@ -1,22 +1,21 @@
 (ns kixi.datastore.metadatastore.inmemory
-  (:require [com.stuartsierra.component :as component]
+  (:require [clojure.spec :as s]
+            [com.stuartsierra.component :as component]
             [kixi.datastore.metadatastore
-             :refer [MetaDataStore] :as kdms]
+             :refer [MetaDataStore] :as ms]
             [kixi.datastore.communications
              :refer [attach-sink-processor]]
-            [taoensso.timbre :as timbre :refer [error info infof]])
-  (:import [kixi.datastore.metadatastore FileMetaData]))
+            [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defn update-metadata-processor
   [data]
-  (fn [^FileMetaData metadata]
+  (fn [metadata]
     (info "Update: " metadata)
     (swap! data 
-           #(update % (:id metadata)
+           #(update % (::ms/id metadata)
                     (fn [current-metadata]
-                      (kdms/map->FileMetaData
-                       (merge current-metadata
-                              metadata)))))))
+                      (merge current-metadata
+                             metadata))))))
 
 (defrecord InMemory
     [data communications]
@@ -31,7 +30,7 @@
         (let [new-data (atom {})]
           (info "Starting InMemory Metadata Store")
           (attach-sink-processor communications
-                                 #(instance? FileMetaData %)
+                                 #(s/valid? ::ms/filemetadata %)
                                  (update-metadata-processor new-data))
           (assoc component :data new-data))
         component))

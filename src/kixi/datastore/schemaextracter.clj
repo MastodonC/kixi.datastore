@@ -12,8 +12,7 @@
             [medley.core :refer [find-first assoc-some]]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
-  (:import [java.io File]
-           [kixi.datastore.metadatastore FileMetaData]))
+  (:import [java.io File]))
 
 (defn metadata->file
   [filestore metadata]
@@ -28,7 +27,7 @@
 (defn requires-schema-extraction?
   [msg]
   (and
-   (instance? FileMetaData msg)
+  ; (instance? FileMetaData msg)
    (get-in msg [:structural-validation :valid])
    ((complement :schema) msg)))
 
