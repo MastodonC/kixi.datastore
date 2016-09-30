@@ -3,32 +3,33 @@
             [clojure-csv.core :as csv :refer [parse-csv]]
             [clojure.string :refer [lower-case]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications.communications
+            [kixi.datastore.communications
              :refer [attach-pipeline-processor
                      detach-processor]]
-            [kixi.datastore.documentstore.documentstore
+            [kixi.datastore.filestore
              :refer [retrieve]]
+            [kixi.datastore.metadatastore]
             [medley.core :refer [find-first assoc-some]]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
   (:import [java.io File]))
 
 (defn metadata->file
-  [documentstore metadata]
-  (let [id (get-in metadata [:file :id])
+  [filestore metadata]
+  (let [id (get-in metadata [:id])
         f (File/createTempFile id ".tmp")]
     (.deleteOnExit f)
     (bs/transfer
-     (retrieve documentstore id)
+     (retrieve filestore id)
      f)
     f))
 
 (defn requires-schema-extraction?
-  [metadata]
+  [msg]
   (and
-   (get-in metadata [:structual-validation :valid])
-   ((complement :schema) metadata)))
-
+  ; (instance? FileMetaData msg)
+   (get-in msg [:structural-validation :valid])
+   ((complement :schema) msg)))
 
 
 (def gss-code {:header {:matcher #(some->> % lower-case (re-matches #"^gss[\.\-\ ]?code$"))
@@ -130,8 +131,8 @@
            (map (partial schema-for :value [string]))))
 
 (defn extract-schema-csv
-  [documentstore metadata]
-  (let [^File file (metadata->file documentstore metadata)]
+  [filestore metadata]
+  (let [^File file (metadata->file filestore metadata)]
     (try
       (-> {}
           (assoc-some :header (when (:header-line metadata)
@@ -146,22 +147,22 @@
 
 
 (defn extract-schema
-  [documentstore]
+  [filestore]
   (fn [metadata]
     (assoc metadata
            :schema
            (case (:type metadata)
-             :csv (extract-schema-csv documentstore metadata)))))
+             :csv (extract-schema-csv filestore metadata)))))
 
 (defprotocol ISchemaExtracter)
 
 (defrecord SchemaExtracter
-    [communications documentstore extract-schema-fn]
+    [communications filestore extract-schema-fn]
     ISchemaExtracter
     component/Lifecycle
     (start [component]
       (if-not extract-schema-fn
-        (let [es-fn (extract-schema documentstore)]
+        (let [es-fn (extract-schema filestore)]
           (info "Starting SchemaExtracter")
           (attach-pipeline-processor communications
                                      requires-schema-extraction?

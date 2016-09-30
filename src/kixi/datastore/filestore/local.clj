@@ -1,12 +1,12 @@
-(ns kixi.datastore.documentstore.local
+(ns kixi.datastore.filestore.local
   (:require [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.documentstore.documentstore :refer [DocumentStore]]
+            [kixi.datastore.filestore :refer [FileStore]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defrecord Local
     [base-dir ^java.io.File dir]
-    DocumentStore
+    FileStore
     (output-stream [this id]
       (let [^java.io.File file (io/file base-dir 
                                         id)

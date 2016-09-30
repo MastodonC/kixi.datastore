@@ -1,10 +1,10 @@
-(ns kixi.datastore.documentstore.s3
+(ns kixi.datastore.filestore.s3
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.documentstore.documentstore :refer [DocumentStore]]))
+            [kixi.datastore.filestore :refer [FileStore]]))
 
 (defrecord S3
     [region bucket key-prefix]
-    DocumentStore
+    FileStore
     (output-stream [this file-meta-data])
     (retrieve [this file-meta-data])
     component/Lifecycle

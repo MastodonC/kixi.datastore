@@ -12,13 +12,17 @@
              [web-server :as web-server]
              [schemaextracter :as se]
              [structural-validation :as sv]]
-            [kixi.datastore.documentstore
+            [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
             [kixi.datastore.communications
              [coreasync :as coreasync]]
             [kixi.datastore.metadatastore
-             [inmemory :as inmemory]]))
+             [inmemory :as md-inmemory]]
+            [kixi.datastore.schemastore
+             [inmemory :as ss-inmemory]]
+            [kixi.datastore.segmentation
+             [inmemory :as segementation-inmemory]]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -34,11 +38,13 @@
   {:metrics [] 
    :communications []
    :logging [:metrics]
-   :web-server [:metrics :logging :documentstore :metadatastore :communications]
-   :documentstore []
+   :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
+   :filestore []
    :metadatastore [:communications]
-   :schema-extracter [:communications :documentstore]
-   :structural-validator [:communications :documentstore]})
+   :schemastore [:communications]
+;   :schema-extracter [:communications :filestore]
+   :segmentation [:communications :metadatastore :filestore]
+   :structural-validator [:communications :filestore]})
 
 (defn new-system-map
   [config]
@@ -46,14 +52,18 @@
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
    :logging (logging/map->Log {})
-   :documentstore (case (first (keys (:documentstore config)))
+   :filestore (case (first (keys (:filestore config)))
                     :local (local/map->Local {})
                     :s3 (s3/map->S3 {}))
    :metadatastore (case (first (keys (:metadatastore config)))
-                    :inmemory (inmemory/map->InMemory {}))
+                    :inmemory (md-inmemory/map->InMemory {}))
+   :schemastore (case (first (keys (:schemastore config)))
+                    :inmemory (ss-inmemory/map->InMemory {}))
+   :segmentation (case (first (keys (:schemastore config)))
+                    :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
                      :coreasync (coreasync/map->CoreAsync {}))
-   :schema-extracter (se/map->SchemaExtracter {})
+ ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 
 (defn raise-first
@@ -70,9 +80,11 @@
   (merge-with merge
               system
               (-> config
-                  (raise-first :documentstore)
+                  (raise-first :filestore)
                   (raise-first :metadatastore)
-                  (raise-first :communications))))
+                  (raise-first :communications)
+                  (raise-first :schemastore)
+                  (raise-first :segmentation))))
 
 (defn new-system
   [profile]

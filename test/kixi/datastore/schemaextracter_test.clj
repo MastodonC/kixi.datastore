@@ -2,7 +2,6 @@
   (:require [clojure.test :refer :all]
             [kixi.datastore.schemaextracter :refer :all]))
 
-
 (deftest basic-selections
   (is (= string
          (schema-for :header "foo")))

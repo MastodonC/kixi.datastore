@@ -2,18 +2,22 @@
   (:require [bidi
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
-            [byte-streams :as bs]
             [clojure.java.io :as io]
+            [clojure.spec :as spec]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.documentstore.documentstore :as ds]
-            [kixi.datastore.metadatastore.metadatastore :as ms]
-            [kixi.datastore.communications.communications :as c]
+            [kixi.datastore.filestore :as ds]
+            [kixi.datastore.metadatastore :as ms]
+            [kixi.datastore.communications :as c]
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.segmentation :as seg]
+            [kixi.datastore.transit :as t]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada             
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]]
+            [kixi.datastore.transit :as t]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -109,8 +113,8 @@
 
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
-  [documentstore id part]
-  (transfer-piece! (ds/output-stream documentstore id) 
+  [filestore id part]
+  (transfer-piece! (ds/output-stream filestore id) 
                    part
                    true))
 
@@ -119,16 +123,15 @@
   (= "application/octet-stream" 
      (get-in part [:headers "content-type"])))
 
-(defrecord DocumentMeta
-    [id pieces-count name size-bytes])
+(def Map {s/Keyword s/Any})
 
 (defrecord PartConsumer
-    [documentstore]
+    [filestore]
     yada.multipart/PartConsumer
     (consume-part [_ state part]
       (if (file-part? part)
         (let [id (uuid)]
-          (flush-tiny-file! documentstore id part)
+          (flush-tiny-file! filestore id part)
           (-> part
               (assoc :id id
                      :count 1
@@ -138,7 +141,7 @@
         (add-part part state)))
     (start-partial [_ piece]
       (let [id (uuid)
-            out (ds/output-stream documentstore id)]
+            out (ds/output-stream filestore id)]
         (transfer-piece! out piece)
         (->StreamingPartial id out 
                             (dissoc piece :bytes) 
@@ -150,54 +153,129 @@
                  (String. ^bytes (:bytes part) 
                           ^int offset 
                           ^int (- (alength ^bytes (:bytes part)) offset))))
-       DocumentMeta (fn [part]
-                      (DocumentMeta. (:id part)
-                                     (:count part)
-                                     (get-in part [:content-disposition :params "name"])
-                                     (:size-bytes part)))}))
+       Map (fn [part]
+             {:id (:id part)
+              :pieces-count (:count part)
+              :name (get-in part [:content-disposition :params "name"])
+              :size-bytes (:size-bytes part)})}))
 
-(defn create-file
-  [metrics documentstore communications]
+(defn file-create
+  [metrics filestore communications]
   (resource
    metrics
-   {:id :create
+   {:id :file-create
     :methods
     {:post
      {:consumes "multipart/form-data"
-      :parameters {:body {:file DocumentMeta
-                          :name s/Str}}
-      :part-consumer (map->PartConsumer {:documentstore documentstore})
+      :produces "application/json"
+      :parameters {:body {:file Map
+                          :name s/Str
+                          :schema-id s/Str}}
+      :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
-                        p (merge params
-                                 {:type :csv})]
-                    (c/submit-metadata communications p)
-                    (java.net.URI. (:uri (yada/uri-for ctx :entry {:route-params {:id (get-in params [:file :id])}})))))}}}))
+                        file (:file params)
+                        metadata {::ms/id (:id file)
+                                  ::ss/id (:schema-id params)
+                                  ::ms/type "csv"
+                                  ::ms/name (:name params)
+                                  ::ms/size-bytes (:size-bytes file)
+                                  ::ms/provenance {::ms/source "upload"
+                                                   ::ms/pieces-count (:pieces-count file)}}]
+                    (if (spec/valid? ::ms/filemetadata metadata)
+                      (do (c/submit communications metadata)                          
+                          (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))
+                      (assoc (:response ctx)
+                             :status 400
+                             :body (spec/explain-data ::ms/filemetadata metadata)))))}}}))
 
-(defn file-resource 
-  [metrics documentstore]
+(defn file-entry 
+  [metrics filestore]
   (resource
    metrics
-   {:id :entry
+   {:id :file-entry
     :methods
     {:get {:produces [{:media-type #{"application/octet-stream"}}]
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (ds/retrieve documentstore 
+               (ds/retrieve filestore 
                             id)))}}}))
 
 (defn file-meta
   [metrics metadatastore]
   (resource
    metrics
-   {:id :meta
+   {:id :file-meta
     :methods
     {:get {:produces "application/json"
            :response
            (fn [ctx]
-             (let [id (get-in ctx [:parameter :path :id])]
-               (ms/fetch metadatastore id)))}}}))
+             (let [id (get-in ctx [:parameters :path :id])]
+                (ms/fetch metadatastore id)))}}}))
+
+(defn file-segmentation-create
+  [metrics communications metadatastore]
+  (resource 
+   metrics
+   {:id :file-segmentation
+    :methods
+    {:post {:consumes "application/json"
+            :response
+            (fn [ctx]
+              (let [id (uuid)
+                    file-id (get-in ctx [:parameters :path :id])
+                    body (get-in ctx [:body])
+                    type (:type body)]
+                (if (ms/exists metadatastore file-id)
+                  (do 
+                    (case type
+                      "column" (let [col-name (:column-name body)]
+                                 (c/submit communications
+                                           {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                            ::seg/id id
+                                            ::ms/id file-id
+                                            ::seg/column-name col-name})))
+                    (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
+                                                                                                    :id file-id}}))))
+                  (assoc (:response ctx) ;don't know why i'm having to do this here...
+                         :status 404))))}}}))
+
+(defn file-segmentation-entry 
+  [metrics filestore]
+  (resource
+   metrics
+   {:id :file-segmentation-entry
+    :methods
+    {:get {:produces "application/json"
+           :response
+           (fn [ctx]
+             ;get all the segmentation information (each segment is a FILE!)
+             (let [id (get-in ctx [:parameters :path :id])]
+               (ds/retrieve filestore 
+                            id)))}}}))
+
+(defn schema-resources
+  [metrics schemastore communications]
+  (resource
+   metrics
+   {:id :schema-create
+    :methods
+    {:post {:consumes "application/transit+json"
+            :response (fn [ctx]                  
+                        (let [name (get-in ctx [:parameters :path :name])
+                              body (get-in ctx [:body])]
+                          (c/submit communications
+                                    {::ss/name name
+                                     ::ss/definition (:definition body)})
+                          true))}
+     :get {:produces "application/transit+json"
+           :response
+           (fn [ctx]
+             (let [name (get-in ctx [:parameters :path :name])]
+               (some->> name
+                        (ss/fetch-definition schemastore)
+                        (hash-map :definition))))}}}))
 
 (defn healthcheck
   [ctx]
@@ -205,17 +283,23 @@
   "All is well")
 
 (defn service-routes 
-  [metrics documentstore metadatastore communications]
-  ["/file" [["" (create-file metrics documentstore communications)]
-            [["/" :id] (file-resource metrics documentstore)]
-            [["/" :id "/meta"] (file-meta metrics metadatastore)]]])
+  [metrics filestore metadatastore communications schemastore]
+  ["" 
+   [["/file" [["" (file-create metrics filestore communications)]
+              [["/" :id] (file-entry metrics filestore)]
+              [["/" :id "/meta"] (file-meta metrics metadatastore)]
+              [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]
+              [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
+;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
+              ]]
+    ["/schema" [[["/" :name] (schema-resources metrics schemastore communications)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics documentstore metadatastore communications]
+  [metrics filestore metadatastore communications schemastore]
   [""
    [(hello-routes metrics)
-    (service-routes metrics documentstore metadatastore communications)
+    (service-routes metrics filestore metadatastore communications schemastore)
     ["/healthcheck" healthcheck]
     
     #_      ["/api" (-> roots
@@ -242,9 +326,8 @@
     ;; ensures we never pass nil back to Aleph.
     [true (yada/handler nil)]]])
 
-
 (defrecord WebServer 
-    [port listener log-config metrics documentstore metadatastore communications]
+    [port listener log-config metrics filestore metadatastore communications schemastore]
     component/Lifecycle
     (start [component]
       (if listener
@@ -252,7 +335,7 @@
         (let [vhosts-model
               (vhosts-model
                [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics documentstore metadatastore communications)])
+                (routes metrics filestore metadatastore communications schemastore)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))
