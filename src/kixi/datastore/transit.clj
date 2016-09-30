@@ -8,7 +8,7 @@
   {:handlers {Pattern (transit/write-handler "java.util.regex.Pattern" str)}})
 
 (def read-handlers
-  {:handlers {"java.util.regex.Pattern" (transit/read-handler #(Pattern/compile %))}})
+  {:handlers {"java.util.regex.Pattern" (transit/read-handler #(re-pattern %))}})
 
 (defn clj-form->json-str
   [clj]
