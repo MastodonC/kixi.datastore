@@ -27,7 +27,7 @@
                  [metrics-clojure-jvm ~metrics-version]
                  [metrics-clojure-ring ~metrics-version]
                  [metosin/ring-swagger "0.22.10"]
-                 [org.clojure/clojure "1.9.0-alpha12"]
+                 [org.clojure/clojure "1.9.0-alpha13"]
                  [org.clojure/core.async "0.2.391"]
                  [org.clojure/tools.analyzer "0.6.9"]
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
