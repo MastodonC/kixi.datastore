@@ -86,21 +86,21 @@
 (defn upload-segment
   [filestore communications]
   (fn [basemetadata request segment-data]
-    (let [_ (bs/transfer (:file segment-data)
-                         (kdfs/output-stream filestore (:id segment-data)))
-          _ (comms/submit communications 
-                          (assoc (select-keys basemetadata 
-                                              [::ms/type
-                                               ::ms/name
-                                               ::kixi.datastore.schemastore/id]) 
-                                 ::ms/id (:id segment-data)
-                                 ::ms/size-bytes (:size-bytes segment-data)
-                                 ::ms/provanance {::ms/source "segmentation"
-                                                  ::ms/parent-id (::ms/id basemetadata)}
-                                 ::seg/segment {::seg/request request
-                                                ::seg/line-count (:lines segment-data)
-                                                ::seg/value (:value segment-data)}))]
-      segment-data)))
+    (bs/transfer (:file segment-data)
+                 (kdfs/output-stream filestore (:id segment-data)))
+    (comms/submit communications 
+                  (assoc (select-keys basemetadata 
+                                      [::ms/type
+                                       ::ms/name
+                                       ::kixi.datastore.schemastore/id]) 
+                         ::ms/id (:id segment-data)
+                         ::ms/size-bytes (:size-bytes segment-data)
+                         ::ms/provenance {::ms/source "segmentation"
+                                          ::ms/parent-id (::ms/id basemetadata)}
+                         ::seg/segment {::seg/request request
+                                        ::seg/line-count (:lines segment-data)
+                                        ::seg/value (:value segment-data)}))
+    segment-data))
 
 (defmacro while-not->>
   "Threads body while the result of each statement is not spec. Returns interim value if valid? spec"

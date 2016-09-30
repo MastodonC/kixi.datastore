@@ -25,16 +25,16 @@
 
 
 
-(s/def ::provanance-upload
+(s/def ::provenance-upload
   (s/keys :req-un [::source ::pieces-count]))
 
-(s/def ::provanance-segment
+(s/def ::provenance-segment
   (s/keys :req [::source ::line-count ::seg/request ::parent-id]))
 
 ;multispec?
-(s/def ::provanance
+(s/def ::provenance
   (s/or ::provanace-upload #(= "upload" (::source %))
-        ::provanance-segment #(= "segmentation" (::source %))))
+        ::provenance-segment #(= "segmentation" (::source %))))
 
 (defmulti segment-type ::seg/type)
 
@@ -52,7 +52,7 @@
   (s/cat :segmentations (s/+ ::segmentation)))
 
 (s/def ::filemetadata
-  (s/keys :req [::type ::id ::name ::schemastore/id ::provanance ::size-bytes]
+  (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes]
           :opt [::segmentations ::segment]))
 
 (defprotocol MetaDataStore

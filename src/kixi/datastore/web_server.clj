@@ -180,7 +180,7 @@
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
                                   ::ms/size-bytes (:size-bytes file)
-                                  ::ms/provanance {::ms/source "upload"                                                  
+                                  ::ms/provenance {::ms/source "upload"
                                                    ::ms/pieces-count (:pieces-count file)}}]
                     (if (spec/valid? ::ms/filemetadata metadata)
                       (do (c/submit communications metadata)                          

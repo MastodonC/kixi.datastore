@@ -25,6 +25,28 @@
     (is (= 404
            (:status sr)))))
 
+
+(deftest group-rows-by-invalid-column
+  (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv")
+        base-file-id (extract-id pfr)]
+    (is (= 201
+           (:status pfr)))
+    (let [sr (post-segmentation (str (get-in pfr [:headers "Location"]) "/segmentation")
+                                {:type "column"
+                                 :column-name "foo"})]
+      (is (= 201
+             (:status sr)))
+      (wait-for-metadata-key base-file-id ::ms/segmentations)
+      (let [base-file-meta-resp (get-metadata base-file-id)
+            base-file-meta (:body base-file-meta-resp)
+            segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
+        (is-submap
+         {:status 200
+          :body {::ms/segmentations [{::seg/created false
+                                      ::seg/error {::seg/reason "invalid-column"
+                                                   ::seg/cause "foo"}}]}}
+         base-file-meta-resp)))))
+
 (deftest group-rows-by-column-small
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv")
         base-file-id (extract-id pfr)]
@@ -48,32 +70,12 @@
             (is-submap {:status 200
                         :body {::ss/id (::ss/id base-file-meta)
                                ::ms/type (::ms/type base-file-meta)
-                               ::ms/provanance {::ms/parent-id base-file-id}
+                               ::ms/provenance {::ms/parent-id base-file-id}
                                ::ms/size-bytes 27}}
                        seg-meta-resp)
             (is (files-match?
                  (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
                  (dload-file-by-id seg-id)))))))))
 
-(deftest group-rows-by-invalid-column
-  (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv")
-        base-file-id (extract-id pfr)]
-    (is (= 201
-           (:status pfr)))
-    (let [sr (post-segmentation (str (get-in pfr [:headers "Location"]) "/segmentation")
-                                {:type "column"
-                                 :column-name "foo"})]
-      (is (= 201
-             (:status sr)))
-      (wait-for-metadata-key base-file-id ::ms/segmentations)
-      (let [base-file-meta-resp (get-metadata base-file-id)
-            base-file-meta (:body base-file-meta-resp)
-            segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
-        (is-submap
-         {:status 200
-          :body {::ms/segmentations [{::seg/created false
-                                      ::seg/error {::seg/reason "invalid-column"
-                                                   ::seg/cause "foo"}}]}}
-         base-file-meta-resp)))))
 
 
