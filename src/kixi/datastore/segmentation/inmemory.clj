@@ -26,7 +26,7 @@
       {::seg/reason :file-not-found
        ::seg/cause id})))
 
-(defn new-file
+(defn new-segment-data
   [headers value]
   (let [id (uuid)
         ^java.io.File file (java.io.File/createTempFile id ".tmp")
@@ -57,34 +57,36 @@
           header-line (first parser)
           dex (index-of header-line column-name)]
       (if dex
-        (loop [files {}
-               lines (rest parser)]
-          (if-let [line (first lines)]
-            (let [value (nth line dex)
-                  file (or (get files value)
-                           (new-file header-line value))
-                  line-csv (write-csv [line])]
-              (bs/transfer line-csv
-                           (:output-stream file)
-                           {:close? false
-                            :append? true})
-              (recur (assoc files
-                            value
-                            (-> file
-                                (update :lines
-                                        inc)
-                                (update :size-bytes
-                                        (partial + (alength (.getBytes ^String line-csv))))))
-                     (rest lines)))
-            (vals files)))
+        (->> (rest parser)
+             (reduce 
+              (fn [value->segment-data line]
+                (let [value (nth line dex)
+                      segment-data (get value->segment-data value
+                                        (new-segment-data header-line value))
+                      line-csv (write-csv [line])]
+                  (bs/transfer line-csv
+                               (:output-stream segment-data)
+                               {:close? false
+                                :append? true})                  
+                  (assoc value->segment-data
+                         value
+                         (-> segment-data
+                             (update :lines
+                                     inc)
+                             (update :size-bytes
+                                     (partial + (alength (.getBytes ^String line-csv))))))))
+              {})
+             vals
+             (map (fn [segment-data]
+                    (.close ^java.io.OutputStream (:output-stream segment-data))
+                    segment-data)))
         {::seg/reason :invalid-column
          ::seg/cause column-name}))))
 
 (defn upload-segment
   [filestore communications]
   (fn [basemetadata request segment-data]
-    (let [_ (.close ^java.io.OutputStream (:output-stream segment-data))
-          _ (bs/transfer (:file segment-data)
+    (let [_ (bs/transfer (:file segment-data)
                          (kdfs/output-stream filestore (:id segment-data)))
           _ (comms/submit communications 
                           (assoc (select-keys basemetadata 
@@ -105,17 +107,17 @@
   [spec x & forms]
   `(try
      ~(loop [x x forms forms]
-      (if forms
-        (let [form (first forms)
-              threaded (if (seq? form)
-                         (with-meta `(~(first form) ~@(next form)  ~x) (meta form))
-                         (list form x))
-              valid-threaded `(let [result# ~threaded]
-                                (if (s/valid? ~spec result#) 
-                                  (throw (ex-info "valid" result#))
-                                  result#))]
-          (recur valid-threaded (next forms)))
-        x))
+        (if forms
+          (let [form (first forms)
+                threaded (if (seq? form)
+                           (with-meta `(~(first form) ~@(next form)  ~x) (meta form))
+                           (list form x))
+                valid-threaded `(let [result# ~threaded]
+                                  (if (s/valid? ~spec result#) 
+                                    (throw (ex-info "valid" result#))
+                                    result#))]
+            (recur valid-threaded (next forms)))
+          x))
      (catch Exception e# (ex-data e#))))
 
 (defn group-rows-by-column-csv
@@ -143,14 +145,13 @@
       (let [metadata (ms/fetch metadatastore (::ms/id request))
             result (case (:kixi.datastore.request/type request)
                      ::seg/group-rows-by-column (group-rows-by-column segment-uploader file-retriever request metadata))]
-        (prn "RRR: " result)
         (->> (if (s/valid? ::seg/error result)
                {::seg/created false
                 :kixi.datastore.request/request request
                 ::seg/error result}
                {::seg/created true
-                ::seg/segment-ids result
-                :kixi.datastore.request/request request})
+                :kixi.datastore.request/request request
+                ::seg/segment-ids result})
              vector
              (update metadata ::ms/segmentations concat))))))
 
