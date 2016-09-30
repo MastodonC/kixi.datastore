@@ -5,6 +5,7 @@
             [cheshire.core :as json]
             [kixi.repl :as repl]
             [clj-http.client :as client]
+            [clojure.data]
             [clojure.java.io :as io]
             [digest :as d])
   (:import [java.io 
