@@ -10,7 +10,8 @@
             [kixi.datastore.filestore :as kdfs]
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
-            [kixi.datastore.communications :as c]))
+            [kixi.datastore.communications :as c]
+            [kixi.datastore.file :refer [temp-file close]]))
 
 (defn uuid
   []
@@ -18,7 +19,7 @@
 
 (defn retrieve-file-to-local
   [filestore id]
-  (let [^java.io.File file (java.io.File/createTempFile id ".tmp")]
+  (let [file (temp-file id)]
     (if-let [src (kdfs/retrieve filestore id)]
       (do (bs/transfer src
                        file)
@@ -29,7 +30,7 @@
 (defn new-segment-data
   [headers value]
   (let [id (uuid)
-        ^java.io.File file (java.io.File/createTempFile id ".tmp")
+        file (temp-file id)
         os (io/output-stream file)
         header-line (write-csv [headers])
         _ (bs/transfer header-line
@@ -78,7 +79,7 @@
               {})
              vals
              (map (fn [segment-data]
-                    (.close ^java.io.OutputStream (:output-stream segment-data))
+                    (close (:output-stream segment-data))
                     segment-data)))
         {::seg/reason :invalid-column
          ::seg/cause column-name}))))

@@ -8,6 +8,8 @@
                      detach-processor]]
             [kixi.datastore.filestore
              :refer [retrieve]]
+            [kixi.datastore.file
+             :refer [temp-file]]
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
@@ -22,8 +24,7 @@
 (defn metadata->file
   [filestore metadata]
   (let [id (::ms/id metadata)
-        f (File/createTempFile id ".tmp")]
-    (.deleteOnExit f)
+        f (temp-file id)]
     (bs/transfer
      (retrieve filestore id)
      f)

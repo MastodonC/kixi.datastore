@@ -8,6 +8,8 @@
                      detach-processor]]
             [kixi.datastore.filestore
              :refer [retrieve]]
+            [kixi.datastore.file 
+             :refer [temp-file]]
             [kixi.datastore.metadatastore]
             [medley.core :refer [find-first assoc-some]]
             [taoensso.timbre :as timbre :refer [error info infof]]
@@ -17,8 +19,7 @@
 (defn metadata->file
   [filestore metadata]
   (let [id (get-in metadata [:id])
-        f (File/createTempFile id ".tmp")]
-    (.deleteOnExit f)
+        f (temp-file id ".tmp")]
     (bs/transfer
      (retrieve filestore id)
      f)
