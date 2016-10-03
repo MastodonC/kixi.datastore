@@ -42,3 +42,31 @@
                               ::ms/pieces-count nil}
              :structural-validation {:valid true}}}
      metadata-response)))
+
+(deftest small-file-invalid-schema
+  (let [pfr (post-file "./test-resources/metadata-test-file.csv"
+                       "this-schema-doesnt-exist")
+        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
+    (is-submap
+     {:status 400
+      :body {:error "unknown-schema"}}
+     pfr)))
+
+(deftest small-file-invalid-data
+  (let [pfr (post-file "./test-resources/metadata-test-file-invalid.csv"
+                       "metadata-file-schema")
+        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
+    (is-submap
+     {:status 201}
+     pfr)
+    (is-submap
+     {:status 200
+      :body {::ms/id (extract-id pfr)
+             ::ss/name "metadata-file-schema"
+             ::ms/type "csv",
+             ::ms/name "foo",
+             ::ms/size-bytes 14,
+             ::ms/provenance {::ms/source "upload"
+                              ::ms/pieces-count nil}
+             :structural-validation {:valid false}}}
+     metadata-response)))

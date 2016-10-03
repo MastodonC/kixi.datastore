@@ -1,16 +1,11 @@
 (ns kixi.integration.spec-test
   (:require [clojure.test :refer :all   ;:exclude [deftest]
              ]
+            [clojure.spec :as s]
             [clj-http.client :as client]
+            [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer [service-url cycle-system-fixture uuid
                                            post-spec get-spec extract-spec]]))
-
-(def small-segmentable-file-schema `(clojure.spec/cat :cola 'int?
-                                                      :colb 'int?
-                                                      :colc 'int?))
-
-(comment "Need to try the above spec with sub spec")
-(comment "Need schema failure tests")
 
 (use-fixtures :once cycle-system-fixture)
 
@@ -29,3 +24,29 @@
     (is (= 'integer?
            (extract-spec r-g)))))
 
+(defn resolve-spec
+  [spec-sym get-spec-fn]
+  (let [[initial & forms] spec-sym]
+    (when (= initial 'clojure.spec/cat)
+      (doseq [f (->> forms
+                     (partition 2)
+                     (map second))]
+        (let [inner-spec (get-spec-fn f)]
+          (s/def-impl f inner-spec (eval inner-spec)))))
+    (s/spec (eval spec-sym))))
+
+(deftest round-trip-composite-spec
+  (let [x-name      :kixi.datastore.spec/wrap-integer
+        y-name      :kixi.datastore.spec/wrap-wrap-integer
+        x-spec      (post-spec x-name `conformers/integer?)
+        y-spec      (post-spec y-name `(clojure.spec/cat :foo ~x-name))
+        y-r         (get-spec y-name)
+        extracted-y (extract-spec y-r)
+        y-spec      (resolve-spec extracted-y (comp extract-spec get-spec))]
+    (is (= 200
+           (:status y-r)))
+    (is (= `(clojure.spec/cat :foo ~x-name)
+           extracted-y))
+    (is (s/valid? y-spec [123]))
+    (is (s/valid? y-spec ["123"]))
+    (is (not (s/valid? y-spec ["x"])))))

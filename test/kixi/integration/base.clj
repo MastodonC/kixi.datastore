@@ -9,7 +9,7 @@
             [clojure.data]
             [clojure.java.io :as io]
             [digest :as d])
-  (:import [java.io 
+  (:import [java.io
             File
             FileNotFoundException]))
 
@@ -54,7 +54,7 @@
 
 (defn parse-json
   [s]
-  (json/parse-string s))
+  (json/parse-string s keyword))
 
 (def file-url (str "http://" (service-url) "/file"))
 
@@ -66,7 +66,7 @@
   [file-name]
   (let [f (io/file file-name)]
     (when-not (.exists f)
-      (throw (new FileNotFoundException 
+      (throw (new FileNotFoundException
                   (str "File [" file-name "] not found. Have you run ./test-resources/create-test-files.sh?"))))))
 
 
@@ -78,16 +78,17 @@
 (defn post-file
   [file-name schema-name]
   (check-file file-name)
-  (client/post file-url
-               {:multipart [{:name "file" :content (io/file file-name)}
-                            {:name "name" :content "foo"}
-                            {:name "schema-name" :content schema-name}]
-                :throw-exceptions false
-                :accept :json}))
+  (update (client/post file-url
+                       {:multipart [{:name "file" :content (io/file file-name)}
+                                    {:name "name" :content "foo"}
+                                    {:name "schema-name" :content schema-name}]
+                        :throw-exceptions false
+                        :accept :json})
+          :body parse-json))
 
 (defn post-segmentation
   [url seg]
-  (client/post url               
+  (client/post url
                {:form-params seg
                 :content-type :json
                 :throw-exceptions false
@@ -149,6 +150,3 @@
   [file-response]
   (when-let [locat (get-in file-response [:headers "Location"])]
     (subs locat (inc (clojure.string/last-index-of locat "/")))))
-
-
-
