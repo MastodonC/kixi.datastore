@@ -27,11 +27,10 @@
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
                        "metadata-file-schema")
-        metadata-response (get-metadata (extract-id pfr))]
+        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 201}
      pfr)
-    (wait-for-metadata-key (extract-id pfr) :structural-validation)
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
@@ -42,5 +41,4 @@
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count nil}
              :structural-validation {:valid true}}}
-    metadata-response)))
-
+     metadata-response)))
