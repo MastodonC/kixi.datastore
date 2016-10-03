@@ -4,11 +4,20 @@
             [clj-http.client :as client]
             [clojure.java.io :as io]
             [kixi.integration.base :refer :all]
-            [kixi.datastore.metadatastore :as ms]))
+            [kixi.datastore.metadatastore :as ms]
+            [kixi.datastore.schemastore.conformers :as conformers]
+            [kixi.datastore.schemastore :as ss]))
 
 (alias 'ms 'kixi.datastore.metadatastore)
 
-(use-fixtures :once cycle-system-fixture)
+(def metadata-file-schema `(clojure.spec/cat :cola conformers/integer?
+                                             :colb conformers/integer?))
+(defn setup-schema
+  [all-tests]
+  (post-spec ::metadata-file-schema metadata-file-schema)
+  (all-tests))
+
+(use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest unknown-file-404
     (let [sr (get-metadata "foo")]
@@ -16,18 +25,20 @@
            (:status sr)))))
 
 (deftest small-file
-  (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv")
+  (let [pfr (post-file "./test-resources/metadata-test-file.csv"
+                       "metadata-file-schema")
         metadata-response (get-metadata (extract-id pfr))]
     (is-submap
      {:status 201}
      pfr)
+    (wait-for-metadata-key (extract-id pfr) :structural-validation)
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
-             ; need to add schema id
+             ::ss/name "metadata-file-schema"
              ::ms/type "csv",
              ::ms/name "foo",
-             ::ms/size-bytes 50,
+             ::ms/size-bytes 13,
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count nil}
              :structural-validation {:valid true}}}

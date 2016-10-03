@@ -160,7 +160,7 @@
               :size-bytes (:size-bytes part)})}))
 
 (defn file-create
-  [metrics filestore communications]
+  [metrics filestore communications schemastore]
   (resource
    metrics
    {:id :file-create
@@ -170,24 +170,28 @@
       :produces "application/json"
       :parameters {:body {:file Map
                           :name s/Str
-                          :schema-id s/Str}}
+                          :schema-name s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
                         metadata {::ms/id (:id file)
-                                  ::ss/id (:schema-id params)
+                                  ::ss/name (:schema-name params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
                                                    ::ms/pieces-count (:pieces-count file)}}]
-                    (if (spec/valid? ::ms/filemetadata metadata)
-                      (do (c/submit communications metadata)                          
-                          (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))
-                      (assoc (:response ctx)
-                             :status 400
-                             :body (spec/explain-data ::ms/filemetadata metadata)))))}}}))
+                    (let [invalid (or (spec/explain-data ::ms/filemetadata metadata)
+                                      (when-not (ss/exists schemastore (::ss/name metadata))
+                                        {:error :unknown-schema
+                                         :msg (::ss/name metadata)}))]
+                      (if-not invalid
+                        (do (c/submit communications metadata)                          
+                            (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))
+                        (assoc (:response ctx)
+                               :status 400
+                               :body invalid)))))}}}))
 
 (defn file-entry 
   [metrics filestore]
@@ -285,7 +289,7 @@
 (defn service-routes 
   [metrics filestore metadatastore communications schemastore]
   ["" 
-   [["/file" [["" (file-create metrics filestore communications)]
+   [["/file" [["" (file-create metrics filestore communications schemastore)]
               [["/" :id] (file-entry metrics filestore)]
               [["/" :id "/meta"] (file-meta metrics metadatastore)]
               [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]

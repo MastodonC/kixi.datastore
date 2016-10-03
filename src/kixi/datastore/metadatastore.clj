@@ -52,7 +52,7 @@
   (s/cat :segmentations (s/+ ::segmentation)))
 
 (s/def ::filemetadata
-  (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes]
+  (s/keys :req [::type ::id ::name ::schemastore/name ::provenance ::size-bytes]
           :opt [::segmentations ::segment]))
 
 (defprotocol MetaDataStore
