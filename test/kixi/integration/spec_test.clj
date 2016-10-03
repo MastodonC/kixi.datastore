@@ -14,6 +14,14 @@
     (is (= 404
            (:status r-g)))))
 
+(deftest repost-spec-400
+  (let [r-g1 (post-spec :post-me-123 'conformers/integer?)
+        r-g2 (post-spec :post-me-123 'conformers/integer?)]
+    (is (= 200
+           (:status r-g1)))
+    (is (= 400
+           (:status r-g2)))))
+
 (deftest round-trip-predicate-only-spec
   (let [r-p (post-spec :integer 'integer?)
         r-g (get-spec :integer)]

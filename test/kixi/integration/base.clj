@@ -99,6 +99,7 @@
   (client/post (str schema-url (name n))
                {:form-params {:definition s}
                 :content-type :transit+json
+                :throw-exceptions false
                 :transit-opts {:encode t/write-handlers
                                :decode t/read-handlers}}))
 
