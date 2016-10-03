@@ -19,7 +19,7 @@
 (defn metadata->file
   [filestore metadata]
   (let [id (get-in metadata [:id])
-        f (temp-file id ".tmp")]
+        f (temp-file id)]
     (bs/transfer
      (retrieve filestore id)
      f)
