@@ -44,7 +44,7 @@
    :schemastore [:communications]
 ;   :schema-extracter [:communications :filestore]
    :segmentation [:communications :metadatastore :filestore]
-   :structural-validator [:communications :filestore]})
+   :structural-validator [:communications :filestore :schemastore]})
 
 (defn new-system-map
   [config]

@@ -8,5 +8,6 @@
   (s/keys :req [::name ::definition]))
 
 (defprotocol SchemaStore
+  (exists [this spec-name])
   (fetch-definition [this spec-name])
   (fetch-spec [this spec-name]))

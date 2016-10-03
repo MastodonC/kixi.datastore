@@ -3,6 +3,7 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.communications :refer [Communications]]
             [kixi.datastore.schemastore :refer [SchemaStore] :as ss]
+            [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.datastore.communications
              :refer [attach-sink-processor]]
             [kixi.datastore.transit :as t]
@@ -25,15 +26,13 @@
   [data name]
   (let [definition (read-definition data name)
         evald (eval definition)]
-    (if (map? evald)
-      (s/cat-impl (keys evald)
-                     (map read-spec (vals evald))
-                     '())
-      (s/spec evald))))
+    (s/spec evald))) ;; Need to reach into the map for :ps values (?) and load them from the store
 
 (defrecord InMemory
     [data communications]
     SchemaStore
+    (exists [_ name]
+      (get @data name))
     (fetch-definition [_ name]
       (read-definition data name))
     (fetch-spec [_ name]

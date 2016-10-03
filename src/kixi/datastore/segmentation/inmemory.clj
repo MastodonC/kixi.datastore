@@ -93,7 +93,7 @@
                   (assoc (select-keys basemetadata 
                                       [::ms/type
                                        ::ms/name
-                                       ::kixi.datastore.schemastore/id]) 
+                                       :kixi.datastore.schemastore/name]) 
                          ::ms/id (:id segment-data)
                          ::ms/size-bytes (:size-bytes segment-data)
                          ::ms/provenance {::ms/source "segmentation"

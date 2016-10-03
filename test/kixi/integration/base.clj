@@ -4,6 +4,7 @@
              ]
             [cheshire.core :as json]
             [kixi.repl :as repl]
+            [kixi.datastore.transit :as t]
             [clj-http.client :as client]
             [clojure.data]
             [clojure.java.io :as io]
@@ -47,6 +48,10 @@
   []
   (or (System/getenv "SERVICE_URL") "localhost:8080"))
 
+
+(def schema-url (str "http://" (service-url) "/schema/"))
+
+
 (defn parse-json
   [s]
   (json/parse-string s))
@@ -71,12 +76,12 @@
      (d/md5 two)))
 
 (defn post-file
-  [file-name]
+  [file-name schema-name]
   (check-file file-name)
   (client/post file-url
                {:multipart [{:name "file" :content (io/file file-name)}
                             {:name "name" :content "foo"}
-                            {:name "schema-id" :content (uuid)}]
+                            {:name "schema-name" :content schema-name}]
                 :throw-exceptions false
                 :accept :json}))
 
@@ -87,6 +92,29 @@
                 :content-type :json
                 :throw-exceptions false
                 :as :json}))
+
+(defn post-spec
+  [n s]
+  (client/post (str schema-url (name n))
+               {:form-params {:definition s}
+                :content-type :transit+json
+                :transit-opts {:encode t/write-handlers
+                               :decode t/read-handlers}}))
+
+(defn get-spec
+  [n]
+  (client/get (str schema-url (name n))
+              {:accept :transit+json
+               :as :stream
+               :throw-exceptions false}))
+
+(defn extract-spec
+  [r-g]
+  (when (= 200 (:status r-g))
+    (-> r-g
+        :body
+        (client/parse-transit :json {:decode t/read-handlers})
+        :definition)))
 
 (defn dload-file
   [location]
@@ -119,7 +147,7 @@
 
 (defn extract-id
   [file-response]
-  (let [locat (get-in file-response [:headers "Location"])]
+  (when-let [locat (get-in file-response [:headers "Location"])]
     (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
 
