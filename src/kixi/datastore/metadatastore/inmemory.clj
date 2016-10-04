@@ -11,7 +11,7 @@
   [data]
   (fn [metadata]
     (info "Update: " metadata)
-    (swap! data 
+    (swap! data
            #(update % (::ms/id metadata)
                     (fn [current-metadata]
                       (merge current-metadata
@@ -21,7 +21,7 @@
     [data communications]
     MetaDataStore
     (exists [this id]
-      ((set 
+      ((set
         (keys @data))
        id))
     (fetch [this id]

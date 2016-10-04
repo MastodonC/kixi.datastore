@@ -9,18 +9,25 @@
             File
             FileNotFoundException]))
 
-(def irrelevant-schema `(clojure.spec/cat :cola conformers/integer?))
+(def irrelevant-schema-id (atom nil))
+(def irrelevant-schema {:name ::irrelevant-schema
+                        :type "list"
+                        :definition [:cola {:type "integer"}]})
+
 
 (defn setup-schema
   [all-tests]
-  (post-spec ::irrelevant-schema irrelevant-schema)
+  (let [r (post-spec irrelevant-schema)]
+    (if (= 202 (:status r))
+      (reset! irrelevant-schema-id (extract-id r))
+      (throw (Exception. "Couldn't post irrelevant-schema"))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest round-trip-files
   (let [r (post-file "./test-resources/10B-file.txt"
-                     ::irrelevant-schema)]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (parse-json (:body r)))
@@ -29,7 +36,7 @@
            "./test-resources/10B-file.txt"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/10MB-file.txt"
-                     ::irrelevant-schema)]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (parse-json (:body r)))
@@ -38,7 +45,7 @@
            "./test-resources/10MB-file.txt"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/300MB-file.txt"
-                     ::irrelevant-schema)]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (parse-json (:body r)))

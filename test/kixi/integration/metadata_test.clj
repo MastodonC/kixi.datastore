@@ -10,11 +10,17 @@
 
 (alias 'ms 'kixi.datastore.metadatastore)
 
-(def metadata-file-schema `(clojure.spec/cat :cola conformers/integer?
-                                             :colb conformers/integer?))
+(def metadata-file-schema-id (atom nil))
+(def metadata-file-schema {:name ::metadata-file-schema
+                           :type "list"
+                           :definition [:cola {:type "integer"}
+                                        :colb {:type "integer"}]})
 (defn setup-schema
   [all-tests]
-  (post-spec ::metadata-file-schema metadata-file-schema)
+  (let [r (post-spec metadata-file-schema)]
+    (if (= 202 (:status r))
+      (reset! metadata-file-schema-id (extract-id r))
+      (throw (Exception. "Couldn't post metadata-file-schema"))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -26,7 +32,7 @@
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
-                       ::metadata-file-schema)
+                       @metadata-file-schema-id)
         metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 201}
@@ -34,7 +40,7 @@
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
-             ::ss/name (nskw->str ::metadata-file-schema)
+             ::ss/id @metadata-file-schema-id
              ::ms/type "csv",
              ::ms/name "foo",
              ::ms/size-bytes 13,
@@ -45,8 +51,8 @@
 
 (deftest small-file-invalid-schema
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
-                       ::this-schema-doesnt-exist)
-        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
+                       "003ba24c-2830-4f28-b6af-905d6215ea1c") ;; schema doesn't exist
+        ]
     (is-submap
      {:status 400
       :body {:error "unknown-schema"}}
@@ -54,7 +60,7 @@
 
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-test-file-invalid.csv"
-                       ::metadata-file-schema)
+                       @metadata-file-schema-id)
         metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 201}
@@ -62,7 +68,7 @@
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
-             ::ss/name (nskw->str ::metadata-file-schema)
+             ::ss/id @metadata-file-schema-id
              ::ms/type "csv",
              ::ms/name "foo",
              ::ms/size-bytes 14,

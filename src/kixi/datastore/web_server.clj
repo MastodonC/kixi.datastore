@@ -4,6 +4,7 @@
              [vhosts :refer [vhosts-model]]]
             [clojure.java.io :as io]
             [clojure.spec :as spec]
+            [clojure.walk :as walk]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
@@ -11,7 +12,6 @@
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.transit :as t]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada
@@ -171,28 +171,29 @@
       :produces "application/json"
       :parameters {:body {:file Map
                           :name s/Str
-                          :schema-name s/Str}}
+                          :schema-id s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
                         metadata {::ms/id (:id file)
-                                  ::ss/name (keyword (:schema-name params))
+                                  ::ss/id (:schema-id params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
                                                    ::ms/pieces-count (:pieces-count file)}}]
                     (let [error (or (spec/explain-data ::ms/filemetadata metadata)
-                                    (when-not (ss/exists schemastore (::ss/name metadata))
+                                    (when-not (ss/exists schemastore (::ss/id metadata))
                                       {:error :unknown-schema
-                                       :msg (::ss/name metadata)}))]
+                                       :msg (::ss/id metadata)}))]
                       (if error
                         (assoc (:response ctx)
                                :status 400
                                :body error)
-                        (do (c/submit communications metadata)
-                            (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
+                        (do
+                          (c/submit communications metadata)
+                          (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
   [metrics filestore]
@@ -217,7 +218,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-                (ms/fetch metadatastore id)))}}}))
+               (ms/fetch metadatastore id)))}}}))
 
 (defn file-segmentation-create
   [metrics communications metadatastore]
@@ -260,6 +261,33 @@
                (ds/retrieve filestore
                             id)))}}}))
 
+(defn schema-id-entry
+  [metrics schemastore]
+  (resource
+   metrics
+   {:id :schema-id-entry
+    :methods
+    {:get {:produces "application/transit+json"
+           :response
+           (fn [ctx]
+             (let [id (get-in ctx [:parameters :path :id])]
+               (ss/fetch-with schemastore {::ss/id id})))}}}))
+
+(defn return-error
+  [ctx msg error-key]
+  (assoc (:response ctx)
+         :status 400
+         :body {:error error-key
+                :msg msg}))
+
+(defn add-ns-to-keywords
+  ([ns m]
+   (letfn [(process [n]
+             (if (= (type n) clojure.lang.MapEntry)
+               (clojure.lang.MapEntry. (keyword (namespace ns) (name (first n))) (second n))
+               n))]
+     (walk/prewalk process m))))
+
 (defn schema-resources
   [metrics schemastore communications]
   (resource
@@ -269,39 +297,41 @@
     {:post {:consumes "application/transit+json"
             :produces "application/transit+json"
             :response (fn [ctx]
-                        (let [name        (get-in ctx [:parameters :path :name])
-                              ns          (get-in ctx [:parameters :path :namespace])
+                        (let [new-id      (uuid)
                               body        (get-in ctx [:body])
-                              schema-name (keyword ns name)]
-                          (cond
-                            (ss/exists schemastore schema-name)
-                            (assoc (:response ctx)
-                                   :status 400
-                                   :body {:error :schema-already-exists
-                                          :msg   schema-name})
-                            (sv/invalid-name? schema-name)
-                            (assoc (:response ctx)
-                                   :status 400
-                                   :body {:error :schema-invalid-name
-                                          :msg   schema-name})
-                            (sv/invalid-definition? (:definition body))
-                            (assoc (:response ctx)
-                                   :status 400
-                                   :body {:error :schema-invalid-definition
-                                          :msg   schema-name})
-                            :else (do (c/submit communications
-                                                {::ss/name schema-name
-                                                 ::ss/definition (:definition body)})
-                                      true))))}
-     :get {:produces "application/transit+json"
-           :response
-           (fn [ctx]
-             (let [name        (get-in ctx [:parameters :path :name])
-                   ns          (get-in ctx [:parameters :path :namespace])
-                   schema-name (keyword ns name)]
-               (some->> schema-name
-                        (ss/fetch-definition schemastore)
-                        (hash-map :definition))))}}}))
+                              schema      (add-ns-to-keywords ::ss/_ (:schema body))
+                              schema'     (dissoc schema ::ss/name)
+                              schema-name (::ss/name schema)]
+                          ;; Is name valid?
+                          (if-let [error (sv/invalid-name? schema-name)]
+                            (return-error ctx :schema-invalid-name error)
+                            ;; Is definition valid?
+                            (if-let [error (sv/invalid-schema? schema')]
+                              (return-error ctx :schema-invalid-definition error)
+                              ;; Does this name + definition already exist?
+                              (if-let [preexists (ss/fetch-with schemastore {::ss/name schema-name
+                                                                             ::ss/schema schema'})]
+                                (assoc (:response ctx)
+                                       :status 202 ;; wants to be a 303
+                                       :headers {"Location"
+                                                 (str (java.net.URI.
+                                                       (:uri (yada/uri-for
+                                                              ctx
+                                                              :schema-id-entry
+                                                              {:route-params {:id (::ss/id preexists)}}))))})
+                                (do
+                                  (c/submit communications
+                                            {::ss/name schema-name
+                                             ::ss/schema schema'
+                                             ::ss/id new-id})
+                                  (assoc (:response ctx)
+                                         :status 202
+                                         :headers {"Location"
+                                                   (java.net.URI.
+                                                    (:uri (yada/uri-for
+                                                           ctx
+                                                           :schema-id-entry
+                                                           {:route-params {:id new-id}})))})))))))}}}))
 
 (defn healthcheck
   [ctx]
@@ -318,7 +348,8 @@
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
-    ["/schema" [[["/" :namespace "/" :name] (schema-resources metrics schemastore communications)]]]]])
+    ["/schema" [[["/"]     (schema-resources metrics schemastore communications)]
+                [["/" :id] (schema-id-entry metrics schemastore)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."

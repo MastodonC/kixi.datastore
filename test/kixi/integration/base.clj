@@ -8,7 +8,8 @@
             [clj-http.client :as client]
             [clojure.data]
             [clojure.java.io :as io]
-            [digest :as d])
+            [digest :as d]
+            [kixi.datastore.schemastore :as ss])
   (:import [java.io
             File
             FileNotFoundException]))
@@ -28,7 +29,7 @@
                                   :expected exp# :actual act#})))
      (catch Throwable t#
        (clojure.test/do-report {:type :error :message "Exception diffing"
-                   :expected nil :actual t#}))))
+                                :expected nil :actual t#}))))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -36,13 +37,14 @@
   (all-tests)
   (repl/stop))
 
+(defn uuid
+  []
+  (str (java.util.UUID/randomUUID)))
+
 (defn nskw->str
   [nskw]
   (subs (str nskw) 1))
 
-(defn uuid
-  []
-  (str (java.util.UUID/randomUUID)))
 
 (defmacro deftest-broken
   [name & everything]
@@ -80,12 +82,12 @@
      (d/md5 two)))
 
 (defn post-file
-  [file-name schema-name]
+  [file-name schema-id]
   (check-file file-name)
   (update (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "name" :content "foo"}
-                                    {:name "schema-name" :content (nskw->str schema-name)}]
+                                    {:name "schema-id" :content schema-id}]
                         :throw-exceptions false
                         :accept :json})
           :body parse-json))
@@ -99,28 +101,45 @@
                 :as :json}))
 
 (defn post-spec
-  [n s]
-  (client/post (str schema-url (nskw->str n))
-               {:form-params {:definition s}
+  [s]
+  (client/post schema-url
+               {:form-params {:schema s}
                 :content-type :transit+json
+                :accept :transit+json
                 :throw-exceptions false
                 :transit-opts {:encode t/write-handlers
                                :decode t/read-handlers}}))
+(defn wait-for-url
+  ([url]
+   (wait-for-url url 10))
+  ([url tries]
+   (when (pos? tries)
+     (Thread/sleep 500)
+     (let [md (client/get url
+                          {:accept :transit+json
+                           :as :stream
+                           :throw-exceptions false
+                           :transit-opts {:encode t/write-handlers
+                                          :decode t/read-handlers}})]
+       (if (= 404 (:status md))
+         (recur url (dec tries))
+         md)))))
 
 (defn get-spec
-  [n]
-  (client/get (str schema-url (nskw->str n))
+  [id]
+  (client/get (str schema-url id)
               {:accept :transit+json
                :as :stream
-               :throw-exceptions false}))
+               :throw-exceptions false
+               :transit-opts {:encode t/write-handlers
+                              :decode t/read-handlers}}))
 
-(defn extract-spec
+(defn extract-schema
   [r-g]
   (when (= 200 (:status r-g))
     (-> r-g
         :body
-        (client/parse-transit :json {:decode t/read-handlers})
-        :definition)))
+        (client/parse-transit :json {:decode t/read-handlers}))))
 
 (defn dload-file
   [location]
@@ -144,12 +163,13 @@
   ([id k]
    (wait-for-metadata-key id k 10))
   ([id k tries]
-   (when (pos? tries)
-     (Thread/sleep 500)
-     (let [md (get-metadata id)]
-       (if-not (get-in md [:body k])
-         (recur id k (dec tries))
-         md)))))
+   (if (pos? tries)
+     (do (Thread/sleep 500)
+         (let [md (get-metadata id)]
+           (if-not (get-in md [:body k])
+             (recur id k (dec tries))
+             md)))
+     (throw (Exception. "Metadata key never appeared.'")))))
 
 (defn extract-id
   [file-response]

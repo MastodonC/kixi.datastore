@@ -12,6 +12,8 @@
              :refer [temp-file]]
             [kixi.datastore.schemastore
              :as ss]
+            [kixi.datastore.schemastore.validator
+             :as sv]
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [clojure.java.io :as io])
@@ -32,19 +34,15 @@
      f)
     f))
 
-(defn metadata->schema
-  [schemastore metadata]
-  (ss/fetch-spec schemastore (::ss/name metadata)))
-
 (defn csv-schema-test
-  [schema file]
+  [schemastore schema-id file]
   (let [line-count (atom 0)]
     (try
       (with-open [contents (io/reader file)]
         (let [parser (parse-csv contents :strict true)
               explains (keep (fn [line]
                                (swap! line-count inc)
-                               (s/explain-data schema line))
+                               (sv/explain-data schemastore schema-id line))
                              (rest parser))]
           (if (seq explains)
             {:valid false
@@ -58,13 +56,12 @@
 (defn structural-validator
   [filestore schemastore]
   (fn [metadata]
-    (let [^File file (metadata->file filestore metadata)
-          schema (metadata->schema schemastore metadata)]
+    (let [^File file (metadata->file filestore metadata)]
       (try
         (assoc metadata
                :structural-validation
                (case (::ms/type metadata)
-                 "csv" (csv-schema-test schema file)))
+                 "csv" (csv-schema-test schemastore (::ss/id metadata) file)))
         (finally
           (.delete file))))))
 
@@ -72,24 +69,24 @@
 
 (defrecord StructuralValidator
     [communications filestore schemastore structural-validator-fn]
-    IStructuralValidator
-    component/Lifecycle
-    (start [component]
-      (if-not structural-validator-fn
-        (let [sv-fn (structural-validator filestore schemastore)]
-          (info "Starting Structural Validator")
-          (attach-pipeline-processor communications
-                                     requires-structural-validation?
-                                     sv-fn)
-          (assoc component
-                 :structural-validator-fn sv-fn))
-        component))
-    (stop [component]
-      (info "Stopping Structural Validator")
-      (if structural-validator-fn
-        (do
-          (detach-processor communications
-                            structural-validator-fn)
-          (dissoc component 
-                  :structural-validator-fn))
-        component)))
+  IStructuralValidator
+  component/Lifecycle
+  (start [component]
+    (if-not structural-validator-fn
+      (let [sv-fn (structural-validator filestore schemastore)]
+        (info "Starting Structural Validator")
+        (attach-pipeline-processor communications
+                                   requires-structural-validation?
+                                   sv-fn)
+        (assoc component
+               :structural-validator-fn sv-fn))
+      component))
+  (stop [component]
+    (info "Stopping Structural Validator")
+    (if structural-validator-fn
+      (do
+        (detach-processor communications
+                          structural-validator-fn)
+        (dissoc component
+                :structural-validator-fn))
+      component)))

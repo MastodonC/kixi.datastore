@@ -12,13 +12,20 @@
 (alias 'ss 'kixi.datastore.schemastore)
 (alias 'seg 'kixi.datastore.segmentation)
 
-(def small-segmentable-file-schema `(clojure.spec/cat :cola conformers/integer?
-                                                      :colb conformers/integer?
-                                                      :colc conformers/integer?))
+(def small-segmentable-file-schema-id (atom nil))
+(def small-segmentable-file-schema {:name ::small-segmentable-file-schema
+                                    :type "list"
+                                    :definition [:cola {:type "integer"}
+                                                 :colb {:type "integer"}
+                                                 :colc {:type "integer"}]})
+
 
 (defn setup-schema
   [all-tests]
-  (post-spec ::small-segmentable-file-schema small-segmentable-file-schema)
+  (let [r (post-spec small-segmentable-file-schema)]
+    (if (= 202 (:status r))
+      (reset! small-segmentable-file-schema-id (extract-id r))
+      (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -38,7 +45,7 @@
 
 (deftest group-rows-by-invalid-column
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       ::small-segmentable-file-schema)
+                       @small-segmentable-file-schema-id)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
@@ -61,7 +68,7 @@
 
 (deftest group-rows-by-column-small
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       ::small-segmentable-file-schema)
+                       @small-segmentable-file-schema-id)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
@@ -82,11 +89,12 @@
           (doseq [seg-id segment-ids]
             (let [seg-meta-resp (get-metadata seg-id)]
               (is-submap {:status 200
-                          :body {::ss/name (::ss/name base-file-meta)
+                          :body {::ss/id @small-segmentable-file-schema-id
                                  ::ms/type (::ms/type base-file-meta)
                                  ::ms/provenance {::ms/parent-id base-file-id}
                                  ::ms/size-bytes 27}}
                          seg-meta-resp)
-              (is (files-match?
-                   (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
-                   (dload-file-by-id seg-id))))))))))
+              (if (= 200 (:status seg-meta-resp))
+                (is (files-match?
+                     (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
+                     (dload-file-by-id seg-id)))))))))))

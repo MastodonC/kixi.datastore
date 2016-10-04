@@ -1,71 +1,108 @@
 (ns kixi.integration.spec-test
-  (:require [clojure.test :refer :all   ;:exclude [deftest]
-             ]
+  (:require [clojure.test :refer :all]
             [clojure.spec :as s]
             [clj-http.client :as client]
+            [kixi.datastore.web-server :refer [add-ns-to-keywords]]
+            [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer [service-url cycle-system-fixture uuid
-                                           post-spec get-spec extract-spec]]))
+                                           post-spec get-spec extract-schema parse-json
+                                           wait-for-url is-submap extract-id]]))
+
+(def uuid-regex
+  #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+(def location-regex
+  (re-pattern (str #"schema\/" uuid-regex)))
 
 (use-fixtures :once cycle-system-fixture)
 
+(deftest good-round-trip
+  (let [schema {:name ::new-good-spec-a
+                :type "integer-range"
+                :min 3
+                :max 10}
+        r1       (post-spec schema)]
+    (is-submap {:status 202} r1)
+    (if (= 202 (:status r1))
+      (let [location (get-in r1 [:headers "Location"])
+            id       (extract-id r1)
+            r2       (get-spec id)]
+        (is (re-find location-regex location))
+        (is (re-find uuid-regex id))
+        (is-submap {:status 200} r2)
+        (is-submap (add-ns-to-keywords ::ss/_ (dissoc schema :name))
+                   (::ss/schema (extract-schema r2)))))))
+
 (deftest unknown-spec-404
-  (let [r-g (get-spec :foo)]
+  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (is (= 404
            (:status r-g)))))
 
-(deftest repost-spec-400
-  (let [r-g1 (post-spec ::post-me-123 `conformers/integer?)
-        r-g2 (post-spec ::post-me-123 `conformers/integer?)]
-    (is (= 200
+(deftest repost-spec-get-same-result
+  (let [schema {:name ::reposted-a
+                :type "integer"}
+        r-g1 (post-spec schema)
+        r-g2 (post-spec schema)]
+    (prn r-g2)
+    (is (= 202
            (:status r-g1)))
-    (is (= 400
-           (:status r-g2)))))
+    (is (= 202
+           (:status r-g2)))
+    (is (= (get-in r-g1 [:headers "Location"])
+           (get-in r-g2 [:headers "Location"])))))
 
-(deftest good-spec-200
-  (let [r (post-spec ::good-spec `(clojure.spec/cat :foo conformers/integer?))]
-    (is (= 200 (:status r))  "Good spec")))
+(deftest good-spec-202
+  (is (= 202 (:status (post-spec {:name ::good-spec-a
+                                  :type "integer-range"
+                                  :min 3
+                                  :max 10}))))
+  (is (= 202 (:status (post-spec {:name ::good-spec-b
+                                  :type "integer"}))))
+  (is (= 202 (:status (post-spec {:name ::good-spec-c
+                                  :type "list"
+                                  :definition [:foo {:type "integer"}
+                                               :bar {:type "integer"}
+                                               :baz {:type "integer-range"
+                                                     :min 3
+                                                     :max 10}]})))))
 
-(deftest bad-spec-400
-  (is (= 404 (:status (post-spec :bad-spec  `(clojure.spec/cat :foo conformers/integer?))))   "Unnamespaced name")
-  (is (= 400 (:status (post-spec ::bad-spec `(clojure.spec/cat :foo clojure.core/integer?)))) "Illegal namespace symbol")
-  (is (= 400 (:status (post-spec ::bad-spec `(launch-missiles!))))                            "Illegal function call")
-  (is (= 400 (:status (post-spec ::bad-spec `(clojure.spex/cat :foo conformers/integer?))))   "Mistyped namespace"))
+(deftest good-spec-202-with-reference
+  (let [schema {:name ::ref-good-spec-a
+                :type "integer-range"
+                :min 3
+                :max 10}
+        r1       (post-spec schema)]
+    (is-submap {:status 202} r1)
+    (if (= 202 (:status r1))
+      (let [location (get-in r1 [:headers "Location"])
+            id       (extract-id r1)]
+        (is (= 202 (:status (post-spec {:name ::ref-good-spec-b
+                                        :type "id"
+                                        :id    id}))))
+        (is (= 202 (:status (post-spec {:name ::ref-good-spec-b
+                                        :type "list"
+                                        :definition [:foo {:type "id"
+                                                           :id   id}
+                                                     :bar {:type "integer"}
+                                                     :baz {:type "integer-range"
+                                                           :min 3
+                                                           :max 10}]}))))))))
 
+(deftest bad-specs
+  (is (= 400 (:status (post-spec {:type "integer"})))   "Missing args (name)")
+  (is (= 400 (:status (post-spec {:name :foo
+                                  :type "integer"})))   "Unnamespaced name")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "foo"})))       "Unknown type")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "integer-range"
+                                  :foo 1})))            "Invalid type")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "list"
+                                  :definition [:foo]}))) "Invalid type")
 
-(deftest round-trip-predicate-only-spec
-  (let [r-p (post-spec ::integer `conformers/integer?)
-        r-g (get-spec ::integer)]
-    (is (= 200
-           (:status r-p)))
-    (is (= 200
-           (:status r-g)))
-    (is (= `conformers/integer?
-           (extract-spec r-g)))))
-
-(defn resolve-spec
-  [spec-sym get-spec-fn]
-  (let [[initial & forms] spec-sym]
-    (when (= initial 'clojure.spec/cat)
-      (doseq [f (->> forms
-                     (partition 2)
-                     (map second))]
-        (let [inner-spec (get-spec-fn f)]
-          (s/def-impl f inner-spec (eval inner-spec)))))
-    (s/spec (eval spec-sym))))
-
-(deftest round-trip-composite-spec
-  (let [x-name      :kixi.datastore.spec/wrap-integer
-        y-name      :kixi.datastore.spec/wrap-wrap-integer
-        x-spec      (post-spec x-name `conformers/integer?)
-        y-spec      (post-spec y-name `(clojure.spec/cat :foo ~x-name))
-        y-r         (get-spec y-name)
-        extracted-y (extract-spec y-r)
-        y-spec      (resolve-spec extracted-y (comp extract-spec get-spec))]
-    (is (= 200
-           (:status y-r)))
-    (is (= `(clojure.spec/cat :foo ~x-name)
-           extracted-y))
-    (is (s/valid? y-spec [123]))
-    (is (s/valid? y-spec ["123"]))
-    (is (not (s/valid? y-spec ["x"])))))
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "list"
+                                  :definition [:foo
+                                               {:type "foo"}]}))) "Invalid type"))
