@@ -1,7 +1,8 @@
 (ns kixi.datastore.schemastore
-  (:require [clojure.spec :as s]))
+  (:require [clojure.spec :as s]
+            [kixi.datastore.schemastore.validator]))
 
-(s/def ::name string?)
+(s/def ::name :kixi.datastore.schemastore.validator/valid-schema-name)
 (s/def ::definition (constantly true))
 
 (s/def ::create-request

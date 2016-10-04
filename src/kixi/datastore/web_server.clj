@@ -177,7 +177,7 @@
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
                         metadata {::ms/id (:id file)
-                                  ::ss/name (:schema-name params)
+                                  ::ss/name (keyword (:schema-name params))
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
                                   ::ms/size-bytes (:size-bytes file)
@@ -296,8 +296,10 @@
      :get {:produces "application/transit+json"
            :response
            (fn [ctx]
-             (let [name (get-in ctx [:parameters :path :name])]
-               (some->> name
+             (let [name        (get-in ctx [:parameters :path :name])
+                   ns          (get-in ctx [:parameters :path :namespace])
+                   schema-name (keyword ns name)]
+               (some->> schema-name
                         (ss/fetch-definition schemastore)
                         (hash-map :definition))))}}}))
 

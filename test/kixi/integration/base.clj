@@ -36,6 +36,10 @@
   (all-tests)
   (repl/stop))
 
+(defn nskw->str
+  [nskw]
+  (subs (str nskw) 1))
+
 (defn uuid
   []
   (str (java.util.UUID/randomUUID)))
@@ -81,7 +85,7 @@
   (update (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "name" :content "foo"}
-                                    {:name "schema-name" :content schema-name}]
+                                    {:name "schema-name" :content (nskw->str schema-name)}]
                         :throw-exceptions false
                         :accept :json})
           :body parse-json))
@@ -96,7 +100,7 @@
 
 (defn post-spec
   [n s]
-  (client/post (str schema-url (subs (str n) 1))
+  (client/post (str schema-url (nskw->str n))
                {:form-params {:definition s}
                 :content-type :transit+json
                 :throw-exceptions false
@@ -105,7 +109,7 @@
 
 (defn get-spec
   [n]
-  (client/get (str schema-url (name n))
+  (client/get (str schema-url (nskw->str n))
               {:accept :transit+json
                :as :stream
                :throw-exceptions false}))

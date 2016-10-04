@@ -38,7 +38,7 @@
 
 (deftest group-rows-by-invalid-column
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       "small-segmentable-file-schema")
+                       ::small-segmentable-file-schema)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
@@ -61,7 +61,7 @@
 
 (deftest group-rows-by-column-small
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       "small-segmentable-file-schema")
+                       ::small-segmentable-file-schema)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
@@ -90,6 +90,3 @@
               (is (files-match?
                    (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
                    (dload-file-by-id seg-id))))))))))
-
-
-

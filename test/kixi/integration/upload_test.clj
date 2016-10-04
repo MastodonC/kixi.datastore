@@ -5,7 +5,7 @@
             [clojure.java.io :as io]
             [kixi.integration.base :refer :all]
             [kixi.datastore.schemastore.conformers :as conformers])
-  (:import [java.io 
+  (:import [java.io
             File
             FileNotFoundException]))
 
@@ -20,16 +20,16 @@
 
 (deftest round-trip-files
   (let [r (post-file "./test-resources/10B-file.txt"
-                     "irrelevant-schema")]
+                     ::irrelevant-schema)]
     (is (= 201
            (:status r))
-        (parse-json (:body r)))    
+        (parse-json (:body r)))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/10B-file.txt"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/10MB-file.txt"
-                     "irrelevant-schema")]
+                     ::irrelevant-schema)]
     (is (= 201
            (:status r))
         (parse-json (:body r)))
@@ -38,11 +38,11 @@
            "./test-resources/10MB-file.txt"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/300MB-file.txt"
-                     "irrelevant-schema")]
+                     ::irrelevant-schema)]
     (is (= 201
            (:status r))
         (parse-json (:body r)))
     (when-let [locat (get-in r [:headers "Location"])]
-      (is (files-match? 
+      (is (files-match?
            "./test-resources/300MB-file.txt"
            (dload-file locat))))))

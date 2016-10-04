@@ -26,7 +26,7 @@
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
-                       "metadata-file-schema")
+                       ::metadata-file-schema)
         metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 201}
@@ -34,7 +34,7 @@
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
-             ::ss/name "metadata-file-schema"
+             ::ss/name (nskw->str ::metadata-file-schema)
              ::ms/type "csv",
              ::ms/name "foo",
              ::ms/size-bytes 13,
@@ -45,7 +45,7 @@
 
 (deftest small-file-invalid-schema
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
-                       "this-schema-doesnt-exist")
+                       ::this-schema-doesnt-exist)
         metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 400
@@ -54,7 +54,7 @@
 
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-test-file-invalid.csv"
-                       "metadata-file-schema")
+                       ::metadata-file-schema)
         metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
     (is-submap
      {:status 201}
@@ -62,7 +62,7 @@
     (is-submap
      {:status 200
       :body {::ms/id (extract-id pfr)
-             ::ss/name "metadata-file-schema"
+             ::ss/name (nskw->str ::metadata-file-schema)
              ::ms/type "csv",
              ::ms/name "foo",
              ::ms/size-bytes 14,
