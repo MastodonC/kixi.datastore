@@ -22,6 +22,17 @@
     (is (= 400
            (:status r-g2)))))
 
+(deftest good-spec-200
+  (let [r (post-spec ::good-spec `(clojure.spec/cat :foo conformers/integer?))]
+    (is (= 200 (:status r))  "Good spec")))
+
+(deftest bad-spec-400
+  (is (= 404 (:status (post-spec :bad-spec  `(clojure.spec/cat :foo conformers/integer?))))   "Unnamespaced name")
+  (is (= 400 (:status (post-spec ::bad-spec `(clojure.spec/cat :foo clojure.core/integer?)))) "Illegal namespace symbol")
+  (is (= 400 (:status (post-spec ::bad-spec `(launch-missiles!))))                            "Illegal function call")
+  (is (= 400 (:status (post-spec ::bad-spec `(clojure.spex/cat :foo conformers/integer?))))   "Mistyped namespace"))
+
+
 (deftest round-trip-predicate-only-spec
   (let [r-p (post-spec :integer 'integer?)
         r-g (get-spec :integer)]

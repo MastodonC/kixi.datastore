@@ -96,7 +96,7 @@
 
 (defn post-spec
   [n s]
-  (client/post (str schema-url (name n))
+  (client/post (str schema-url (subs (str n) 1))
                {:form-params {:definition s}
                 :content-type :transit+json
                 :throw-exceptions false

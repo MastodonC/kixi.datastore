@@ -9,6 +9,7 @@
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.communications :as c]
             [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
             [kixi.datastore.transit :as t]
             [schema.core :as s]
@@ -268,17 +269,30 @@
     {:post {:consumes "application/transit+json"
             :produces "application/transit+json"
             :response (fn [ctx]
-                        (let [name (get-in ctx [:parameters :path :name])
-                              body (get-in ctx [:body])]
-                          (if-not (ss/exists schemastore name)
-                            (do (c/submit communications
-                                          {::ss/name name
-                                           ::ss/definition (:definition body)})
-                                true)
+                        (let [name        (get-in ctx [:parameters :path :name])
+                              ns          (get-in ctx [:parameters :path :namespace])
+                              body        (get-in ctx [:body])
+                              schema-name (keyword ns name)]
+                          (cond
+                            (ss/exists schemastore schema-name)
                             (assoc (:response ctx)
                                    :status 400
                                    :body {:error :schema-already-exists
-                                          :msg   name}))))}
+                                          :msg   schema-name})
+                            (sv/invalid-name? schema-name)
+                            (assoc (:response ctx)
+                                   :status 400
+                                   :body {:error :schema-invalid-name
+                                          :msg   schema-name})
+                            (sv/invalid-definition? (:definition body))
+                            (assoc (:response ctx)
+                                   :status 400
+                                   :body {:error :schema-invalid-definition
+                                          :msg   schema-name})
+                            :else (do (c/submit communications
+                                                {::ss/name schema-name
+                                                 ::ss/definition (:definition body)})
+                                      true))))}
      :get {:produces "application/transit+json"
            :response
            (fn [ctx]
@@ -302,7 +316,7 @@
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
-    ["/schema" [[["/" :name] (schema-resources metrics schemastore communications)]]]]])
+    ["/schema" [[["/" :namespace "/" :name] (schema-resources metrics schemastore communications)]]]]])
 
 (defn routes
   "Create the URI route structure for our application."
