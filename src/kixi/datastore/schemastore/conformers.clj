@@ -8,7 +8,7 @@
     x
     (if (string? x)
       (try
-        (Integer/parseInt x)
+        (Integer/valueOf x)
         (catch Exception e
           :clojure.spec/invalid))
       :clojure.spec/invalid)))
