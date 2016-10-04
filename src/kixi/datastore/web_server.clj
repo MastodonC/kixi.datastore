@@ -183,16 +183,16 @@
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
                                                    ::ms/pieces-count (:pieces-count file)}}]
-                    (let [invalid (or (spec/explain-data ::ms/filemetadata metadata)
-                                      (when-not (ss/exists schemastore (::ss/name metadata))
-                                        {:error :unknown-schema
-                                         :msg (::ss/name metadata)}))]
-                      (if-not invalid
-                        (do (c/submit communications metadata)
-                            (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))
+                    (let [error (or (spec/explain-data ::ms/filemetadata metadata)
+                                    (when-not (ss/exists schemastore (::ss/name metadata))
+                                      {:error :unknown-schema
+                                       :msg (::ss/name metadata)}))]
+                      (if error
                         (assoc (:response ctx)
                                :status 400
-                               :body invalid)))))}}}))
+                               :body error)
+                        (do (c/submit communications metadata)
+                            (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
   [metrics filestore]
