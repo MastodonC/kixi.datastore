@@ -1,7 +1,12 @@
 (ns kixi.datastore.segmentation
   (:require [clojure.spec :as s]))
 
+(defn sha1?
+  [x]
+  (re-find #"^[0-9a-f]{40}$" x))
+
 (s/def ::id string?)
+(s/def ::sha1 sha1?)
 (s/def ::column-name string?)
 (s/def ::line-count int?)
 (s/def ::value (constantly true))

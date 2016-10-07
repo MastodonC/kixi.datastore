@@ -12,7 +12,8 @@
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [kixi.datastore.communications :as c]
-            [kixi.datastore.file :refer [temp-file close]]))
+            [kixi.datastore.file :refer [temp-file close]]
+            [pandect.algo.sha1 :refer [sha1]]))
 
 (defn uuid
   []
@@ -100,6 +101,7 @@
                          ::ms/provenance {::ms/source "segmentation"
                                           ::ms/parent-id (::ms/id basemetadata)}
                          ::seg/segment {::seg/request request
+                                        ;;::seg/sha1 (sha1 (:file segment-data))
                                         ::seg/line-count (:lines segment-data)
                                         ::seg/value (:value segment-data)}))
     segment-data))

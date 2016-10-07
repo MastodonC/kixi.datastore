@@ -33,7 +33,8 @@
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
-                 [yada "1.1.33"]]
+                 [yada "1.1.33"]
+                 [pandect "0.6.0"]]
 
   :test-selectors {:default (complement :integration)
                    :integration :integration}
