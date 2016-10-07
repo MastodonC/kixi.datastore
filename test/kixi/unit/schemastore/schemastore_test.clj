@@ -33,7 +33,8 @@
 (deftest submit-and-validate-schema
   (let [{:keys [communications schemastore]} @system
         id         (uuid)
-        schema-req {::ss/name ::foobar
+        schema-req {::c/type :schemastore
+                    ::ss/name ::foobar
                     ::ss/schema {::ss/type "list"
                                  ::ss/definition [:foo {::ss/type "integer"}
                                                   :bar {::ss/type "integer"}

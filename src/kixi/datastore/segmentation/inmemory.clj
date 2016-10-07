@@ -95,6 +95,7 @@
                                       [::ms/type
                                        ::ms/name
                                        ::ss/id])
+                         ::comms/type :metadatastore
                          ::ms/id (:id segment-data)
                          ::ms/size-bytes (:size-bytes segment-data)
                          ::ms/provenance {::ms/source "segmentation"
