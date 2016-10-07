@@ -13,7 +13,7 @@
 (defn persist-new-schema
   [data schema]
   (let [id (::ss/id schema)
-        schema' (assoc schema ::ss/timestamp (str (java.util.Date.)))]
+        schema' (assoc schema ::ss/timestamp (ss/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
       (swap! data (fn [d] (assoc d id schema')))
       (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema')))))
