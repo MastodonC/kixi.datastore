@@ -29,17 +29,6 @@
   (some->> (vals @data)
            (some #(when (sub-map sub-spec %) %))))
 
-#_(defn resolve-spec
-    [spec-sym get-spec-fn]
-    (let [[initial & forms] spec-sym]
-      (when (= initial 'clojure.spec/cat)
-        (doseq [f (->> forms
-                       (partition 2)
-                       (map second))]
-          (let [inner-spec (get-spec-fn f)]
-            (s/def-impl f inner-spec (eval inner-spec)))))
-      (s/spec (eval spec-sym))))
-
 (defn read-spec
   [data id]
   (fetch-with-sub-spec data {::ss/id id}))
