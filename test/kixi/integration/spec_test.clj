@@ -1,49 +1,108 @@
 (ns kixi.integration.spec-test
-  (:require [clojure.test :refer :all   ;:exclude [deftest]
-             ]
+  (:require [clojure.test :refer :all]
+            [clojure.spec :as s]
             [clj-http.client :as client]
-            [kixi.integration.base :refer [service-url cycle-system-fixture uuid]]
-            [kixi.datastore.transit :as t]))
+            [kixi.datastore.web-server :refer [add-ns-to-keywords]]
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.schemastore.conformers :as conformers]
+            [kixi.integration.base :refer [service-url cycle-system-fixture uuid
+                                           post-spec get-spec extract-schema parse-json
+                                           wait-for-url is-submap extract-id]]))
+
+(def uuid-regex
+  #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+(def location-regex
+  (re-pattern (str #"schema\/" uuid-regex)))
 
 (use-fixtures :once cycle-system-fixture)
 
-(def schema-url (str "http://" (service-url) "/schema/"))
-
-(defn post-spec
-  [n s]
-  (client/post (str schema-url (name n))
-               {:form-params {:definition s}
-                :content-type :transit+json
-                :transit-opts {:encode t/write-handlers
-                               :decode t/read-handlers}}))
-
-(defn get-spec
-  [n]
-  (client/get (str schema-url (name n))
-              {:accept :transit+json
-               :as :stream
-               :throw-exceptions false}))
-
-(defn extract-spec
-  [r-g]
-  (when (= 200 (:status r-g))
-    (-> r-g
-        :body
-        (client/parse-transit :json {:decode t/read-handlers})
-        :definition)))
+(deftest good-round-trip
+  (let [schema {:name ::new-good-spec-a
+                :type "integer-range"
+                :min 3
+                :max 10}
+        r1       (post-spec schema)]
+    (is-submap {:status 202} r1)
+    (if (= 202 (:status r1))
+      (let [location (get-in r1 [:headers "Location"])
+            id       (extract-id r1)
+            r2       (get-spec id)]
+        (is (re-find location-regex location))
+        (is (re-find uuid-regex id))
+        (is-submap {:status 200} r2)
+        (is-submap (add-ns-to-keywords ::ss/_ (dissoc schema :name))
+                   (::ss/schema (extract-schema r2)))))))
 
 (deftest unknown-spec-404
-  (let [r-g (get-spec :foo)]
+  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (is (= 404
            (:status r-g)))))
 
-(deftest round-trip-predicate-only-spec
-  (let [r-p (post-spec :integer 'integer?)
-        r-g (get-spec :integer)]
-    (is (= 200
-           (:status r-p)))
-    (is (= 200
-           (:status r-g)))
-    (is (= 'integer?
-           (extract-spec r-g)))))
+(deftest repost-spec-get-same-result
+  (let [schema {:name ::reposted-a
+                :type "integer"}
+        r-g1 (post-spec schema)
+        r-g2 (post-spec schema)]
+    (prn r-g2)
+    (is (= 202
+           (:status r-g1)))
+    (is (= 202
+           (:status r-g2)))
+    (is (= (get-in r-g1 [:headers "Location"])
+           (get-in r-g2 [:headers "Location"])))))
 
+(deftest good-spec-202
+  (is (= 202 (:status (post-spec {:name ::good-spec-a
+                                  :type "integer-range"
+                                  :min 3
+                                  :max 10}))))
+  (is (= 202 (:status (post-spec {:name ::good-spec-b
+                                  :type "integer"}))))
+  (is (= 202 (:status (post-spec {:name ::good-spec-c
+                                  :type "list"
+                                  :definition [:foo {:type "integer"}
+                                               :bar {:type "integer"}
+                                               :baz {:type "integer-range"
+                                                     :min 3
+                                                     :max 10}]})))))
+
+(deftest good-spec-202-with-reference
+  (let [schema {:name ::ref-good-spec-a
+                :type "integer-range"
+                :min 3
+                :max 10}
+        r1       (post-spec schema)]
+    (is-submap {:status 202} r1)
+    (if (= 202 (:status r1))
+      (let [location (get-in r1 [:headers "Location"])
+            id       (extract-id r1)]
+        (is (= 202 (:status (post-spec {:name ::ref-good-spec-b
+                                        :type "id"
+                                        :id    id}))))
+        (is (= 202 (:status (post-spec {:name ::ref-good-spec-b
+                                        :type "list"
+                                        :definition [:foo {:type "id"
+                                                           :id   id}
+                                                     :bar {:type "integer"}
+                                                     :baz {:type "integer-range"
+                                                           :min 3
+                                                           :max 10}]}))))))))
+
+(deftest bad-specs
+  (is (= 400 (:status (post-spec {:type "integer"})))   "Missing args (name)")
+  (is (= 400 (:status (post-spec {:name :foo
+                                  :type "integer"})))   "Unnamespaced name")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "foo"})))       "Unknown type")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "integer-range"
+                                  :foo 1})))            "Invalid type")
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "list"
+                                  :definition [:foo]}))) "Invalid type")
+
+  (is (= 400 (:status (post-spec {:name ::foo
+                                  :type "list"
+                                  :definition [:foo
+                                               {:type "foo"}]}))) "Invalid type"))

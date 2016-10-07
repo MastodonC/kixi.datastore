@@ -8,6 +8,7 @@
             [kixi.datastore.segmentation :as seg :refer [Segmentation]]
             [kixi.datastore.communications :refer [Communications] :as comms]
             [kixi.datastore.filestore :as kdfs]
+            [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [kixi.datastore.communications :as c]
@@ -59,7 +60,7 @@
           dex (index-of header-line column-name)]
       (if dex
         (->> (rest parser)
-             (reduce 
+             (reduce
               (fn [value->segment-data line]
                 (let [value (nth line dex)
                       segment-data (get value->segment-data value
@@ -68,7 +69,7 @@
                   (bs/transfer line-csv
                                (:output-stream segment-data)
                                {:close? false
-                                :append? true})                  
+                                :append? true})
                   (assoc value->segment-data
                          value
                          (-> segment-data
@@ -89,11 +90,11 @@
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
                  (kdfs/output-stream filestore (:id segment-data)))
-    (comms/submit communications 
-                  (assoc (select-keys basemetadata 
+    (comms/submit communications
+                  (assoc (select-keys basemetadata
                                       [::ms/type
                                        ::ms/name
-                                       ::kixi.datastore.schemastore/id]) 
+                                       ::ss/id])
                          ::ms/id (:id segment-data)
                          ::ms/size-bytes (:size-bytes segment-data)
                          ::ms/provenance {::ms/source "segmentation"
@@ -114,7 +115,7 @@
                            (with-meta `(~(first form) ~@(next form)  ~x) (meta form))
                            (list form x))
                 valid-threaded `(let [result# ~threaded]
-                                  (if (s/valid? ~spec result#) 
+                                  (if (s/valid? ~spec result#)
                                     (throw (ex-info "valid" result#))
                                     result#))]
             (recur valid-threaded (next forms)))
@@ -124,14 +125,14 @@
 (defn group-rows-by-column-csv
   [uploader retrieve-file request metadata]
   (while-not->> ::seg/error
-      (::ms/id request)
-      retrieve-file
-      (segmentate-file-by-column-values (::seg/column-name request))                   
-      (map (partial uploader metadata request))
-      doall
-      (map :id)))
+    (::ms/id request)
+    retrieve-file
+    (segmentate-file-by-column-values (::seg/column-name request))
+    (map (partial uploader metadata request))
+    doall
+    (map :id)))
 
-(defn group-rows-by-column  
+(defn group-rows-by-column
   [uploader retrieve-file request metadata]
   (case (::ms/type metadata)
     "csv" (group-rows-by-column-csv uploader retrieve-file request metadata)
@@ -158,14 +159,14 @@
 
 (defrecord InMemory
     [communications filestore metadatastore]
-    Segmentation
-    component/Lifecycle
-    (start [component]
-      (info "Starting InMemory Segmentation Processor")
-      (c/attach-pipeline-processor communications
-                                   #(and 
-                                         (s/valid? :kixi.datastore.request/request %)
-                                         (s/valid? ::seg/type (:kixi.datastore.request/type %)))
-                                   (segmentation-processor filestore metadatastore communications))
-      component)
-    (stop [component]))
+  Segmentation
+  component/Lifecycle
+  (start [component]
+    (info "Starting InMemory Segmentation Processor")
+    (c/attach-pipeline-processor communications
+                                 #(and
+                                   (s/valid? :kixi.datastore.request/request %)
+                                   (s/valid? ::seg/type (:kixi.datastore.request/type %)))
+                                 (segmentation-processor filestore metadatastore communications))
+    component)
+  (stop [component]))
