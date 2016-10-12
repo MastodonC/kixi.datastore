@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [kixi.integration.base :refer :all]
             [kixi.datastore.metadatastore :as ms]
+            [kixi.datastore.web-server :as ws]
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.datastore.schemastore :as ss]))
 
@@ -55,7 +56,7 @@
         ]
     (is-submap
      {:status 400
-      :body {:error "unknown-schema"}}
+      :body {::ws/error "unknown-schema"}}
      pfr)))
 
 (deftest small-file-invalid-data
