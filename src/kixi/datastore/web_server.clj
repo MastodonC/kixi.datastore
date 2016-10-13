@@ -40,6 +40,31 @@
                               (concat [i] interceptors)
                               [i])))))
 
+(spec/def ::context
+  (spec/keys :req []
+             :opts []))
+
+(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema})
+(spec/def ::msg (spec/keys :req []
+                           :opts []))
+(spec/def ::error-map
+  (spec/keys :req [::error ::msg]))
+
+(spec/fdef return-error
+        :args (spec/cat :ctx ::context
+                        :args (spec/alt :error-map ::error-map
+                                        :error-parts (spec/cat :error ::error
+                                                               :msg ::msg))))
+
+(defn return-error
+  ([ctx error]
+   (assoc (:response ctx)
+          :status 400
+          :body error))
+  ([ctx error-key msg]
+   (return-error ctx {::error error-key
+                      ::msg msg})))
+
 (defn resource
   [metrics model]
   (-> model
@@ -185,12 +210,10 @@
                                                    ::ms/pieces-count (:pieces-count file)}}]
                     (let [error (or (spec/explain-data ::ms/filemetadata metadata)
                                     (when-not (ss/exists schemastore (::ss/id metadata))
-                                      {:error :unknown-schema
-                                       :msg (::ss/id metadata)}))]
+                                      {::error :unknown-schema
+                                       ::msg {:schema-id (::ss/id metadata)}}))]
                       (if error
-                        (assoc (:response ctx)
-                               :status 400
-                               :body error)
+                        (return-error ctx error)
                         (do
                           (c/submit communications metadata)
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
@@ -272,13 +295,6 @@
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
                (ss/fetch-with schemastore {::ss/id id})))}}}))
-
-(defn return-error
-  [ctx msg error-key]
-  (assoc (:response ctx)
-         :status 400
-         :body {:error error-key
-                :msg msg}))
 
 (defn add-ns-to-keywords
   ([ns m]

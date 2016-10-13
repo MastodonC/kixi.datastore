@@ -2,6 +2,7 @@
   (:require [byte-streams :as bs]
             [clojure.test :refer :all   ;:exclude [deftest]
              ]
+            [clojure.spec.test :as stest]
             [cheshire.core :as json]
             [kixi.repl :as repl]
             [kixi.datastore.transit :as t]
@@ -31,9 +32,14 @@
        (clojure.test/do-report {:type :error :message "Exception diffing"
                                 :expected nil :actual t#}))))
 
+(defn instrument-specd-functions
+  []
+  (stest/instrument 'kixi.datastore.web-server/return-error))
+
 (defn cycle-system-fixture
   [all-tests]
   (repl/start)
+  (instrument-specd-functions)
   (all-tests)
   (repl/stop))
 
