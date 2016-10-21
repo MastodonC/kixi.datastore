@@ -6,7 +6,7 @@
             [clojure.spec :as s]
             [clojure-csv.core :as csv :refer [parse-csv write-csv]]
             [kixi.datastore.segmentation :as seg :refer [Segmentation]]
-            [kixi.datastore.communications :refer [Communications] :as comms]
+            [kixi.comms :refer [Communications attach-event-handler!] :as comms]
             [kixi.datastore.filestore :as kdfs]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
@@ -90,18 +90,20 @@
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
                  (kdfs/output-stream filestore (:id segment-data)))
-    (comms/submit communications
-                  (assoc (select-keys basemetadata
-                                      [::ms/type
-                                       ::ms/name
-                                       ::ss/id])
-                         ::ms/id (:id segment-data)
-                         ::ms/size-bytes (:size-bytes segment-data)
-                         ::ms/provenance {::ms/source "segmentation"
-                                          ::ms/parent-id (::ms/id basemetadata)}
-                         ::seg/segment {::seg/request request
-                                        ::seg/line-count (:lines segment-data)
-                                        ::seg/value (:value segment-data)}))
+    (comms/send-event! communications ;cld rejig this to return all these
+                       :file-created
+                       "1.0.0"
+                       (assoc (select-keys basemetadata
+                                           [::ms/type
+                                            ::ms/name
+                                            ::ss/id])
+                              ::ms/id (:id segment-data)
+                              ::ms/size-bytes (:size-bytes segment-data)
+                              ::ms/provenance {::ms/source "segmentation"
+                                               ::ms/parent-id (::ms/id basemetadata)}
+                              ::seg/segment {::seg/request request
+                                             ::seg/line-count (:lines segment-data)
+                                             ::seg/value (:value segment-data)}))
     segment-data))
 
 (defmacro while-not->>
@@ -155,18 +157,20 @@
                 :kixi.datastore.request/request request
                 ::seg/segment-ids result})
              vector
-             (update metadata ::ms/segmentations concat))))))
+             (update metadata ::ms/segmentations concat)
+             (hash-map :kixi.comms.event/key :file-created :kixi.comms.event/version "1.0.0" :kixi.comms.payload))))))
+;^^ this is abusing the way inmemory store works. Clearly this has to be an event like :file-addtional-metadata or something
 
 (defrecord InMemory
     [communications filestore metadatastore]
-  Segmentation
-  component/Lifecycle
-  (start [component]
-    (info "Starting InMemory Segmentation Processor")
-    (c/attach-pipeline-processor communications
-                                 #(and
-                                   (s/valid? :kixi.datastore.request/request %)
-                                   (s/valid? ::seg/type (:kixi.datastore.request/type %)))
-                                 (segmentation-processor filestore metadatastore communications))
-    component)
-  (stop [component]))
+    Segmentation
+    component/Lifecycle
+    (start [component]
+      (info "Starting InMemory Segmentation Processor")
+      (attach-event-handler! communications
+                             :segmentation
+                             :file-segmentation-created
+                             "1.0.0"
+                             (comp (segmentation-processor filestore metadatastore communications) :kixi.comms.event/payload))
+      component)
+    (stop [component]))

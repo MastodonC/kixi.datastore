@@ -31,4 +31,8 @@
  :metadatastore {:inmemory {}}
  :schemastore {:inmemory {}}
  :segmentation {:inmemory {}}
- :communications {:coreasync {:buffer-size 1}}}
+ :communications {:kafka #profile {:local {:host "127.0.0.1"
+                                           :port 2181
+                                           :group-id group-id
+                                           :consumer-config {:session.timeout.ms 6000
+                                                             :auto.commit.interval.ms 1500}}}}}

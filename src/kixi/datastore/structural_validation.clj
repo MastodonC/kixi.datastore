@@ -3,9 +3,8 @@
             [clojure-csv.core :as csv :refer [parse-csv]]
             [clojure.spec :as s]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications
-             :refer [attach-pipeline-processor
-                     detach-processor]]
+            [kixi.comms :as c
+             :refer [attach-event-handler!]]
             [kixi.datastore.filestore
              :refer [retrieve]]
             [kixi.datastore.file
@@ -27,6 +26,7 @@
 
 (defn metadata->file
   [filestore metadata]
+  (prn "ASCAS: " metadata)
   (let [id (::ms/id metadata)
         f (temp-file id)]
     (bs/transfer
@@ -58,35 +58,36 @@
   (fn [metadata]
     (let [^File file (metadata->file filestore metadata)]
       (try
-        (assoc metadata
-               :structural-validation
-               (case (::ms/type metadata)
-                 "csv" (csv-schema-test schemastore (::ss/id metadata) file)))
+        {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+         :kixi.comms.event/version "1.0.0"
+         :kixi.comms.event/payload {:structural-validation
+                                    (case (::ms/type metadata)
+                                      "csv" (csv-schema-test schemastore (::ss/id metadata) file))}}
         (finally
           (.delete file))))))
+
 
 (defprotocol IStructuralValidator)
 
 (defrecord StructuralValidator
     [communications filestore schemastore structural-validator-fn]
-  IStructuralValidator
-  component/Lifecycle
-  (start [component]
-    (if-not structural-validator-fn
-      (let [sv-fn (structural-validator filestore schemastore)]
-        (info "Starting Structural Validator")
-        (attach-pipeline-processor communications
-                                   requires-structural-validation?
-                                   sv-fn)
-        (assoc component
-               :structural-validator-fn sv-fn))
-      component))
-  (stop [component]
-    (info "Stopping Structural Validator")
-    (if structural-validator-fn
-      (do
-        (detach-processor communications
-                          structural-validator-fn)
+    IStructuralValidator
+    component/Lifecycle
+    (start [component]
+      (if-not structural-validator-fn
+        (let [sv-fn (structural-validator filestore schemastore)]
+          (info "Starting Structural Validator")
+          (attach-event-handler! communications
+                                 :kixi.datastore/structural-validator
+                                 :kixi.datastore/file-metadata-persisted
+                                 "1.0.0"
+                                 (comp sv-fn :kixi.comms.event/payload))
+          (assoc component
+                 :structural-validator-fn sv-fn))
+        component))
+    (stop [component]
+      (info "Stopping Structural Validator")
+      (when structural-validator-fn
         (dissoc component
-                :structural-validator-fn))
-      component)))
+                :structural-validator-fn)
+        component)))

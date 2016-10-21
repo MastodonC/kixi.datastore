@@ -66,7 +66,9 @@
 
 (defn parse-json
   [s]
-  (json/parse-string s keyword))
+  (if (string? s)
+    (json/parse-string s keyword)
+    s))
 
 (def file-url (str "http://" (service-url) "/file"))
 
@@ -117,28 +119,25 @@
                                :decode t/read-handlers}}))
 (defn wait-for-url
   ([url]
-   (wait-for-url url 10))
-  ([url tries]
-   (when (pos? tries)
-     (Thread/sleep 500)
-     (let [md (client/get url
-                          {:accept :transit+json
-                           :as :stream
-                           :throw-exceptions false
-                           :transit-opts {:encode t/write-handlers
-                                          :decode t/read-handlers}})]
-       (if (= 404 (:status md))
-         (recur url (dec tries))
-         md)))))
+   (wait-for-url url 20 nil))
+  ([url tries last-result]
+   (if (pos? tries)
+     (do
+       (Thread/sleep 500)
+       (let [md (client/get url
+                            {:accept :transit+json
+                             :as :stream
+                             :throw-exceptions false
+                             :transit-opts {:encode t/write-handlers
+                                            :decode t/read-handlers}})]
+         (if (= 404 (:status md))
+           (recur url (dec tries) md)
+           md)))
+     last-result)))
 
 (defn get-spec
   [id]
-  (client/get (str schema-url id)
-              {:accept :transit+json
-               :as :stream
-               :throw-exceptions false
-               :transit-opts {:encode t/write-handlers
-                              :decode t/read-handlers}}))
+  (wait-for-url (str schema-url id)))
 
 (defn extract-schema
   [r-g]

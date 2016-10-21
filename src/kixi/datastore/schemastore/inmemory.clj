@@ -5,8 +5,7 @@
             [kixi.datastore.communications :refer [Communications]]
             [kixi.datastore.schemastore :refer [SchemaStore] :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]
-            [kixi.datastore.communications
-             :refer [attach-sink-processor]]
+            [kixi.comms :as c]
             [kixi.datastore.transit :as t]
             [taoensso.timbre :as timbre :refer [error info infof debug]]))
 
@@ -33,28 +32,40 @@
   [data id]
   (fetch-with-sub-spec data {::ss/id id}))
 
+(defn response-event
+  "I don't think we want 'outcome' events. Discuss"
+  [r]
+  nil)
+
+(defn prn-through
+  [x]
+  (prn "X: " x)
+  x)
+
 (defrecord InMemory
     [data communications]
-  SchemaStore
-  (exists [_ id]
-    (get @data id))
-  (fetch-with [_ sub-spec]
-    (fetch-with-sub-spec data sub-spec))
-  (fetch-spec [_ id]
-    (read-spec data id))
-  component/Lifecycle
-  (start [component]
-    (if-not data
-      (let [new-data (atom {})]
-        (info "Starting InMemory Schema Store")
-        (attach-sink-processor communications
-                               #(s/valid? ::ss/create-schema-request %)
-                               (partial persist-new-schema new-data))
-        (assoc component :data new-data))
-      component))
-  (stop [component]
-    (if data
-      (do (info "Destroying InMemory Schema Store")
-          (reset! data {})
-          (dissoc component :data))
-      component)))
+    SchemaStore
+    (exists [_ id]
+      (get @data id))
+    (fetch-with [_ sub-spec]
+      (fetch-with-sub-spec data sub-spec))
+    (fetch-spec [_ id]
+      (read-spec data id))
+    component/Lifecycle
+    (start [component]
+      (if-not data
+        (let [new-data (atom {})]
+          (info "Starting InMemory Schema Store")
+          (c/attach-event-handler! communications
+                                   :kixi.datastore/schemastore
+                                   :kixi.datastore/schema-created
+                                   "1.0.0"
+                                   (comp response-event (partial persist-new-schema new-data) :kixi.comms.event/payload))
+          (assoc component :data new-data))
+        component))
+    (stop [component]
+      (if data
+        (do (info "Destroying InMemory Schema Store")
+            (reset! data {})
+            (dissoc component :data))
+        component)))

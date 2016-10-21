@@ -17,6 +17,8 @@
              [s3 :as s3]]
             [kixi.datastore.communications
              [coreasync :as coreasync]]
+            [kixi.comms.components
+             [kafka :as kafka]]
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]]
             [kixi.datastore.schemastore
@@ -62,7 +64,7 @@
    :segmentation (case (first (keys (:schemastore config)))
                     :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
-                     :coreasync (coreasync/map->CoreAsync {}))
+                     :kafka (kafka/map->Kafka {}))
  ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 

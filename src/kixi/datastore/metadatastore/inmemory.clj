@@ -3,8 +3,7 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.metadatastore
              :refer [MetaDataStore] :as ms]
-            [kixi.datastore.communications
-             :refer [attach-sink-processor]]
+            [kixi.comms :as c]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (defn update-metadata-processor
@@ -15,7 +14,18 @@
            #(update % (::ms/id metadata)
                     (fn [current-metadata]
                       (merge current-metadata
-                             metadata))))))
+                             metadata))))
+    metadata))
+
+(defn response-event
+  [metadata]
+  {:kixi.comms.event/key :kixi.datastore/file-metadata-persisted
+   :kixi.comms.event/version "1.0.0"
+   :kixi.comms.event/payload metadata})
+
+(defn response-update-event
+  [metadata]
+  nil)
 
 (defrecord InMemory
     [data communications]
@@ -33,9 +43,16 @@
       (if-not data
         (let [new-data (atom {})]
           (info "Starting InMemory Metadata Store")
-          (attach-sink-processor communications
-                                 #(s/valid? ::ms/filemetadata %)
-                                 (update-metadata-processor new-data))
+          (c/attach-event-handler! communications
+                                   :metadatastore
+                                   :kixi.datastore/file-created
+                                   "1.0.0"
+                                   (comp response-event (update-metadata-processor new-data) :kixi.comms.event/payload))
+          (c/attach-event-handler! communications
+                                   :metadatastore-updates
+                                   :kixi.datastore/file-metadata-updated
+                                   "1.0.0"
+                                   (comp response-update-event (update-metadata-processor new-data) :kixi.comms.event/payload))
           (assoc component :data new-data))
         component))
     (stop [component]

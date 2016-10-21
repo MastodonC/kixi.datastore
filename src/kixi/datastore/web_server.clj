@@ -8,7 +8,7 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.communications :as c]
+            [kixi.comms :as c]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
@@ -215,7 +215,7 @@
                       (if error
                         (return-error ctx error)
                         (do
-                          (c/submit communications metadata)
+                          (c/send-event! communications :kixi.datastore/file-created "1.0.0" metadata)
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
@@ -260,11 +260,11 @@
                   (do
                     (case type
                       "column" (let [col-name (:column-name body)]
-                                 (c/submit communications
-                                           {:kixi.datastore.request/type ::seg/group-rows-by-column
-                                            ::seg/id id
-                                            ::ms/id file-id
-                                            ::seg/column-name col-name})))
+                                 (c/send-event! communications :file-segementation-created "1.0.0"
+                                                {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                                 ::seg/id id
+                                                 ::ms/id file-id
+                                                 ::seg/column-name col-name})))
                     (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                     :id file-id}}))))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...
@@ -336,10 +336,10 @@
                                                               :schema-id-entry
                                                               {:route-params {:id (::ss/id preexists)}}))))})
                                 (do
-                                  (c/submit communications
-                                            {::ss/name schema-name
-                                             ::ss/schema schema'
-                                             ::ss/id new-id})
+                                  (c/send-event! communications :kixi.datastore/schema-created "1.0.0"
+                                                 {::ss/name schema-name
+                                                  ::ss/schema schema'
+                                                  ::ss/id new-id})
                                   (assoc (:response ctx)
                                          :status 202
                                          :headers {"Location"
