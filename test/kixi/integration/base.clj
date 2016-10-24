@@ -34,7 +34,8 @@
 
 (defn instrument-specd-functions
   []
-  (stest/instrument 'kixi.datastore.web-server/return-error))
+  (stest/instrument ['kixi.datastore.web-server/return-error
+                     'kixi.datastore.metadatastore.inmemory/update-metadata-processor]))
 
 (defn cycle-system-fixture
   [all-tests]

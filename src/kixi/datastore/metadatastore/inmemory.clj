@@ -6,6 +6,10 @@
             [kixi.comms :as c]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
+(s/fdef update-metadata-processor
+        :args (s/cat :data #(instance? clojure.lang.IAtom %)
+                     :update-req ::ms/file-metadata-updated))
+
 (defmulti update-metadata-processor
   (fn [data update-event]
     (::ms/file-metadata-update-type update-event)))
