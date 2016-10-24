@@ -20,12 +20,12 @@
 
     component/Lifecycle
     (start [component]
-      (info "Starting Local Datastore")
+      (info "Starting Local File Datastore")
       (let [dir (io/file base-dir)]
         (.mkdirs dir)
         (assoc component :dir dir)))
     (stop [component]
-      (info "Destroying Local Datastore")
+      (info "Destroying Local File Datastore")
       (doseq [^java.io.File f (.listFiles dir)]
         (.delete f))
       (.delete dir)

@@ -4,6 +4,7 @@
              ]
             [clojure.spec.test :as stest]
             [cheshire.core :as json]
+            [environ.core :refer [env]]
             [kixi.repl :as repl]
             [kixi.datastore.transit :as t]
             [clj-http.client :as client]
@@ -15,8 +16,8 @@
             File
             FileNotFoundException]))
 
-(def wait-tries 30)
-(def wait-per-try 100)
+(def wait-tries (env :wait-tries 30))
+(def wait-per-try (env :wait-per-try 100))
 
 (defmacro is-submap
   [expected actual]
