@@ -44,6 +44,7 @@
   (let [schema {:name ::reposted-a
                 :type "integer"}
         r-g1 (post-spec schema)
+        _ (wait-for-url (get-in r-g1 [:headers "Location"]))
         r-g2 (post-spec schema)]
     (is (= 202
            (:status r-g1)))
