@@ -33,14 +33,8 @@
   (fetch-with-sub-spec data {::ss/id id}))
 
 (defn response-event
-  "I don't think we want 'outcome' events. Discuss"
   [r]
   nil)
-
-(defn prn-through
-  [x]
-  (prn "X: " x)
-  x)
 
 (defrecord InMemory
     [data communications]

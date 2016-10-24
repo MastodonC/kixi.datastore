@@ -15,6 +15,9 @@
             File
             FileNotFoundException]))
 
+(def wait-tries 30)
+(def wait-per-try 100)
+
 (defmacro is-submap
   [expected actual]
   `(try
@@ -120,20 +123,20 @@
                                :decode t/read-handlers}}))
 (defn wait-for-url
   ([url]
-   (wait-for-url url 50 nil))
+   (wait-for-url url wait-tries nil))
   ([url tries last-result]
    (if (pos? tries)
-     (do
-       (Thread/sleep 100)
-       (let [md (client/get url
-                            {:accept :transit+json
-                             :as :stream
-                             :throw-exceptions false
-                             :transit-opts {:encode t/write-handlers
-                                            :decode t/read-handlers}})]
-         (if (= 404 (:status md))
-           (recur url (dec tries) md)
-           md)))
+     (let [md (client/get url
+                          {:accept :transit+json
+                           :as :stream
+                           :throw-exceptions false
+                           :transit-opts {:encode t/write-handlers
+                                          :decode t/read-handlers}})]
+       (if (= 404 (:status md))
+         (do
+           (Thread/sleep wait-per-try)
+           (recur url (dec tries) md))
+         md))
      last-result)))
 
 (defn get-spec
@@ -165,16 +168,19 @@
                                  :accept :json
                                  :throw-exceptions false}))
 
+
+
 (defn wait-for-metadata-key
   ([id k]
-   (wait-for-metadata-key id k 15))
+   (wait-for-metadata-key id k wait-tries))
   ([id k tries]
    (if (pos? tries)
-     (do (Thread/sleep 500)
-         (let [md (get-metadata id)]
-           (if-not (get-in md [:body k])
-             (recur id k (dec tries))
-             md)))
+     (let [md (get-metadata id)]
+       (if-not (get-in md [:body k])
+         (do
+           (Thread/sleep wait-per-try)
+           (recur id k (dec tries)))
+         md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Reponse: " (get-metadata id)))))))
 
 (defn extract-id
