@@ -122,6 +122,7 @@
                 :throw-exceptions false
                 :transit-opts {:encode t/write-handlers
                                :decode t/read-handlers}}))
+
 (defn wait-for-url
   ([url]
    (wait-for-url url wait-tries nil))
