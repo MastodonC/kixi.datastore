@@ -90,20 +90,26 @@
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
                  (kdfs/output-stream filestore (:id segment-data)))
-    (comms/send-event! communications ;cld rejig this to return all these
-                       :file-created
-                       "1.0.0"
-                       (assoc (select-keys basemetadata
-                                           [::ms/type
-                                            ::ms/name
-                                            ::ss/id])
-                              ::ms/id (:id segment-data)
-                              ::ms/size-bytes (:size-bytes segment-data)
-                              ::ms/provenance {::ms/source "segmentation"
-                                               ::ms/parent-id (::ms/id basemetadata)}
-                              ::seg/segment {::seg/request request
-                                             ::seg/line-count (:lines segment-data)
-                                             ::seg/value (:value segment-data)}))
+    (let [metadata (assoc (select-keys basemetadata
+                                       [::ms/type
+                                        ::ms/name
+                                        ::ss/id])
+                          ::ms/id (:id segment-data)
+                          ::ms/size-bytes (:size-bytes segment-data)
+                          ::ms/provenance {::ms/source "segmentation"
+                                           ::ms/parent-id (::ms/id basemetadata)}
+                          ::seg/segment {::seg/request request
+                                         ::seg/line-count (:lines segment-data)
+                                         ::seg/value (:value segment-data)})]
+      (comms/send-event! communications ;cld rejig this to return all these
+                         :file-created
+                         "1.0.0"
+                         metadata)
+      (comms/send-event! communications ;cld rejig this to return all these
+                         :file-metadata-update
+                         "1.0.0"
+                         {:ms/metadata-update-type :ms/metadata-create
+                          :ms/filemetadata metadata}))
     segment-data))
 
 (defmacro while-not->>
@@ -156,10 +162,8 @@
                {::seg/created true
                 :kixi.datastore.request/request request
                 ::seg/segment-ids result})
-             vector
-             (update metadata ::ms/segmentations concat)
-             (hash-map :kixi.comms.event/key :file-created :kixi.comms.event/version "1.0.0" :kixi.comms.payload))))))
-;^^ this is abusing the way inmemory store works. Clearly this has to be an event like :file-addtional-metadata or something
+             (hash-map :ms/metadata-update-type :ms/file-metadata-segmentation-add :ms/segment)
+             (hash-map :kixi.comms.event/key :file-metadata-update :kixi.comms.event/version "1.0.0" :kixi.comms.payload))))))
 
 (defrecord InMemory
     [communications filestore metadatastore]
@@ -169,7 +173,7 @@
       (info "Starting InMemory Segmentation Processor")
       (attach-event-handler! communications
                              :segmentation
-                             :file-segmentation-created
+                             :kixi.datastore/file-segmentation-created
                              "1.0.0"
                              (comp (segmentation-processor filestore metadatastore communications) :kixi.comms.event/payload))
       component)

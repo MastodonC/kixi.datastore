@@ -119,11 +119,11 @@
                                :decode t/read-handlers}}))
 (defn wait-for-url
   ([url]
-   (wait-for-url url 20 nil))
+   (wait-for-url url 50 nil))
   ([url tries last-result]
    (if (pos? tries)
      (do
-       (Thread/sleep 500)
+       (Thread/sleep 100)
        (let [md (client/get url
                             {:accept :transit+json
                              :as :stream
@@ -174,7 +174,7 @@
            (if-not (get-in md [:body k])
              (recur id k (dec tries))
              md)))
-     (throw (Exception. "Metadata key never appeared.'")))))
+     (throw (Exception. (str "Metadata key never appeared: " k ". Reponse: " (get-metadata id)))))))
 
 (defn extract-id
   [file-response]

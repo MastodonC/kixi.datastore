@@ -18,15 +18,8 @@
             [clojure.java.io :as io])
   (:import [java.io File]))
 
-
-(defn requires-structural-validation?
-  [msg]
-  (and (s/valid? ::ms/filemetadata msg)
-       ((complement :structural-validation) msg)))
-
 (defn metadata->file
   [filestore metadata]
-  (prn "ASCAS: " metadata)
   (let [id (::ms/id metadata)
         f (temp-file id)]
     (bs/transfer
@@ -45,11 +38,11 @@
                                (sv/explain-data schemastore schema-id line))
                              (rest parser))]
           (if (seq explains)
-            {:valid false
-             :explain (doall (take 100 explains))} ;This should be some sort of %age of file size
-            {:valid true})))
+            {::ms/valid false
+             ::ms/explain (doall (take 100 explains))} ;This should be some sort of %age of file size
+            {::ms/valid true})))
       (catch Exception e
-        {:valid false
+        {::ms/valid false
          :line (inc @line-count)
          :e e}))))
 
@@ -60,12 +53,13 @@
       (try
         {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
          :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload {:structural-validation
+         :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked
+                                    ::ms/id (::ms/id metadata)
+                                    ::ms/structural-validation
                                     (case (::ms/type metadata)
                                       "csv" (csv-schema-test schemastore (::ss/id metadata) file))}}
         (finally
           (.delete file))))))
-
 
 (defprotocol IStructuralValidator)
 
@@ -79,7 +73,7 @@
           (info "Starting Structural Validator")
           (attach-event-handler! communications
                                  :kixi.datastore/structural-validator
-                                 :kixi.datastore/file-metadata-persisted
+                                 :kixi.datastore/file-created
                                  "1.0.0"
                                  (comp sv-fn :kixi.comms.event/payload))
           (assoc component

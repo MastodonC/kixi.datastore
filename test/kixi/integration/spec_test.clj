@@ -39,12 +39,12 @@
     (is (= 404
            (:status r-g)))))
 
+(comment "This next test is likely to be flaky as it depends on how quickly the events are consumed. Need an idempotent schema create...")
 (deftest repost-spec-get-same-result
   (let [schema {:name ::reposted-a
                 :type "integer"}
         r-g1 (post-spec schema)
         r-g2 (post-spec schema)]
-    (prn r-g2)
     (is (= 202
            (:status r-g1)))
     (is (= 202

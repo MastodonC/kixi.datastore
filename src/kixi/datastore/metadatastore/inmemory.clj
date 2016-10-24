@@ -6,25 +6,30 @@
             [kixi.comms :as c]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
-(defn update-metadata-processor
-  [data]
-  (fn [metadata]
+(defmulti update-metadata-processor
+  (fn [data update-event]
+    (::ms/file-metadata-update-type update-event)))
+
+(defmethod update-metadata-processor ::ms/file-metadata-created
+  [data update-event]
+  (let [metadata (::ms/file-metadata update-event)]
     (info "Update: " metadata)
     (swap! data
            #(update % (::ms/id metadata)
                     (fn [current-metadata]
                       (merge current-metadata
                              metadata))))
-    metadata))
+    nil))
 
-(defn response-event
-  [metadata]
-  {:kixi.comms.event/key :kixi.datastore/file-metadata-persisted
-   :kixi.comms.event/version "1.0.0"
-   :kixi.comms.event/payload metadata})
 
-(defn response-update-event
-  [metadata]
+(defmethod update-metadata-processor ::ms/file-metadata-structural-validation-checked
+  [data update-event]
+  (info "Update: " update-event)
+  (swap! data
+         #(update % (::ms/id update-event)
+                  (fn [current-metadata]
+                    (assoc (or current-metadata {})
+                           ::ms/structural-validation (::ms/structural-validation update-event)))))
   nil)
 
 (defrecord InMemory
@@ -45,14 +50,9 @@
           (info "Starting InMemory Metadata Store")
           (c/attach-event-handler! communications
                                    :metadatastore
-                                   :kixi.datastore/file-created
-                                   "1.0.0"
-                                   (comp response-event (update-metadata-processor new-data) :kixi.comms.event/payload))
-          (c/attach-event-handler! communications
-                                   :metadatastore-updates
                                    :kixi.datastore/file-metadata-updated
                                    "1.0.0"
-                                   (comp response-update-event (update-metadata-processor new-data) :kixi.comms.event/payload))
+                                   (comp (partial update-metadata-processor new-data) :kixi.comms.event/payload))      
           (assoc component :data new-data))
         component))
     (stop [component]

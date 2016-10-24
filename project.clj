@@ -21,7 +21,7 @@
                  [com.stuartsierra/component "0.3.1"]
                  [com.taoensso/timbre "4.7.0"]
                  [digest "1.4.4"]
-                 [kixi/kixi.comms "0.1.5" :exclusions [cheshire]]
+                 [kixi/kixi.comms "0.1.6" :exclusions [cheshire]]
                  [manifold "0.1.6-alpha1"]
                  [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]

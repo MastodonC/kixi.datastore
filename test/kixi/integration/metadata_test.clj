@@ -21,7 +21,8 @@
   (let [r (post-spec metadata-file-schema)]
     (if (= 202 (:status r))
       (reset! metadata-file-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post metadata-file-schema"))))
+      (throw (Exception. "Couldn't post metadata-file-schema")))
+    (wait-for-url (get-in r [:headers "Location"])))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -34,7 +35,7 @@
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-test-file.csv"
                        @metadata-file-schema-id)
-        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
+        metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
     (is-submap
      {:status 201}
      pfr)
@@ -47,7 +48,7 @@
              ::ms/size-bytes 13,
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count nil}
-             :structural-validation {:valid true}}}
+             ::ms/structural-validation {::ms/valid true}}}
      metadata-response)))
 
 (deftest small-file-invalid-schema
@@ -62,7 +63,7 @@
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-test-file-invalid.csv"
                        @metadata-file-schema-id)
-        metadata-response (wait-for-metadata-key (extract-id pfr) :structural-validation)]
+        metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
     (is-submap
      {:status 201}
      pfr)
@@ -75,5 +76,5 @@
              ::ms/size-bytes 14,
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count nil}
-             :structural-validation {:valid false}}}
+             ::ms/structural-validation {::ms/valid false}}}
      metadata-response)))

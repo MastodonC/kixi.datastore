@@ -24,7 +24,6 @@
   (s/multi-spec request :kixi.datastore.request/type))
 
 
-
 (s/def ::provenance-upload
   (s/keys :req-un [::source ::pieces-count]))
 
@@ -51,9 +50,38 @@
 (s/def ::segmentations
   (s/cat :segmentations (s/+ ::segmentation)))
 
+(s/def ::valid boolean?)
+
+(s/def ::spec-explain
+  (s/keys))
+
+(s/def ::explain
+  (s/cat :errors (s/+ ::spec-explain)))
+
+(s/def ::structural-validation
+  (s/keys :req [::valid]
+          :opt [::explain]))
+
 (s/def ::filemetadata
   (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes]
-          :opt [::segmentations ::segment]))
+          :opt [::segmentations ::segment ::structural-validation]))
+
+(defmulti file-metadata-updated-type ::update-type)
+
+(defmethod file-metadata-updated-type ::file-metadata-created
+  [_]
+  (s/keys :req [::update-type ::file-metadata]))
+
+(defmethod file-metadata-updated-type ::file-metadata-segmentation-add
+  [_]
+  (s/keys :req [::update-type ::segment]))
+
+
+(defmethod file-metadata-updated-type ::file-metadata-structual-validation-checked
+  [_]
+  (s/keys :req [::update-type ::structual-validation ::id]))
+
+(s/def ::file-metadata-updated (s/multi-spec file-metadata-updated-type ::update-type))
 
 (defprotocol MetaDataStore
   (exists [this id])
