@@ -218,7 +218,7 @@
                           (c/send-event! communications :kixi.datastore/file-created "1.0.0" metadata)
                           (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
                                                                                                        ::ms/file-metadata-created
-                                                                                                       ::ms/file-metadata metadata})                     
+                                                                                                       ::ms/file-metadata metadata})
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry

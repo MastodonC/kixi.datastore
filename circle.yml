@@ -5,6 +5,7 @@ machine:
 test:
   pre:
     - ./test-resources/create-test-files.sh
+    - docker-compose up -d
 
 deployment:
   #production:
