@@ -22,7 +22,7 @@
                  [com.taoensso/timbre "4.7.0"]
                  [digest "1.4.4"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.7" :exclusions [cheshire]]
+                 [kixi/kixi.comms "0.1.7" :exclusions [cheshire org.slf4j/slf4j-log4j12]] ;until next release
                  [manifold "0.1.6-alpha1"]
                  [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]
