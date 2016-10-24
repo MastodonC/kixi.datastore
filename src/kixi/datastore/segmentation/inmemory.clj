@@ -102,14 +102,14 @@
                                          ::seg/line-count (:lines segment-data)
                                          ::seg/value (:value segment-data)})]
       (comms/send-event! communications ;cld rejig this to return all these
-                         :file-created
+                         :kixi.datastore/file-created
                          "1.0.0"
                          metadata)
       (comms/send-event! communications ;cld rejig this to return all these
-                         :file-metadata-update
+                         :kixi.datastore/file-metadata-updated
                          "1.0.0"
-                         {:ms/metadata-update-type :ms/metadata-create
-                          :ms/filemetadata metadata}))
+                         {::ms/file-metadata-update-type ::ms/file-metadata-created
+                          ::ms/file-metadata metadata}))
     segment-data))
 
 (defmacro while-not->>
@@ -162,8 +162,8 @@
                {::seg/created true
                 :kixi.datastore.request/request request
                 ::seg/segment-ids result})
-             (hash-map :ms/metadata-update-type :ms/file-metadata-segmentation-add :ms/segment)
-             (hash-map :kixi.comms.event/key :file-metadata-update :kixi.comms.event/version "1.0.0" :kixi.comms.payload))))))
+             (hash-map ::ms/file-metadata-update-type ::ms/file-metadata-segmentation-add ::ms/id (::ms/id request) ::ms/segmentation)
+             (hash-map :kixi.comms.event/key :kixi.datastore/file-metadata-updated :kixi.comms.event/version "1.0.0" :kixi.comms.event/payload))))))
 
 (defrecord InMemory
     [communications filestore metadatastore]

@@ -263,7 +263,7 @@
                   (do
                     (case type
                       "column" (let [col-name (:column-name body)]
-                                 (c/send-event! communications :file-segementation-created "1.0.0"
+                                 (c/send-event! communications :kixi.datastore/file-segmentation-created "1.0.0"
                                                 {:kixi.datastore.request/type ::seg/group-rows-by-column
                                                  ::seg/id id
                                                  ::ms/id file-id

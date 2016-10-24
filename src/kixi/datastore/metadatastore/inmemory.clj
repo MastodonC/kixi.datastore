@@ -36,6 +36,17 @@
                            ::ms/structural-validation (::ms/structural-validation update-event)))))
   nil)
 
+(defmethod update-metadata-processor ::ms/file-metadata-segmentation-add
+  [data update-event]
+  (info "Update: " update-event)
+  (swap! data
+         #(update % (::ms/id update-event)
+                  (fn [current-metadata]
+                    (update (or current-metadata {})
+                            ::ms/segmentations (fn [segs] 
+                                                 (cons (::ms/segmentation update-event) segs))))))
+  nil)
+
 (defrecord InMemory
     [data communications]
     MetaDataStore

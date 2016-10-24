@@ -167,7 +167,7 @@
 
 (defn wait-for-metadata-key
   ([id k]
-   (wait-for-metadata-key id k 10))
+   (wait-for-metadata-key id k 15))
   ([id k tries]
    (if (pos? tries)
      (do (Thread/sleep 500)

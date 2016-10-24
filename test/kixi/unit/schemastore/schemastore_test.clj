@@ -3,12 +3,13 @@
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.schemastore.inmemory :as ssim]
             [kixi.datastore.system :refer [new-system]]
-            [kixi.datastore.communications :as c]
+            [kixi.comms :as c]
             [kixi.integration.base :refer :all]
             [com.stuartsierra.component :as component]
             [clojure.test :refer :all]))
 
 (defonce system (atom nil))
+
 (defn inmemory-schemastore-fixture
   [all-tests]
   (let [kds (select-keys (new-system :local) [:schemastore :communications])]
@@ -41,7 +42,7 @@
                                                         ::ss/min 3
                                                         ::ss/max 10}]}
                     ::ss/id id}]
-    (c/submit communications schema-req)
+    (c/send-event! communications :kixi.datastore/schema-created "1.0.0" schema-req)
     (wait-for-schema-id id schemastore)
     (is (is-submap schema-req (-> schemastore
                                   :data

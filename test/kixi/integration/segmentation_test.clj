@@ -25,7 +25,8 @@
   (let [r (post-spec small-segmentable-file-schema)]
     (if (= 202 (:status r))
       (reset! small-segmentable-file-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
+      (throw (Exception. "Couldn't post small-segmentable-file-schema")))
+    (wait-for-url (get-in r [:headers "Location"])))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -49,6 +50,7 @@
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
+    (wait-for-url (get-in pfr [:headers "Location"]))
     (when-let [locat (get-in pfr [:headers "Location"])]
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
@@ -72,6 +74,7 @@
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
+    (wait-for-url (get-in pfr [:headers "Location"]))
     (when-let [locat (get-in pfr [:headers "Location"])]
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
