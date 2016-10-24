@@ -16,8 +16,8 @@
             File
             FileNotFoundException]))
 
-(def wait-tries (env :wait-tries 30))
-(def wait-per-try (env :wait-per-try 100))
+(def wait-tries (Integer/parseInt (env :wait-tries "30")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
 
 (defmacro is-submap
   [expected actual]
@@ -173,16 +173,16 @@
 
 (defn wait-for-metadata-key
   ([id k]
-   (wait-for-metadata-key id k wait-tries))
-  ([id k tries]
+   (wait-for-metadata-key id k wait-tries nil))
+  ([id k tries lr]
    (if (pos? tries)
      (let [md (get-metadata id)]
        (if-not (get-in md [:body k])
          (do
            (Thread/sleep wait-per-try)
-           (recur id k (dec tries)))
+           (recur id k (dec tries) md))
          md))
-     (throw (Exception. (str "Metadata key never appeared: " k ". Reponse: " (get-metadata id)))))))
+     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
 (defn extract-id
   [file-response]
