@@ -18,6 +18,9 @@
 
 (def wait-tries (Integer/parseInt (env :wait-tries "30")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
+(def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
+
+(def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
 (defmacro is-submap
   [expected actual]
@@ -125,9 +128,9 @@
 
 (defn wait-for-url
   ([url]
-   (wait-for-url url wait-tries nil))
-  ([url tries last-result]
-   (if (pos? tries)
+   (wait-for-url url wait-tries 1 nil))
+  ([url tries cnt last-result]
+   (if (<= cnt tries)
      (let [md (client/get url
                           {:accept :transit+json
                            :as :stream
@@ -136,8 +139,10 @@
                                           :decode t/read-handlers}})]
        (if (= 404 (:status md))
          (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (prn (str "Waited " cnt " times for " url)))
            (Thread/sleep wait-per-try)
-           (recur url (dec tries) md))
+           (recur url tries (inc cnt) md))
          md))
      last-result)))
 
@@ -174,14 +179,16 @@
 
 (defn wait-for-metadata-key
   ([id k]
-   (wait-for-metadata-key id k wait-tries nil))
-  ([id k tries lr]
-   (if (pos? tries)
+   (wait-for-metadata-key id k wait-tries 1 nil))
+  ([id k tries cnt lr]
+   (if (<= cnt tries)
      (let [md (get-metadata id)]
        (if-not (get-in md [:body k])
          (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (prn (str "Waited " cnt " times for " k " to be metadata for " id)))
            (Thread/sleep wait-per-try)
-           (recur id k (dec tries) md))
+           (recur id k tries (inc cnt) md))
          md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
