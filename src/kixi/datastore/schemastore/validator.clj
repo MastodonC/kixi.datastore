@@ -56,7 +56,13 @@
   (let [schema (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)]
     (s/valid? schema data)))
 
+(defn schema-id->schema
+  [schemastore schema-id]
+  (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore))
+
 (defn explain-data
-  [schemastore schema-id data]
-  (let [schema (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)]
-    (s/explain-data schema data)))
+  ([schemastore schema-id data]
+   (explain-data (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)
+                 data))
+  ([schema data]
+   (s/explain-data schema data)))

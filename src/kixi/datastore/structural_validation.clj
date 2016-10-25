@@ -31,21 +31,21 @@
 
 (defn csv-schema-test
   [schemastore schema-id file]
-  (let [line-count (atom 0)]
+  (let [schema (sv/schema-id->schema schemastore schema-id)]
     (try
       (with-open [contents (io/reader file)]
-        (let [parser (parse-csv contents :strict true)
-              explains (keep (fn [line]
-                               (swap! line-count inc)
-                               (sv/explain-data schemastore schema-id line))
-                             (rest parser))]
-          (if (seq explains)
+        (let [lines (->> contents
+                         line-seq
+                         rest)          ;header line
+              invalids (into [] (comp (take 10)
+                                      (remove #(s/valid? schema %))
+                                      (map #(parse-csv % :strict true))) lines)]
+          (if (first invalids)
             {::ms/valid false
-             ::ms/explain (doall (take 100 explains))} ;This should be some sort of %age of file size
+             ::ms/explain (map #(s/explain-data schema %) invalids)} ;This should be some sort of %age of file size
             {::ms/valid true})))
       (catch Exception e
         {::ms/valid false
-         :line (inc @line-count)
          :e e}))))
 
 (defn structural-validator
