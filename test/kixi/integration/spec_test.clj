@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [clojure.spec :as s]
             [clj-http.client :as client]
-            [kixi.datastore.web-server :refer [add-ns-to-keywords]]
+            [kixi.datastore.web-server :refer [add-ns-to-keys]]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer [service-url cycle-system-fixture uuid
@@ -23,7 +23,7 @@
                 :type "integer-range"
                 :min 3
                 :max 10}
-        r1       (post-spec schema)]
+        r1 (post-spec schema)]
     (is-submap {:status 202} r1)
     (if (= 202 (:status r1))
       (let [location (get-in r1 [:headers "Location"])
@@ -32,7 +32,7 @@
         (is (re-find location-regex location))
         (is (re-find uuid-regex id))
         (is-submap {:status 200} r2)
-        (is-submap (add-ns-to-keywords ::ss/_ (dissoc schema :name))
+        (is-submap (add-ns-to-keys ::ss/_ (dissoc schema :name))
                    (::ss/schema (extract-schema r2)))))))
 
 (deftest unknown-spec-404

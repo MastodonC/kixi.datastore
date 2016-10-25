@@ -21,7 +21,7 @@
 
 (defn wait-for-schema-id
   [id schemastore]
-  (loop [tries 10]
+  (loop [tries 30]
     (when-not (ss/fetch-spec schemastore id)
       (Thread/sleep 100)
       (if (zero? (dec tries))

@@ -16,7 +16,7 @@
             File
             FileNotFoundException]))
 
-(def wait-tries (Integer/parseInt (env :wait-tries "30")))
+(def wait-tries (Integer/parseInt (env :wait-tries "40")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 
@@ -120,11 +120,9 @@
   [s]
   (client/post schema-url
                {:form-params {:schema s}
-                :content-type :transit+json
-                :accept :transit+json
-                :throw-exceptions false
-                :transit-opts {:encode t/write-handlers
-                               :decode t/read-handlers}}))
+                :content-type :json
+                :accept :json
+                :throw-exceptions false}))
 
 (defn wait-for-url
   ([url]
@@ -132,11 +130,8 @@
   ([url tries cnt last-result]
    (if (<= cnt tries)
      (let [md (client/get url
-                          {:accept :transit+json
-                           :as :stream
-                           :throw-exceptions false
-                           :transit-opts {:encode t/write-handlers
-                                          :decode t/read-handlers}})]
+                          {:accept :json
+                           :throw-exceptions false})]
        (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
@@ -153,18 +148,15 @@
 (defn get-spec-direct
   [id]
   (client/get (str schema-url id)
-              {:accept :transit+json
-               :as :stream
-               :throw-exceptions false
-               :transit-opts {:encode t/write-handlers
-                              :decode t/read-handlers}}))
+              {:accept :json
+               :throw-exceptions false}))
 
 (defn extract-schema
   [r-g]
   (when (= 200 (:status r-g))
     (-> r-g
         :body
-        (client/parse-transit :json {:decode t/read-handlers}))))
+        parse-json)))
 
 (defn dload-file
   [location]
@@ -181,11 +173,11 @@
 
 (defn get-metadata
   [id]
-  (client/get (metadata-url id) {:as :json
-                                 :accept :json
-                                 :throw-exceptions false}))
-
-
+  (update (client/get (metadata-url id) {:as :json
+                                         :accept :json
+                                         :throw-exceptions false})
+          :body
+          parse-json))
 
 (defn wait-for-metadata-key
   ([id k]

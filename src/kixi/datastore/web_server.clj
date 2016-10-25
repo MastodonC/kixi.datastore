@@ -293,13 +293,13 @@
    metrics
    {:id :schema-id-entry
     :methods
-    {:get {:produces "application/transit+json"
+    {:get {:produces "application/json"
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
                (ss/fetch-with schemastore {::ss/id id})))}}}))
 
-(defn add-ns-to-keywords
+(defn add-ns-to-keys
   ([ns m]
    (letfn [(process [n]
              (if (= (type n) clojure.lang.MapEntry)
@@ -307,18 +307,40 @@
                n))]
      (walk/prewalk process m))))
 
+(defn map-every-nth [f coll n]
+  (map-indexed #(if (zero? (mod %1 n)) (f %2) %2) coll))
+
+(defn keywordize-values
+  [m]
+  (let [keys-values-to-keywordize [::ss/name]
+        m' (reduce
+            (fn [a k]
+              (update a
+                      k
+                      keyword))
+            m
+            keys-values-to-keywordize)]
+    (case (::ss/type m')
+      "list" (update m'
+              ::ss/definition
+              #(map-every-nth
+                keyword
+                % 2))
+      m')))
+
 (defn schema-resources
   [metrics schemastore communications]
   (resource
    metrics
    {:id :schema-create
     :methods
-    {:post {:consumes "application/transit+json"
-            :produces "application/transit+json"
+    {:post {:consumes "application/json"
+            :produces "application/json"
             :response (fn [ctx]
                         (let [new-id      (uuid)
                               body        (get-in ctx [:body])
-                              schema      (add-ns-to-keywords ::ss/_ (:schema body))
+                              schema      (keywordize-values
+                                           (add-ns-to-keys ::ss/_ (:schema body)))                              
                               schema'     (dissoc schema ::ss/name)
                               schema-name (::ss/name schema)]
                           ;; Is name valid?

@@ -21,14 +21,14 @@
   (let [r (post-spec metadata-file-schema)]
     (if (= 202 (:status r))
       (reset! metadata-file-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post metadata-file-schema")))
+      (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r))))
     (wait-for-url (get-in r [:headers "Location"])))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest unknown-file-404
-    (let [sr (get-metadata "foo")]
+  (let [sr (get-metadata "foo")]
     (is (= 404
            (:status sr)))))
 
