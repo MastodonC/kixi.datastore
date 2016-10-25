@@ -49,24 +49,26 @@
                        @small-segmentable-file-schema-id)
         base-file-id (extract-id pfr)]
     (is (= 201
-           (:status pfr)))
-    (wait-for-url (get-in pfr [:headers "Location"]))
+           (:status pfr)))   
     (when-let [locat (get-in pfr [:headers "Location"])]
+      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta"))
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "bar"})]
         (is (= 201
                (:status sr)))
-        (wait-for-metadata-key base-file-id ::ms/segmentations)
-        (let [base-file-meta-resp (get-metadata base-file-id)
-              base-file-meta (:body base-file-meta-resp)
-              segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
-          (is-submap
-           {:status 200
-            :body {::ms/segmentations [{::seg/created false
-                                        ::seg/error {::seg/reason "invalid-column"
-                                                     ::seg/cause "bar"}}]}}
-           base-file-meta-resp))))))
+        (when (= 201
+                 (:status sr))
+          (wait-for-metadata-key base-file-id ::ms/segmentations)
+          (let [base-file-meta-resp (get-metadata base-file-id)
+                base-file-meta (:body base-file-meta-resp)
+                segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
+            (is-submap
+             {:status 200
+              :body {::ms/segmentations [{::seg/created false
+                                          ::seg/error {::seg/reason "invalid-column"
+                                                       ::seg/cause "bar"}}]}}
+             base-file-meta-resp)))))))
 
 (deftest group-rows-by-column-small
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
@@ -74,30 +76,32 @@
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
-    (wait-for-url (get-in pfr [:headers "Location"]))
-    (when-let [locat (get-in pfr [:headers "Location"])]
+    (when-let [locat (get-in pfr [:headers "Location"])]      
+      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta"))
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "cola"})]
         (is (= 201
                (:status sr)))
-        (wait-for-metadata-key base-file-id ::ms/segmentations)
-        (let [base-file-meta-resp (get-metadata base-file-id)
-              base-file-meta (:body base-file-meta-resp)
-              segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
-          (is (= 200
-                 (:status base-file-meta-resp)))
-          (is (= 3
-                 (count segment-ids)))
-          (doseq [seg-id segment-ids]
-            (let [seg-meta-resp (get-metadata seg-id)]
-              (is-submap {:status 200
-                          :body {::ss/id @small-segmentable-file-schema-id
-                                 ::ms/type (::ms/type base-file-meta)
-                                 ::ms/provenance {::ms/parent-id base-file-id}
-                                 ::ms/size-bytes 27}}
-                         seg-meta-resp)
-              (if (= 200 (:status seg-meta-resp))
-                (is (files-match?
-                     (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
-                     (dload-file-by-id seg-id)))))))))))
+        (when (= 201
+                 (:status sr))
+          (wait-for-metadata-key base-file-id ::ms/segmentations)
+          (let [base-file-meta-resp (get-metadata base-file-id)
+                base-file-meta (:body base-file-meta-resp)
+                segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
+            (is (= 200
+                   (:status base-file-meta-resp)))
+            (is (= 3
+                   (count segment-ids)))
+            (doseq [seg-id segment-ids]
+              (let [seg-meta-resp (get-metadata seg-id)]
+                (is-submap {:status 200
+                            :body {::ss/id @small-segmentable-file-schema-id
+                                   ::ms/type (::ms/type base-file-meta)
+                                   ::ms/provenance {::ms/parent-id base-file-id}
+                                   ::ms/size-bytes 27}}
+                           seg-meta-resp)
+                (if (= 200 (:status seg-meta-resp))
+                  (is (files-match?
+                       (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
+                       (dload-file-by-id seg-id))))))))))))
