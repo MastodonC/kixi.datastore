@@ -88,9 +88,16 @@
                   (raise-first :schemastore)
                   (raise-first :segmentation))))
 
+(defn start-logging
+  [system]
+  (update system
+          :logging
+          component/start))
+
 (defn new-system
   [profile]
   (let [config (config profile)]
     (-> (new-system-map config)
         (configure-components config)
+        start-logging
         (system-using component-dependencies))))

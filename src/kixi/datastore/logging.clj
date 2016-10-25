@@ -40,7 +40,7 @@
     [level ns-blacklist metrics]
     component/Lifecycle
     (start [component]
-      (when-not (:full-config component)
+      (if-not (:full-config component)
         (let [full-config {:level level
                            :ns-blacklist ns-blacklist
                            :timestamp-opts logback-timestamp-opts ; iso8601 timestamps
@@ -50,7 +50,9 @@
           (log/handle-uncaught-jvm-exceptions! 
            (fn [throwable ^Thread thread]
              (log/error throwable (str "Unhandled exception on " (.getName thread)))))
-          (assoc component :full-config full-config))))
+          (assoc component :full-config full-config))
+        component))
     (stop [component]
-      (when (:full-config component)
-        (dissoc component :full-config))))
+      (if (:full-config component)
+        (dissoc component :full-config)
+        component)))
