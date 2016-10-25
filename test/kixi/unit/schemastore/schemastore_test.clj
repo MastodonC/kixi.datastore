@@ -22,10 +22,7 @@
 (defn wait-for-schema-id
   [id schemastore]
   (loop [tries 10]
-    (when-not (-> schemastore
-                  :data
-                  (deref)
-                  (get id))
+    (when-not (ss/fetch-spec schemastore id)
       (Thread/sleep 100)
       (if (zero? (dec tries))
         (throw (Exception. "Schema ID never appeared."))
@@ -44,10 +41,7 @@
                     ::ss/id id}]
     (c/send-event! communications :kixi.datastore/schema-created "1.0.0" schema-req)
     (wait-for-schema-id id schemastore)
-    (is (is-submap schema-req (-> schemastore
-                                  :data
-                                  (deref)
-                                  (get id))))
+    (is (is-submap schema-req (ss/fetch-spec schemastore id)))
     (is (sv/valid? schemastore id [1 2 5]))
     (is (sv/valid? schemastore id [(+ 1 1) 2 5]))
     (is (sv/valid? schemastore id ["1" "2" "5"]))

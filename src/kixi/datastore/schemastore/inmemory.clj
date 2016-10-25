@@ -15,7 +15,7 @@
         schema' (assoc schema ::ss/timestamp (ss/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
       (swap! data (fn [d] (assoc d id schema')))
-      (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema')))))
+      (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema'))))) ;should be at the command level
 
 (defn sub-map
   [f s]
