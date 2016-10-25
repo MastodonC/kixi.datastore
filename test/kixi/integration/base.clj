@@ -137,7 +137,7 @@
                            :throw-exceptions false
                            :transit-opts {:encode t/write-handlers
                                           :decode t/read-handlers}})]
-       (if (= 404 (:status md))
+       (if-not (= 200 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
              (prn (str "Waited " cnt " times for " url)))
