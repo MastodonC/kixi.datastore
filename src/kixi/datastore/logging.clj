@@ -37,13 +37,11 @@
     data))
 
 (defrecord Log
-    [level ns-blacklist metrics]
+    [level ns-blacklist metrics full-config]
     component/Lifecycle
     (start [component]
-      (if-not (:full-config component)
-        (let [full-config {:level level
-                           :ns-blacklist ns-blacklist
-                           :timestamp-opts logback-timestamp-opts ; iso8601 timestamps
+      (if-not full-config
+        (let [full-config {:timestamp-opts logback-timestamp-opts ; iso8601 timestamps
                            :output-fn (partial output-fn {:stacktrace-fonts {}})
                            :middleware [(log-metrics (:meter-mark metrics))]}]
           (log/merge-config! full-config)
@@ -53,6 +51,6 @@
           (assoc component :full-config full-config))
         component))
     (stop [component]
-      (if (:full-config component)
+      (if full-config
         (dissoc component :full-config)
         component)))

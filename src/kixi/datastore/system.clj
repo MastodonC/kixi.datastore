@@ -24,7 +24,8 @@
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]]
             [kixi.datastore.segmentation
-             [inmemory :as segementation-inmemory]]))
+             [inmemory :as segementation-inmemory]]
+            [taoensso.timbre :as log]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -38,13 +39,13 @@
 
 (def component-dependencies
   {:metrics [] 
-   :communications []
    :logging [:metrics]
+   :communications []   
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
    :filestore []
    :metadatastore [:communications]
    :schemastore [:communications]
-;   :schema-extracter [:communications :filestore]
+                                        ;   :schema-extracter [:communications :filestore]
    :segmentation [:communications :metadatastore :filestore]
    :structural-validator [:communications :filestore :schemastore]})
 
@@ -88,16 +89,19 @@
                   (raise-first :schemastore)
                   (raise-first :segmentation))))
 
-(defn start-logging
-  [system]
-  (update system
-          :logging
-          component/start))
+(defn configure-logging
+  [config]
+  (let [level-config {:level (get-in config [:logging :level])
+                      :ns-blacklist (get-in config [:logging :ns-blacklist])}]
+    (log/merge-config! level-config)
+    (log/handle-uncaught-jvm-exceptions! 
+     (fn [throwable ^Thread thread]
+       (log/error throwable (str "Unhandled exception on " (.getName thread)))))))
 
 (defn new-system
   [profile]
   (let [config (config profile)]
+    (configure-logging config)
     (-> (new-system-map config)
         (configure-components config)
-        start-logging
         (system-using component-dependencies))))
