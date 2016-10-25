@@ -2,7 +2,7 @@ machine:
   services:
     - docker
   environment:
-    wait_tries: 600
+    wait_tries: 200
 
 test:
   pre:
