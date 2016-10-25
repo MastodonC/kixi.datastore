@@ -7,7 +7,8 @@
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer [service-url cycle-system-fixture uuid
                                            post-spec get-spec extract-schema parse-json
-                                           wait-for-url is-submap extract-id]]))
+                                           wait-for-url is-submap extract-id
+                                           get-spec-direct]]))
 
 (def uuid-regex
   #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -35,7 +36,7 @@
                    (::ss/schema (extract-schema r2)))))))
 
 (deftest unknown-spec-404
-  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
+  (let [r-g (get-spec-direct "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (is (= 404
            (:status r-g)))))
 

@@ -150,6 +150,15 @@
   [id]
   (wait-for-url (str schema-url id)))
 
+(defn get-spec-direct
+  [id]
+  (client/get (str schema-url id)
+              {:accept :transit+json
+               :as :stream
+               :throw-exceptions false
+               :transit-opts {:encode t/write-handlers
+                              :decode t/read-handlers}}))
+
 (defn extract-schema
   [r-g]
   (when (= 200 (:status r-g))
