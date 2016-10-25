@@ -21,11 +21,13 @@
 (defn metadata->file
   [filestore metadata]
   (let [id (::ms/id metadata)
-        f (temp-file id)]
-    (bs/transfer
-     (retrieve filestore id)
-     f)
-    f))
+        ^File f (temp-file id)]
+    (if (.exists f)
+      (do (bs/transfer
+           (retrieve filestore id)
+           f)
+          f)
+      (error "File does exist: " id))))
 
 (defn csv-schema-test
   [schemastore schema-id file]
@@ -49,7 +51,7 @@
 (defn structural-validator
   [filestore schemastore]
   (fn [metadata]
-    (let [^File file (metadata->file filestore metadata)]
+    (when-let [^File file (metadata->file filestore metadata)]
       (try
         {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
          :kixi.comms.event/version "1.0.0"
