@@ -159,7 +159,7 @@
 
 (defn dload-file
   [location]
-  (let [_ (wait-for-url-head location)
+  (let [_ (wait-for-url location)
         f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
     (bs/transfer (:body (client/get location {:as :stream}))
