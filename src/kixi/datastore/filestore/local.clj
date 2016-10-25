@@ -7,6 +7,10 @@
 (defrecord Local
     [base-dir ^java.io.File dir]
     FileStore
+    (exists [this id]
+      (let [^java.io.File file (io/file dir
+                                        id)]
+        (.exists file)))
     (output-stream [this id]
       (let [^java.io.File file (io/file dir 
                                         id)

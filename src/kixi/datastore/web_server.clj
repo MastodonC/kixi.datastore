@@ -232,7 +232,12 @@
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
                (ds/retrieve filestore
-                            id)))}}}))
+                            id)))}
+     :head {:response
+            (fn [ctx]
+              (let [id (get-in ctx [:parameters :path :id])]
+                (ds/rexists filestore
+                           id)))}}}))
 
 (defn file-meta
   [metrics metadatastore]
