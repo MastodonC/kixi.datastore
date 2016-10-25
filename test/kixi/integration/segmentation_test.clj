@@ -50,7 +50,7 @@
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
-    (wait-for-url-head (get-in pfr [:headers "Location"]))
+    (wait-for-url (get-in pfr [:headers "Location"]))
     (when-let [locat (get-in pfr [:headers "Location"])]
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
@@ -74,7 +74,7 @@
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
-    (wait-for-url-head (get-in pfr [:headers "Location"]))
+    (wait-for-url (get-in pfr [:headers "Location"]))
     (when-let [locat (get-in pfr [:headers "Location"])]
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"

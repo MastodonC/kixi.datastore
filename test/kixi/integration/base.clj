@@ -137,22 +137,7 @@
                            :throw-exceptions false
                            :transit-opts {:encode t/write-handlers
                                           :decode t/read-handlers}})]
-       (if-not  (= 200 (:status md))
-         (do
-           (when (zero? (mod cnt every-count-tries-emit))
-             (prn (str "Waited " cnt " times for " url ". Getting: " md)))
-           (Thread/sleep wait-per-try)
-           (recur url tries (inc cnt) md))
-         md))
-     last-result)))
-
-(defn wait-for-url-head
-  ([url]
-   (wait-for-url url wait-tries 1 nil))
-  ([url tries cnt last-result]
-   (if (<= cnt tries)
-     (let [md (client/head url)]
-       (if-not  (= 200 (:status md))
+       (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
              (prn (str "Waited " cnt " times for " url ". Getting: " (:status md))))
