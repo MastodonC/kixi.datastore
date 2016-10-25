@@ -140,7 +140,7 @@
        (if-not (= 200 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
-             (prn (str "Waited " cnt " times for " url)))
+             (prn (str "Waited " cnt " times for " url ". Getting: " md)))
            (Thread/sleep wait-per-try)
            (recur url tries (inc cnt) md))
          md))
