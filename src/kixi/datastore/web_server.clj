@@ -236,7 +236,7 @@
      :head {:response
             (fn [ctx]
               (let [id (get-in ctx [:parameters :path :id])]
-                (ds/rexists filestore
+                (ds/exists filestore
                            id)))}}}))
 
 (defn file-meta
