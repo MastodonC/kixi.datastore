@@ -4,9 +4,10 @@
 
 (defn str-double->int
   "1. or 1.0...0 will convert to 1"
-  [s]
+  [^String s]
   (some-> (re-find #"^([0-9]+)\.0*$" s)
           (last)
+          str
           (Integer/valueOf)))
 
 (defn double->int
@@ -27,7 +28,7 @@
         (and (string? x)
              (str-double->int x)) (str-double->int x)
         (string? x) (try
-                      (Integer/valueOf x)
+                      (Integer/valueOf (str x))
                       (catch Exception e
                         :clojure.spec/invalid))
         :else :clojure.spec/invalid))
@@ -43,7 +44,7 @@
     (clojure.core/double? x) x
     (clojure.core/integer? x) (double x)
     (string? x) (try
-                  (Double/valueOf x)
+                  (Double/valueOf (str x))
                   (catch Exception e
                     :clojure.spec/invalid))
     :else :clojure.spec/invalid))
