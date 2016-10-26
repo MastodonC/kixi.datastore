@@ -13,6 +13,11 @@
 
 #_(deftest csv-schema-test-large
   (is (= {::ms/valid true}
+         (csv-schema-test (s/tuple sc/integer? sc/integer?)
+                          "./test-resources/metadata-344MB-valid.csv"))))
+
+#_(deftest csv-schema-test-large
+  (is (= {::ms/valid true}
          (csv-schema-test (s/cat :cola sc/integer?
                                  :colb sc/integer?)
                           "./test-resources/metadata-344MB-valid.csv"))))
