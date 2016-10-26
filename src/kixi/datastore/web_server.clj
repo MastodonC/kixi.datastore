@@ -18,7 +18,8 @@
              [resource :as yr]
              [yada :as yada]]
             [yada.resources.webjar-resource :refer [new-webjar-resource]]
-            [kixi.datastore.transit :as t]))
+            [kixi.datastore.transit :as t]
+            [kixi.datastore.schemastore.conformers :as sc]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -44,7 +45,7 @@
   (spec/keys :req []
              :opts []))
 
-(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema})
+(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema :file-upload-failed})
 (spec/def ::msg (spec/keys :req []
                            :opts []))
 (spec/def ::error-map
@@ -153,32 +154,32 @@
 
 (defrecord PartConsumer
     [filestore]
-  yada.multipart/PartConsumer
-  (consume-part [_ state part]
-    (if (file-part? part)
-      (let [id (uuid)]
-        (flush-tiny-file! filestore id part)
-        (-> part
-            (assoc :id id
-                   :count 1
-                   :size-bytes (payload-size part))
-            (dissoc :bytes)
-            (add-part state)))
-      (add-part part state)))
-  (start-partial [_ piece]
-    (let [id (uuid)
-          out (ds/output-stream filestore id)]
-      (transfer-piece! out piece)
-      (->StreamingPartial id out
-                          (dissoc piece :bytes)
-                          (payload-size piece))))
-  (part-coercion-matcher [s]
-    "Return a map between a target type and the function that coerces this type into that type"
-    {s/Str (fn [part]
-             (let [offset (or (:body-offset part) 0)]
-               (String. ^bytes (:bytes part)
-                        ^int offset
-                        ^int (- (alength ^bytes (:bytes part)) offset))))}))
+    yada.multipart/PartConsumer
+    (consume-part [_ state part]
+      (if (file-part? part)
+        (let [id (uuid)]
+          (flush-tiny-file! filestore id part)
+          (-> part
+              (assoc :id id
+                     :count 1
+                     :size-bytes (payload-size part))
+              (dissoc :bytes)
+              (add-part state)))
+        (add-part part state)))
+    (start-partial [_ piece]
+      (let [id (uuid)
+            out (ds/output-stream filestore id)]
+        (transfer-piece! out piece)
+        (->StreamingPartial id out
+                            (dissoc piece :bytes)
+                            (payload-size piece))))
+    (part-coercion-matcher [s]
+      "Return a map between a target type and the function that coerces this type into that type"
+      {s/Str (fn [part]
+               (let [offset (or (:body-offset part) 0)]
+                 (String. ^bytes (:bytes part)
+                          ^int offset
+                          ^int (- (alength ^bytes (:bytes part)) offset))))}))
 
 (defn file-create
   [metrics filestore communications schemastore]
@@ -191,6 +192,7 @@
       :produces "application/json"
       :parameters {:body {:file Map
                           :file-size-bytes s/Str
+                          :header s/Str
                           :name s/Str
                           :schema-id s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
@@ -202,6 +204,7 @@
                                   ::ss/id (:schema-id params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
+                                  ::ms/header (:header params)
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
                                                    ::ms/pieces-count (:count file)}}]
@@ -212,14 +215,16 @@
                                     (when-not (= declared-file-size
                                                  (str (:size-bytes file)))
                                       {::error :file-upload-failed
-                                       ::msg (str "Expected " declared-file-size " bytes. Got " (:size-bytes file))}))]
+                                       ::msg {:declared-size declared-file-size
+                                              :recieved-size (:size-bytes file)}}))]
                       (if error
                         (return-error ctx error)
                         (do
-                          (c/send-event! communications :kixi.datastore/file-created "1.0.0" metadata)
-                          (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
-                                                                                                       ::ms/file-metadata-created
-                                                                                                       ::ms/file-metadata metadata})
+                          (let [conformed (spec/conform ::ms/filemetadata metadata)]
+                            (c/send-event! communications :kixi.datastore/file-created "1.0.0" conformed)
+                            (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
+                                                                                                         ::ms/file-metadata-created
+                                                                                                         ::ms/file-metadata conformed}))
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry

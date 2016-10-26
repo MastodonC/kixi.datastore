@@ -28,6 +28,8 @@ cd $DIR
 cat header-metadata.csv > ./metadata-one-valid.csv
 cat valid-line-metadata.csv >> ./metadata-one-valid.csv
 
+cat valid-line-metadata.csv >> ./metadata-one-valid-no-header.csv
+
 cat header-metadata.csv > ./metadata-one-invalid.csv
 cat invalid-line-metadata.csv >> ./metadata-one-invalid.csv
 

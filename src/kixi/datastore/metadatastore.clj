@@ -1,7 +1,8 @@
 (ns kixi.datastore.metadatastore
   (:require [clojure.spec :as s]
             [kixi.datastore.schemastore :as schemastore]
-            [kixi.datastore.segmentation :as seg]))
+            [kixi.datastore.segmentation :as seg]
+            [kixi.datastore.schemastore.conformers :as sc]))
 
 (s/def ::type #{"csv"})
 (s/def ::id string?)
@@ -11,6 +12,7 @@
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})
 (s/def ::line-count int?)
+(s/def ::header sc/bool?)
 
 (s/def :kixi.datastore.request/type #{::seg/group-rows-by-column})
 
@@ -23,17 +25,17 @@
 (s/def :kixi.datastore.request/request
   (s/multi-spec request :kixi.datastore.request/type))
 
+(defmulti provenance-type ::source)
 
-(s/def ::provenance-upload
-  (s/keys :req-un [::source ::pieces-count]))
+(defmethod provenance-type "upload"
+  [_]
+  (s/keys :req [::source ::pieces-count]))
 
-(s/def ::provenance-segment
+(defmethod provenance-type "segmentation"
+  [_]
   (s/keys :req [::source ::line-count ::seg/request ::parent-id]))
 
-;multispec?
-(s/def ::provenance
-  (s/or ::provanace-upload #(= "upload" (::source %))
-        ::provenance-segment #(= "segmentation" (::source %))))
+(s/def ::provenance (s/multi-spec provenance-type ::source))
 
 (defmulti segment-type ::seg/type)
 

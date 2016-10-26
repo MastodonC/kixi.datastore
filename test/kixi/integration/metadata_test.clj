@@ -45,6 +45,7 @@
              ::ss/id @metadata-file-schema-id
              ::ms/type "csv",
              ::ms/name "foo",
+             ::ms/header true
              ::ms/size-bytes 14,
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count 1}

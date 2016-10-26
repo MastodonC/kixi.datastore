@@ -32,6 +32,10 @@
    ((partial ss/fetch-spec schemastore))
    (resolve-schema schemastore)))
 
+(defmethod resolve-schema "boolean"
+  [_ _]
+  conformers/bool?)
+
 (defn resolve-form
   [definition schemastore]
   (if-let [id (::ss/id definition)]

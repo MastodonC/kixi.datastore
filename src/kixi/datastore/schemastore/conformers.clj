@@ -1,14 +1,15 @@
 (ns kixi.datastore.schemastore.conformers
-  (:require [clojure.core :exclude [integer?]]
+  (:require [clojure.core :exclude [integer? double? set?]]
             [clojure.spec :as s]))
 
 (defn str-double->int
   "1. or 1.0...0 will convert to 1"
   [^String s]
-  (some-> (re-find #"^([0-9]+)\.0*$" s)
-          (last)
-          str
-          (Integer/valueOf)))
+  (when-not (neg? (.indexOf s "."))
+    (some-> (re-find #"^([0-9]+)\.0*$" s)
+            (last)
+            str
+            (Integer/valueOf))))
 
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"
@@ -22,15 +23,15 @@
 
 (defn -integer?
   [x]
-  (cond (clojure.core/integer? x) x
-        (and (clojure.core/double? x)
-             (double->int x))     (double->int x)
-        (and (string? x)
+  (cond (and (string? x)
              (str-double->int x)) (str-double->int x)
         (string? x) (try
                       (Integer/valueOf (str x))
                       (catch Exception e
                         :clojure.spec/invalid))
+        (clojure.core/integer? x) x
+        (and (clojure.core/double? x)
+             (double->int x))     (double->int x)
         :else :clojure.spec/invalid))
 
 (def integer? (s/conformer -integer?))
@@ -124,7 +125,10 @@
           (throw (IllegalArgumentException. msg))))
       (throw (IllegalArgumentException. msg)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; String
+(defn -bool?
+  [x]
+  (if (string? x)
+    (Boolean/valueOf (str x))
+    :clojure.spec/invalid))
 
-(def string? (s/conformer (-regex? #".*")))
+(def bool? (s/conformer -bool?))

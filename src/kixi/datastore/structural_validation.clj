@@ -11,6 +11,8 @@
              :refer [temp-file]]
             [kixi.datastore.schemastore
              :as ss]
+            [kixi.datastore.metadatastore
+             :as ms]
             [kixi.datastore.schemastore.validator
              :as sv]
             [kixi.datastore.metadatastore :as ms]
@@ -32,12 +34,13 @@
 (def max-errors 10)  ;Maybe this should be some sort of %age of file size
 
 (defn csv-schema-test
-  [schema file]
+  [schema file header]
   (try
     (with-open [contents (io/reader file)]
-      (let [lines (-> contents
-                      line-seq
-                      rest)             ;header line
+      (let [lines' (line-seq contents)
+            lines (if header
+                     (rest lines')
+                     lines')
             invalids (into [] (comp (map #(parse-csv % :strict true))
                                     (map first)
                                     (remove #(s/valid? schema %))
@@ -57,7 +60,7 @@
       (try
         (let [schema (sv/schema-id->schema schemastore (::ss/id metadata))
               result (case (::ms/type metadata)
-                       "csv" (csv-schema-test schema file))]
+                       "csv" (csv-schema-test schema file (::ms/header metadata)))]
           {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
            :kixi.comms.event/version "1.0.0"
            :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked

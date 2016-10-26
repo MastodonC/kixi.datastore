@@ -9,7 +9,15 @@
   (is (= {::ms/valid true}
          (csv-schema-test (s/cat :cola sc/integer?
                                  :colb sc/integer?)
-                          "./test-resources/metadata-one-valid.csv"))))
+                          "./test-resources/metadata-one-valid.csv"
+                          true))))
+
+(deftest csv-schema-test-small-metadata-no-header
+  (is (= {::ms/valid true}
+         (csv-schema-test (s/cat :cola sc/integer?
+                                 :colb sc/integer?)
+                          "./test-resources/metadata-one-valid-no-header.csv"
+                          false))))
 
 #_(deftest csv-schema-test-large
   (is (= {::ms/valid true}

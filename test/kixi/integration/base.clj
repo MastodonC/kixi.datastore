@@ -104,6 +104,7 @@
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "file-size-bytes" :content (str (.length (io/file file-name)))}
                                     {:name "name" :content "foo"}
+                                    {:name "header" :content "true"}
                                     {:name "schema-id" :content schema-id}]
                         :throw-exceptions false
                         :accept :json})
