@@ -4,6 +4,8 @@ DIR=`dirname $0`
 
 echo $DIR
 
+cd $DIR
+
 #rm -rg sample-files-full
 #mkdir sample-files-full
 
@@ -23,17 +25,19 @@ echo $DIR
 #  head -n 10 "./sample-files-full/$name" > "./sample-files-heads/$name"
 #one
 
-cat header-metadata.csv > metadata-one-valid.csv
-cat valid-line-metadata.csv >> metadata-one-valid.csv
+cat header-metadata.csv > ./metadata-one-valid.csv
+cat valid-line-metadata.csv >> ./metadata-one-valid.csv
 
-cat header-metadata.csv > metadata-one-invalid.csv
-cat invalid-line-metadata.csv >> metadata-one-invalid.csv
+cat header-metadata.csv > ./metadata-one-invalid.csv
+cat invalid-line-metadata.csv >> ./metadata-one-invalid.csv
 
-cat header-metadata.csv > metadata-12MB-valid.csv
-(perl -0777pe '$_=$_ x 3000000' valid-line-metadata.csv) >> metadata-12MB-valid.csv
+cat header-metadata.csv > ./metadata-12MB-valid.csv
+(perl -0777pe '$_=$_ x 3000000' valid-line-metadata.csv) >> ./metadata-12MB-valid.csv
 
-cat header-metadata.csv > metadata-344MB-valid.csv
-(perl -0777pe '$_=$_ x 90000000' valid-line-metadata.csv) >> metadata-344MB-valid.csv
+cat header-metadata.csv > ./metadata-344MB-valid.csv
+(perl -0777pe '$_=$_ x 90000000' valid-line-metadata.csv) >> ./metadata-344MB-valid.csv
 
-cat header-metadata.csv > metadata-344MB-invalid.csv
-(perl -0777pe '$_=$_ x 90000000' invalid-line-metadata.csv) >> metadata-344MB-invalid.csv
+cat header-metadata.csv > ./metadata-344MB-invalid.csv
+(perl -0777pe '$_=$_ x 90000000' invalid-line-metadata.csv) >> ./metadata-344MB-invalid.csv
+
+cd ..

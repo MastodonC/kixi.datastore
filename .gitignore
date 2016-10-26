@@ -1,5 +1,4 @@
 /test-resources/sample-files-full
-/test-resources/*.txt
 /target
 /classes
 /checkouts
