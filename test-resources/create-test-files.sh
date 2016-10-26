@@ -23,9 +23,17 @@ echo $DIR
 #  head -n 10 "./sample-files-full/$name" > "./sample-files-heads/$name"
 #one
 
+cat header-metadata.csv > metadata-one-valid.csv
+cat valid-line-metadata.csv >> metadata-one-valid.csv
 
-dd if=/dev/zero of=$DIR/10B-file.txt count=1 bs=10;
+cat header-metadata.csv > metadata-one-invalid.csv
+cat invalid-line-metadata.csv >> metadata-one-invalid.csv
 
-dd if=/dev/zero of=$DIR/10MB-file.txt count=1048576 bs=10;
+cat header-metadata.csv > metadata-12MB-valid.csv
+(perl -0777pe '$_=$_ x 3000000' valid-line-metadata.csv) >> metadata-12MB-valid.csv
 
-dd if=/dev/zero of=$DIR/300MB-file.txt count=31457280 bs=10;
+cat header-metadata.csv > metadata-344MB-valid.csv
+(perl -0777pe '$_=$_ x 90000000' valid-line-metadata.csv) >> metadata-344MB-valid.csv
+
+cat header-metadata.csv > metadata-344MB-invalid.csv
+(perl -0777pe '$_=$_ x 90000000' invalid-line-metadata.csv) >> metadata-344MB-invalid.csv

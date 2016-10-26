@@ -33,7 +33,7 @@
            (:status sr)))))
 
 (deftest small-file
-  (let [pfr (post-file "./test-resources/metadata-test-file.csv"
+  (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
                        @metadata-file-schema-id)
         metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
     (is-submap
@@ -45,14 +45,14 @@
              ::ss/id @metadata-file-schema-id
              ::ms/type "csv",
              ::ms/name "foo",
-             ::ms/size-bytes 13,
+             ::ms/size-bytes 14,
              ::ms/provenance {::ms/source "upload"
                               ::ms/pieces-count nil}
              ::ms/structural-validation {::ms/valid true}}}
      metadata-response)))
 
 (deftest small-file-invalid-schema
-  (let [pfr (post-file "./test-resources/metadata-test-file.csv"
+  (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
                        "003ba24c-2830-4f28-b6af-905d6215ea1c") ;; schema doesn't exist
         ]
     (is-submap
@@ -61,7 +61,7 @@
      pfr)))
 
 (deftest small-file-invalid-data
-  (let [pfr (post-file "./test-resources/metadata-test-file-invalid.csv"
+  (let [pfr (post-file "./test-resources/metadata-one-invalid.csv"
                        @metadata-file-schema-id)
         metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
     (is-submap
