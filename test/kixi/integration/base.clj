@@ -102,6 +102,7 @@
   (check-file file-name)
   (update (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
+                                    {:name "file-size-bytes" :content (str (.length (io/file file-name)))}
                                     {:name "name" :content "foo"}
                                     {:name "schema-id" :content schema-id}]
                         :throw-exceptions false

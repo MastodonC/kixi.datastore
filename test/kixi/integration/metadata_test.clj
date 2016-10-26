@@ -47,7 +47,7 @@
              ::ms/name "foo",
              ::ms/size-bytes 14,
              ::ms/provenance {::ms/source "upload"
-                              ::ms/pieces-count nil}
+                              ::ms/pieces-count 1}
              ::ms/structural-validation {::ms/valid true}}}
      metadata-response)))
 
@@ -75,6 +75,6 @@
              ::ms/name "foo",
              ::ms/size-bytes 14,
              ::ms/provenance {::ms/source "upload"
-                              ::ms/pieces-count nil}
+                              ::ms/pieces-count 1}
              ::ms/structural-validation {::ms/valid false}}}
      metadata-response)))

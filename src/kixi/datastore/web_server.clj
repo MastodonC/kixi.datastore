@@ -178,12 +178,7 @@
              (let [offset (or (:body-offset part) 0)]
                (String. ^bytes (:bytes part)
                         ^int offset
-                        ^int (- (alength ^bytes (:bytes part)) offset))))
-     Map (fn [part]
-           {:id (:id part)
-            :pieces-count (:count part)
-            :name (get-in part [:content-disposition :params "name"])
-            :size-bytes (:size-bytes part)})}))
+                        ^int (- (alength ^bytes (:bytes part)) offset))))}))
 
 (defn file-create
   [metrics filestore communications schemastore]
@@ -195,23 +190,29 @@
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
+                          :file-size-bytes s/Str
                           :name s/Str
                           :schema-id s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
+                        declared-file-size (:file-size-bytes params)
                         metadata {::ms/id (:id file)
                                   ::ss/id (:schema-id params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
-                                                   ::ms/pieces-count (:pieces-count file)}}]
+                                                   ::ms/pieces-count (:count file)}}]
                     (let [error (or (spec/explain-data ::ms/filemetadata metadata)
                                     (when-not (ss/exists schemastore (::ss/id metadata))
                                       {::error :unknown-schema
-                                       ::msg {:schema-id (::ss/id metadata)}}))]
+                                       ::msg {:schema-id (::ss/id metadata)}})
+                                    (when-not (= declared-file-size
+                                                 (str (:size-bytes file)))
+                                      {::error :file-upload-failed
+                                       ::msg (str "Expected " declared-file-size " bytes. Got " (:size-bytes file))}))]
                       (if error
                         (return-error ctx error)
                         (do
