@@ -137,7 +137,7 @@
        (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
-             (prn (str "Waited " cnt " times for " url ". Getting: " (:status md))))
+             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
            (Thread/sleep wait-per-try)
            (recur url tries (inc cnt) md))
          md))
@@ -190,7 +190,7 @@
        (if-not (get-in md [:body k])
          (do
            (when (zero? (mod cnt every-count-tries-emit))
-             (prn (str "Waited " cnt " times for " k " to be metadata for " id)))
+             (println "Waited" cnt "times for" k "to be metadata for" id))
            (Thread/sleep wait-per-try)
            (recur id k tries (inc cnt) md))
          md))
