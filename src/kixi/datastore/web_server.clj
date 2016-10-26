@@ -201,7 +201,8 @@
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
-                        metadata {::ms/id (:id file)
+                        metadata {::c/type :filestore
+                                  ::ms/id (:id file)
                                   ::ss/id (:schema-id params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
@@ -262,6 +263,7 @@
                       "column" (let [col-name (:column-name body)]
                                  (c/submit communications
                                            {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                            ::c/type :segmentation
                                             ::seg/id id
                                             ::ms/id file-id
                                             ::seg/column-name col-name})))
@@ -339,7 +341,8 @@
                                   (c/submit communications
                                             {::ss/name schema-name
                                              ::ss/schema schema'
-                                             ::ss/id new-id})
+                                             ::ss/id new-id
+                                             ::c/type :schemastore})
                                   (assoc (:response ctx)
                                          :status 202
                                          :headers {"Location"
