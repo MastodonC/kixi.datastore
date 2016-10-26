@@ -3,7 +3,7 @@ machine:
     - docker
   environment:
     wait_tries: 200
-    _JAVA_OPTIONS: "-Xms248m -Xmx512m"
+    _JAVA_OPTIONS: "-Xms248m -Xmx1024m"
 
 test:
   pre:
