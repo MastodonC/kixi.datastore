@@ -16,7 +16,7 @@
             File
             FileNotFoundException]))
 
-(def wait-tries (Integer/parseInt (env :wait-tries "40")))
+(def wait-tries (Integer/parseInt (env :wait-tries "80")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 
