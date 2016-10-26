@@ -46,7 +46,7 @@
       (is (files-match?
            "./test-resources/metadata-12MB-valid.csv"
            (dload-file locat)))))
-  #_(let [r (post-file "./test-resources/metadata-344MB-valid.csv"
+  (let [r (post-file "./test-resources/metadata-344MB-valid.csv"
                      @irrelevant-schema-id)]
     (is (= 201
            (:status r))
