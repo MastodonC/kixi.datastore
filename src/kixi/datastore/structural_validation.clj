@@ -29,37 +29,40 @@
           f)
       (error "File does exist: " id))))
 
+(def max-errors 10)  ;Maybe this should be some sort of %age of file size
+
 (defn csv-schema-test
-  [schemastore schema-id file]
-  (let [schema (sv/schema-id->schema schemastore schema-id)]
-    (try
-      (with-open [contents (io/reader file)]
-        (let [lines (->> contents
-                         line-seq
-                         rest)          ;header line
-              invalids (into [] (comp (take 10)
-                                      (remove #(s/valid? schema %))
-                                      (map #(parse-csv % :strict true))) lines)]
-          (if (first invalids)
-            {::ms/valid false
-             ::ms/explain (map #(s/explain-data schema %) invalids)} ;This should be some sort of %age of file size
-            {::ms/valid true})))
-      (catch Exception e
-        {::ms/valid false
-         :e e}))))
+  [schema file]
+  (try
+    (with-open [contents (io/reader file)]
+      (let [lines (-> contents
+                      line-seq
+                      rest)             ;header line
+            invalids (into [] (comp (map #(parse-csv % :strict true))
+                                    (map first)
+                                    (remove #(s/valid? schema %))
+                                    (take max-errors)) lines)]
+        (if (first invalids)
+          {::ms/valid false
+           ::ms/explain (map #(s/explain-data schema %) invalids)}
+          {::ms/valid true})))
+    (catch Exception e
+      {::ms/valid false
+       :e e})))
 
 (defn structural-validator
   [filestore schemastore]
   (fn [metadata]
     (when-let [^File file (metadata->file filestore metadata)]
       (try
-        {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
-         :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked
-                                    ::ms/id (::ms/id metadata)
-                                    ::ms/structural-validation
-                                    (case (::ms/type metadata)
-                                      "csv" (csv-schema-test schemastore (::ss/id metadata) file))}}
+        (let [schema (sv/schema-id->schema schemastore (::ss/id metadata))
+              result (case (::ms/type metadata)
+                       "csv" (csv-schema-test schema file))]
+          {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+           :kixi.comms.event/version "1.0.0"
+           :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked
+                                      ::ms/id (::ms/id metadata)
+                                      ::ms/structural-validation result}})
         (finally
           (.delete file))))))
 
