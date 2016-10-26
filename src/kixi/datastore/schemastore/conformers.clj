@@ -9,18 +9,13 @@
     (when (== int-val d)
       int-val)))
 
-(defn double-str?
-  [^String s]
-  (not= -1 (.indexOf s ".")))
-
 (defn str-double->int
-  "1. or 1.0...0 will convert to 1"
+  "1, 1. or 1.0...0 will convert to 1"
   [^String s]
-  (when (double-str? s)
-    (try
-      (double->int (Double/valueOf s))
-      (catch NumberFormatException e
-        nil))))
+  (try
+    (double->int (Double/valueOf s))
+    (catch NumberFormatException e
+      nil)))
 
 (defn str->int
   [^String s]

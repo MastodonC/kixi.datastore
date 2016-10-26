@@ -17,7 +17,7 @@
   (is (= 1 (conformers/str-double->int "1.")))
   (is (= 1 (conformers/str-double->int "1.0")))
   (is (= 1 (conformers/str-double->int "1.0000000000")))
-  (is (nil? (conformers/str-double->int "1")))
+  (is (= 1(conformers/str-double->int "1")))
   (is (nil? (conformers/str-double->int "a1.0")))
   (is (nil? (conformers/str-double->int "1.01")))
   (is (nil? (conformers/str-double->int "1.00000000000001"))))
