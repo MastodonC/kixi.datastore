@@ -2,39 +2,48 @@
   (:require [clojure.core :exclude [integer? double? set?]]
             [clojure.spec :as s]))
 
-(defn str-double->int
-  "1. or 1.0...0 will convert to 1"
-  [^String s]
-  (when-not (neg? (.indexOf s "."))
-    (some-> (re-find #"^([0-9]+)\.0*$" s)
-            (last)
-            str
-            (Integer/valueOf))))
-
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"
   [d]
-  (let [[integer decimal] (clojure.string/split (str d) #"\.")]
-    (when (re-find #"^0+$" decimal)
-      (int d))))
+  (let [int-val (int d)]
+    (when (== int-val d)
+      int-val)))
+
+(defn double-str?
+  [^String s]
+  (not= -1 (.indexOf s ".")))
+
+(defn str-double->int
+  "1. or 1.0...0 will convert to 1"
+  [^String s]
+  (when (double-str? s)
+    (try
+      (double->int (Double/valueOf s))
+      (catch NumberFormatException e
+        nil))))
+
+(defn str->int
+  [^String s]
+  (try
+    (Integer/valueOf s)
+    (catch NumberFormatException e
+      (or
+        (str-double->int s)     
+        :clojure.spec/invalid))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer
 
 (defn -integer?
   [x]
-  (cond (and (string? x)
-             (str-double->int x)) (str-double->int x)
-        (string? x) (try
-                      (Integer/valueOf (str x))
-                      (catch Exception e
-                        :clojure.spec/invalid))
+  (cond (string? x) (str->int x)
         (clojure.core/integer? x) x
         (and (clojure.core/double? x)
              (double->int x))     (double->int x)
         :else :clojure.spec/invalid))
 
 (def integer? (s/conformer -integer?))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Double
@@ -46,7 +55,7 @@
     (clojure.core/integer? x) (double x)
     (string? x) (try
                   (Double/valueOf (str x))
-                  (catch Exception e
+                  (catch NumberFormatException e
                     :clojure.spec/invalid))
     :else :clojure.spec/invalid))
 
