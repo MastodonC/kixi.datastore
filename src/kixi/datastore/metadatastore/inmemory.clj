@@ -66,7 +66,7 @@
         (let [new-data (atom {})]
           (info "Starting InMemory Metadata Store")
           (c/attach-event-handler! communications
-                                   :metadatastore
+                                   :kixi.datastore/metadatastore
                                    :kixi.datastore/file-metadata-updated
                                    "1.0.0"
                                    (comp response-event (partial update-metadata-processor new-data) :kixi.comms.event/payload))      
