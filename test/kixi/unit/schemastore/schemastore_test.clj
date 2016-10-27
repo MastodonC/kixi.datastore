@@ -3,12 +3,13 @@
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.schemastore.inmemory :as ssim]
             [kixi.datastore.system :refer [new-system]]
-            [kixi.datastore.communications :as c]
+            [kixi.comms :as c]
             [kixi.integration.base :refer :all]
             [com.stuartsierra.component :as component]
             [clojure.test :refer :all]))
 
 (defonce system (atom nil))
+
 (defn inmemory-schemastore-fixture
   [all-tests]
   (let [kds (select-keys (new-system :local) [:schemastore :communications])]
@@ -20,11 +21,8 @@
 
 (defn wait-for-schema-id
   [id schemastore]
-  (loop [tries 10]
-    (when-not (-> schemastore
-                  :data
-                  (deref)
-                  (get id))
+  (loop [tries 30]
+    (when-not (ss/fetch-spec schemastore id)
       (Thread/sleep 100)
       (if (zero? (dec tries))
         (throw (Exception. "Schema ID never appeared."))
@@ -41,12 +39,9 @@
                                                         ::ss/min 3
                                                         ::ss/max 10}]}
                     ::ss/id id}]
-    (c/submit communications schema-req)
+    (c/send-event! communications :kixi.datastore/schema-created "1.0.0" schema-req)
     (wait-for-schema-id id schemastore)
-    (is (is-submap schema-req (-> schemastore
-                                  :data
-                                  (deref)
-                                  (get id))))
+    (is (is-submap schema-req (ss/fetch-spec schemastore id)))
     (is (sv/valid? schemastore id [1 2 5]))
     (is (sv/valid? schemastore id [(+ 1 1) 2 5]))
     (is (sv/valid? schemastore id ["1" "2" "5"]))

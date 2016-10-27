@@ -12,7 +12,8 @@
 (def irrelevant-schema-id (atom nil))
 (def irrelevant-schema {:name ::irrelevant-schema
                         :type "list"
-                        :definition [:cola {:type "integer"}]})
+                        :definition [:cola {:type "integer"}
+                                     :colb {:type "integer"}]})
 
 
 (defn setup-schema
@@ -20,36 +21,37 @@
   (let [r (post-spec irrelevant-schema)]
     (if (= 202 (:status r))
       (reset! irrelevant-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post irrelevant-schema"))))
+      (throw (Exception. "Couldn't post irrelevant-schema")))
+    (wait-for-url (get-in r [:headers "Location"])))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest round-trip-files
-  (let [r (post-file "./test-resources/10B-file.txt"
+  (let [r (post-file "./test-resources/metadata-one-valid.csv"
                      @irrelevant-schema-id)]
     (is (= 201
            (:status r))
-        (parse-json (:body r)))
+        (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
-           "./test-resources/10B-file.txt"
+           "./test-resources/metadata-one-valid.csv"
            (dload-file locat)))))
-  (let [r (post-file "./test-resources/10MB-file.txt"
+  (let [r (post-file "./test-resources/metadata-12MB-valid.csv"
                      @irrelevant-schema-id)]
     (is (= 201
            (:status r))
-        (parse-json (:body r)))
+        (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
-           "./test-resources/10MB-file.txt"
+           "./test-resources/metadata-12MB-valid.csv"
            (dload-file locat)))))
-  (let [r (post-file "./test-resources/300MB-file.txt"
+  (let [r (post-file "./test-resources/metadata-344MB-valid.csv"
                      @irrelevant-schema-id)]
     (is (= 201
            (:status r))
-        (parse-json (:body r)))
+        (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
-           "./test-resources/300MB-file.txt"
+           "./test-resources/metadata-344MB-valid.csv"
            (dload-file locat))))))

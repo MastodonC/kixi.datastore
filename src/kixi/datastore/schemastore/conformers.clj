@@ -1,38 +1,44 @@
 (ns kixi.datastore.schemastore.conformers
-  (:require [clojure.core :exclude [integer?]]
+  (:require [clojure.core :exclude [integer? double? set?]]
             [clojure.spec :as s]))
-
-(defn str-double->int
-  "1. or 1.0...0 will convert to 1"
-  [s]
-  (some-> (re-find #"^([0-9]+)\.0*$" s)
-          (last)
-          (Integer/valueOf)))
 
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"
   [d]
-  (let [[integer decimal] (clojure.string/split (str d) #"\.")]
-    (when (re-find #"^0+$" decimal)
-      (int d))))
+  (let [int-val (int d)]
+    (when (== int-val d)
+      int-val)))
+
+(defn str-double->int
+  "1, 1. or 1.0...0 will convert to 1"
+  [^String s]
+  (try
+    (double->int (Double/valueOf s))
+    (catch NumberFormatException e
+      nil)))
+
+(defn str->int
+  [^String s]
+  (try
+    (Integer/valueOf s)
+    (catch NumberFormatException e
+      (or
+        (str-double->int s)     
+        :clojure.spec/invalid))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer
 
 (defn -integer?
   [x]
-  (cond (clojure.core/integer? x) x
+  (cond (string? x) (str->int x)
+        (clojure.core/integer? x) x
         (and (clojure.core/double? x)
              (double->int x))     (double->int x)
-        (and (string? x)
-             (str-double->int x)) (str-double->int x)
-        (string? x) (try
-                      (Integer/valueOf x)
-                      (catch Exception e
-                        :clojure.spec/invalid))
         :else :clojure.spec/invalid))
 
 (def integer? (s/conformer -integer?))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Double
@@ -43,8 +49,8 @@
     (clojure.core/double? x) x
     (clojure.core/integer? x) (double x)
     (string? x) (try
-                  (Double/valueOf x)
-                  (catch Exception e
+                  (Double/valueOf (str x))
+                  (catch NumberFormatException e
                     :clojure.spec/invalid))
     :else :clojure.spec/invalid))
 
@@ -123,7 +129,10 @@
           (throw (IllegalArgumentException. msg))))
       (throw (IllegalArgumentException. msg)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; String
+(defn -bool?
+  [x]
+  (if (string? x)
+    (Boolean/valueOf (str x))
+    :clojure.spec/invalid))
 
-(def string? (s/conformer (-regex? #".*")))
+(def bool? (s/conformer -bool?))

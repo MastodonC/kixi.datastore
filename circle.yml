@@ -1,10 +1,14 @@
 machine:
   services:
     - docker
+  environment:
+    wait_tries: 200
+    _JAVA_OPTIONS: "-Xms248m -Xmx1024m"
 
 test:
   pre:
     - ./test-resources/create-test-files.sh
+    - docker-compose up -d
 
 deployment:
   #production:

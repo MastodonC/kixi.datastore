@@ -32,6 +32,10 @@
    ((partial ss/fetch-spec schemastore))
    (resolve-schema schemastore)))
 
+(defmethod resolve-schema "boolean"
+  [_ _]
+  conformers/bool?)
+
 (defn resolve-form
   [definition schemastore]
   (if-let [id (::ss/id definition)]
@@ -43,12 +47,10 @@
   (let [schema-def (get-in definition [::ss/schema ::ss/definition])]
     (s/def-impl (keyword "kixi.schemas" (::ss/id definition))
       schema-def
-      (s/cat-impl (take-nth 2 schema-def)
-                  (map
-                   (fn [x] (resolve-schema {::ss/schema x} schemastore))
-                   (take-nth 2 (rest schema-def)))
-                  (map #(resolve-form % schemastore)
-                       (take-nth 2 (rest schema-def))))))
+      (s/tuple-impl (take-nth 2 (rest schema-def))
+                    (mapv
+                     (fn [x] (resolve-schema {::ss/schema x} schemastore))
+                     (take-nth 2 (rest schema-def))))))
   (keyword "kixi.schemas" (::ss/id definition)))
 
 (defn valid?
@@ -56,7 +58,13 @@
   (let [schema (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)]
     (s/valid? schema data)))
 
+(defn schema-id->schema
+  [schemastore schema-id]
+  (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore))
+
 (defn explain-data
-  [schemastore schema-id data]
-  (let [schema (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)]
-    (s/explain-data schema data)))
+  ([schemastore schema-id data]
+   (explain-data (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)
+                 data))
+  ([schema data]
+   (s/explain-data schema data)))

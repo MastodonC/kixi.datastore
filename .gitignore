@@ -1,5 +1,4 @@
 /test-resources/sample-files-full
-/test-resources/*.txt
 /target
 /classes
 /checkouts
@@ -11,3 +10,4 @@ pom.xml.asc
 /.nrepl-port
 .hgignore
 .hg/
+/test-resources/metadata*

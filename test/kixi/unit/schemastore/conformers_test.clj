@@ -17,7 +17,7 @@
   (is (= 1 (conformers/str-double->int "1.")))
   (is (= 1 (conformers/str-double->int "1.0")))
   (is (= 1 (conformers/str-double->int "1.0000000000")))
-  (is (nil? (conformers/str-double->int "1")))
+  (is (= 1(conformers/str-double->int "1")))
   (is (nil? (conformers/str-double->int "a1.0")))
   (is (nil? (conformers/str-double->int "1.01")))
   (is (nil? (conformers/str-double->int "1.00000000000001"))))
@@ -105,6 +105,12 @@
                         (s/conform (conformers/regex? "\\k") "bar"))))
 
 (deftest string-conformer
-  (is (valid? string? (s/conform conformers/string? "hello")))
-  (is (not (valid? string? (s/conform conformers/string? 123))))
-  (is (not (valid? string? (s/conform conformers/string? \g)))))
+  (is (valid? string? (s/conform string? "hello")))
+  (is (not (valid? string? (s/conform string? 123))))
+  (is (not (valid? string? (s/conform string? \g)))))
+
+(deftest bool-conformer
+  (is (valid? boolean? (s/conform conformers/bool? "true")))
+  (is (true? (s/conform conformers/bool? "true")))
+  (is (false? (s/conform conformers/bool? "foo")))
+  (is (not (valid? boolean? (s/conform conformers/bool? 123)))))

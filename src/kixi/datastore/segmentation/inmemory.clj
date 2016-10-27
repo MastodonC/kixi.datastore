@@ -6,7 +6,7 @@
             [clojure.spec :as s]
             [clojure-csv.core :as csv :refer [parse-csv write-csv]]
             [kixi.datastore.segmentation :as seg :refer [Segmentation]]
-            [kixi.datastore.communications :refer [Communications] :as comms]
+            [kixi.comms :refer [Communications attach-event-handler!] :as comms]
             [kixi.datastore.filestore :as kdfs]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
@@ -90,18 +90,26 @@
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
                  (kdfs/output-stream filestore (:id segment-data)))
-    (comms/submit communications
-                  (assoc (select-keys basemetadata
-                                      [::ms/type
-                                       ::ms/name
-                                       ::ss/id])
-                         ::ms/id (:id segment-data)
-                         ::ms/size-bytes (:size-bytes segment-data)
-                         ::ms/provenance {::ms/source "segmentation"
-                                          ::ms/parent-id (::ms/id basemetadata)}
-                         ::seg/segment {::seg/request request
-                                        ::seg/line-count (:lines segment-data)
-                                        ::seg/value (:value segment-data)}))
+    (let [metadata (assoc (select-keys basemetadata
+                                       [::ms/type
+                                        ::ms/name
+                                        ::ss/id])
+                          ::ms/id (:id segment-data)
+                          ::ms/size-bytes (:size-bytes segment-data)
+                          ::ms/provenance {::ms/source "segmentation"
+                                           ::ms/parent-id (::ms/id basemetadata)}
+                          ::seg/segment {::seg/request request
+                                         ::seg/line-count (:lines segment-data)
+                                         ::seg/value (:value segment-data)})]
+      (comms/send-event! communications ;cld rejig this to return all these
+                         :kixi.datastore/file-created
+                         "1.0.0"
+                         metadata)
+      (comms/send-event! communications ;cld rejig this to return all these
+                         :kixi.datastore/file-metadata-updated
+                         "1.0.0"
+                         {::ms/file-metadata-update-type ::ms/file-metadata-created
+                          ::ms/file-metadata metadata}))
     segment-data))
 
 (defmacro while-not->>
@@ -154,19 +162,19 @@
                {::seg/created true
                 :kixi.datastore.request/request request
                 ::seg/segment-ids result})
-             vector
-             (update metadata ::ms/segmentations concat))))))
+             (hash-map ::ms/file-metadata-update-type ::ms/file-metadata-segmentation-add ::ms/id (::ms/id request) ::ms/segmentation)
+             (hash-map :kixi.comms.event/key :kixi.datastore/file-metadata-updated :kixi.comms.event/version "1.0.0" :kixi.comms.event/payload))))))
 
 (defrecord InMemory
     [communications filestore metadatastore]
-  Segmentation
-  component/Lifecycle
-  (start [component]
-    (info "Starting InMemory Segmentation Processor")
-    (c/attach-pipeline-processor communications
-                                 #(and
-                                   (s/valid? :kixi.datastore.request/request %)
-                                   (s/valid? ::seg/type (:kixi.datastore.request/type %)))
-                                 (segmentation-processor filestore metadatastore communications))
-    component)
-  (stop [component]))
+    Segmentation
+    component/Lifecycle
+    (start [component]
+      (info "Starting InMemory Segmentation Processor")
+      (attach-event-handler! communications
+                             :segmentation
+                             :kixi.datastore/file-segmentation-created
+                             "1.0.0"
+                             (comp (segmentation-processor filestore metadatastore communications) :kixi.comms.event/payload))
+      component)
+    (stop [component]))

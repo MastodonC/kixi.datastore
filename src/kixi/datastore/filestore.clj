@@ -4,6 +4,8 @@
 (s/def ::id string?)
 
 (defprotocol FileStore
+  (exists [this id]
+    "Checks if there is a file with this id in the store")
   (output-stream [this id]
     "Returns an outputstream for writing a files contents to")
   (retrieve [this id] 

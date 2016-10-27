@@ -7,26 +7,32 @@
 (defrecord Local
     [base-dir ^java.io.File dir]
     FileStore
+    (exists [this id]
+      (let [^java.io.File file (io/file dir
+                                        id)]
+        (.exists file)))
     (output-stream [this id]
-      (let [^java.io.File file (io/file base-dir 
+      (let [^java.io.File file (io/file dir 
                                         id)
             _ (.createNewFile file)]
         (io/output-stream file)))
     (retrieve [this id]      
-      (let [^java.io.File file (io/file base-dir
+      (let [^java.io.File file (io/file dir
                                         id)]
         (when (.exists file)
           (io/input-stream file))))
 
     component/Lifecycle
     (start [component]
-      (info "Starting Local Datastore")
-      (let [dir (io/file base-dir)]
+      (info "Starting Local File Datastore")
+      (let [dir (io/file (str (System/getProperty "java.io.tmpdir") base-dir))]
         (.mkdirs dir)
         (assoc component :dir dir)))
     (stop [component]
-      (info "Destroying Local Datastore")
-      (doseq [^java.io.File f (.listFiles dir)]
-        (.delete f))
-      (.delete dir)
-      (dissoc component :base-dir)))
+      (info "Destroying Local File Datastore" component)
+      (if dir
+        (do (doseq [^java.io.File f (.listFiles dir)]
+              (.delete f))
+            (.delete dir)
+            (dissoc component :dir))
+        component)))

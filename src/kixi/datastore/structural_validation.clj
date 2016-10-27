@@ -3,15 +3,16 @@
             [clojure-csv.core :as csv :refer [parse-csv]]
             [clojure.spec :as s]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications
-             :refer [attach-pipeline-processor
-                     detach-processor]]
+            [kixi.comms :as c
+             :refer [attach-event-handler!]]
             [kixi.datastore.filestore
              :refer [retrieve]]
             [kixi.datastore.file
              :refer [temp-file]]
             [kixi.datastore.schemastore
              :as ss]
+            [kixi.datastore.metadatastore
+             :as ms]
             [kixi.datastore.schemastore.validator
              :as sv]
             [kixi.datastore.metadatastore :as ms]
@@ -19,49 +20,52 @@
             [clojure.java.io :as io])
   (:import [java.io File]))
 
-
-(defn requires-structural-validation?
-  [msg]
-  (and (s/valid? ::ms/filemetadata msg)
-       ((complement :structural-validation) msg)))
-
 (defn metadata->file
   [filestore metadata]
   (let [id (::ms/id metadata)
-        f (temp-file id)]
-    (bs/transfer
-     (retrieve filestore id)
-     f)
-    f))
+        ^File f (temp-file id)]
+    (if (.exists f)
+      (do (bs/transfer
+           (retrieve filestore id)
+           f)
+          f)
+      (error "File does exist: " id))))
+
+(def max-errors 10)  ;Maybe this should be some sort of %age of file size
 
 (defn csv-schema-test
-  [schemastore schema-id file]
-  (let [line-count (atom 0)]
-    (try
-      (with-open [contents (io/reader file)]
-        (let [parser (parse-csv contents :strict true)
-              explains (keep (fn [line]
-                               (swap! line-count inc)
-                               (sv/explain-data schemastore schema-id line))
-                             (rest parser))]
-          (if (seq explains)
-            {:valid false
-             :explain (doall (take 100 explains))} ;This should be some sort of %age of file size
-            {:valid true})))
-      (catch Exception e
-        {:valid false
-         :line (inc @line-count)
-         :e e}))))
+  [schema file header]
+  (try
+    (with-open [contents (io/reader file)]
+      (let [lines' (line-seq contents)
+            lines (if header
+                     (rest lines')
+                     lines')
+            invalids (into [] (comp (map #(parse-csv % :strict true))
+                                    (map first)
+                                    (remove #(s/valid? schema %))
+                                    (take max-errors)) lines)]
+        (if (first invalids)
+          {::ms/valid false
+           ::ms/explain (map #(s/explain-data schema %) invalids)}
+          {::ms/valid true})))
+    (catch Exception e
+      {::ms/valid false
+       :e e})))
 
 (defn structural-validator
   [filestore schemastore]
   (fn [metadata]
-    (let [^File file (metadata->file filestore metadata)]
+    (when-let [^File file (metadata->file filestore metadata)]
       (try
-        (assoc metadata
-               :structural-validation
-               (case (::ms/type metadata)
-                 "csv" (csv-schema-test schemastore (::ss/id metadata) file)))
+        (let [schema (sv/schema-id->schema schemastore (::ss/id metadata))
+              result (case (::ms/type metadata)
+                       "csv" (csv-schema-test schema file (::ms/header metadata)))]
+          {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+           :kixi.comms.event/version "1.0.0"
+           :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked
+                                      ::ms/id (::ms/id metadata)
+                                      ::ms/structural-validation result}})
         (finally
           (.delete file))))))
 
@@ -69,24 +73,23 @@
 
 (defrecord StructuralValidator
     [communications filestore schemastore structural-validator-fn]
-  IStructuralValidator
-  component/Lifecycle
-  (start [component]
-    (if-not structural-validator-fn
-      (let [sv-fn (structural-validator filestore schemastore)]
-        (info "Starting Structural Validator")
-        (attach-pipeline-processor communications
-                                   requires-structural-validation?
-                                   sv-fn)
-        (assoc component
-               :structural-validator-fn sv-fn))
-      component))
-  (stop [component]
-    (info "Stopping Structural Validator")
-    (if structural-validator-fn
-      (do
-        (detach-processor communications
-                          structural-validator-fn)
+    IStructuralValidator
+    component/Lifecycle
+    (start [component]
+      (if-not structural-validator-fn
+        (let [sv-fn (structural-validator filestore schemastore)]
+          (info "Starting Structural Validator")
+          (attach-event-handler! communications
+                                 :kixi.datastore/structural-validator
+                                 :kixi.datastore/file-created
+                                 "1.0.0"
+                                 (comp sv-fn :kixi.comms.event/payload))
+          (assoc component
+                 :structural-validator-fn sv-fn))
+        component))
+    (stop [component]
+      (info "Stopping Structural Validator")
+      (when structural-validator-fn
         (dissoc component
-                :structural-validator-fn))
-      component)))
+                :structural-validator-fn)
+        component)))

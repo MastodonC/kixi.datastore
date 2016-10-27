@@ -37,20 +37,20 @@
     data))
 
 (defrecord Log
-    [level ns-blacklist metrics]
+    [level ns-blacklist metrics full-config]
     component/Lifecycle
     (start [component]
-      (when-not (:full-config component)
-        (let [full-config {:level level
-                           :ns-blacklist ns-blacklist
-                           :timestamp-opts logback-timestamp-opts ; iso8601 timestamps
+      (if-not full-config
+        (let [full-config {:timestamp-opts logback-timestamp-opts ; iso8601 timestamps
                            :output-fn (partial output-fn {:stacktrace-fonts {}})
                            :middleware [(log-metrics (:meter-mark metrics))]}]
           (log/merge-config! full-config)
           (log/handle-uncaught-jvm-exceptions! 
            (fn [throwable ^Thread thread]
              (log/error throwable (str "Unhandled exception on " (.getName thread)))))
-          (assoc component :full-config full-config))))
+          (assoc component :full-config full-config))
+        component))
     (stop [component]
-      (when (:full-config component)
-        (dissoc component :full-config))))
+      (if full-config
+        (dissoc component :full-config)
+        component)))

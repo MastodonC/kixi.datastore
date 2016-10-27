@@ -8,7 +8,7 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.communications :as c]
+            [kixi.comms :as c]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
@@ -18,7 +18,8 @@
              [resource :as yr]
              [yada :as yada]]
             [yada.resources.webjar-resource :refer [new-webjar-resource]]
-            [kixi.datastore.transit :as t]))
+            [kixi.datastore.transit :as t]
+            [kixi.datastore.schemastore.conformers :as sc]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -44,7 +45,7 @@
   (spec/keys :req []
              :opts []))
 
-(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema})
+(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema :file-upload-failed})
 (spec/def ::msg (spec/keys :req []
                            :opts []))
 (spec/def ::error-map
@@ -153,37 +154,32 @@
 
 (defrecord PartConsumer
     [filestore]
-  yada.multipart/PartConsumer
-  (consume-part [_ state part]
-    (if (file-part? part)
-      (let [id (uuid)]
-        (flush-tiny-file! filestore id part)
-        (-> part
-            (assoc :id id
-                   :count 1
-                   :size-bytes (payload-size part))
-            (dissoc :bytes)
-            (add-part state)))
-      (add-part part state)))
-  (start-partial [_ piece]
-    (let [id (uuid)
-          out (ds/output-stream filestore id)]
-      (transfer-piece! out piece)
-      (->StreamingPartial id out
-                          (dissoc piece :bytes)
-                          (payload-size piece))))
-  (part-coercion-matcher [s]
-    "Return a map between a target type and the function that coerces this type into that type"
-    {s/Str (fn [part]
-             (let [offset (or (:body-offset part) 0)]
-               (String. ^bytes (:bytes part)
-                        ^int offset
-                        ^int (- (alength ^bytes (:bytes part)) offset))))
-     Map (fn [part]
-           {:id (:id part)
-            :pieces-count (:count part)
-            :name (get-in part [:content-disposition :params "name"])
-            :size-bytes (:size-bytes part)})}))
+    yada.multipart/PartConsumer
+    (consume-part [_ state part]
+      (if (file-part? part)
+        (let [id (uuid)]
+          (flush-tiny-file! filestore id part)
+          (-> part
+              (assoc :id id
+                     :count 1
+                     :size-bytes (payload-size part))
+              (dissoc :bytes)
+              (add-part state)))
+        (add-part part state)))
+    (start-partial [_ piece]
+      (let [id (uuid)
+            out (ds/output-stream filestore id)]
+        (transfer-piece! out piece)
+        (->StreamingPartial id out
+                            (dissoc piece :bytes)
+                            (payload-size piece))))
+    (part-coercion-matcher [s]
+      "Return a map between a target type and the function that coerces this type into that type"
+      {s/Str (fn [part]
+               (let [offset (or (:body-offset part) 0)]
+                 (String. ^bytes (:bytes part)
+                          ^int offset
+                          ^int (- (alength ^bytes (:bytes part)) offset))))}))
 
 (defn file-create
   [metrics filestore communications schemastore]
@@ -195,27 +191,40 @@
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
+                          :file-size-bytes s/Str
+                          :header s/Str
                           :name s/Str
                           :schema-id s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
+                        declared-file-size (:file-size-bytes params)
                         metadata {::ms/id (:id file)
                                   ::ss/id (:schema-id params)
                                   ::ms/type "csv"
                                   ::ms/name (:name params)
+                                  ::ms/header (:header params)
                                   ::ms/size-bytes (:size-bytes file)
                                   ::ms/provenance {::ms/source "upload"
-                                                   ::ms/pieces-count (:pieces-count file)}}]
+                                                   ::ms/pieces-count (:count file)}}]
                     (let [error (or (spec/explain-data ::ms/filemetadata metadata)
                                     (when-not (ss/exists schemastore (::ss/id metadata))
                                       {::error :unknown-schema
-                                       ::msg {:schema-id (::ss/id metadata)}}))]
+                                       ::msg {:schema-id (::ss/id metadata)}})
+                                    (when-not (= declared-file-size
+                                                 (str (:size-bytes file)))
+                                      {::error :file-upload-failed
+                                       ::msg {:declared-size declared-file-size
+                                              :recieved-size (:size-bytes file)}}))]
                       (if error
                         (return-error ctx error)
                         (do
-                          (c/submit communications metadata)
+                          (let [conformed (spec/conform ::ms/filemetadata metadata)]
+                            (c/send-event! communications :kixi.datastore/file-created "1.0.0" conformed)
+                            (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
+                                                                                                         ::ms/file-metadata-created
+                                                                                                         ::ms/file-metadata conformed}))
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
@@ -260,11 +269,11 @@
                   (do
                     (case type
                       "column" (let [col-name (:column-name body)]
-                                 (c/submit communications
-                                           {:kixi.datastore.request/type ::seg/group-rows-by-column
-                                            ::seg/id id
-                                            ::ms/id file-id
-                                            ::seg/column-name col-name})))
+                                 (c/send-event! communications :kixi.datastore/file-segmentation-created "1.0.0"
+                                                {:kixi.datastore.request/type ::seg/group-rows-by-column
+                                                 ::seg/id id
+                                                 ::ms/id file-id
+                                                 ::seg/column-name col-name})))
                     (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                     :id file-id}}))))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...
@@ -290,13 +299,13 @@
    metrics
    {:id :schema-id-entry
     :methods
-    {:get {:produces "application/transit+json"
+    {:get {:produces "application/json"
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
                (ss/fetch-with schemastore {::ss/id id})))}}}))
 
-(defn add-ns-to-keywords
+(defn add-ns-to-keys
   ([ns m]
    (letfn [(process [n]
              (if (= (type n) clojure.lang.MapEntry)
@@ -304,18 +313,40 @@
                n))]
      (walk/prewalk process m))))
 
+(defn map-every-nth [f coll n]
+  (map-indexed #(if (zero? (mod %1 n)) (f %2) %2) coll))
+
+(defn keywordize-values
+  [m]
+  (let [keys-values-to-keywordize [::ss/name]
+        m' (reduce
+            (fn [a k]
+              (update a
+                      k
+                      keyword))
+            m
+            keys-values-to-keywordize)]
+    (case (::ss/type m')
+      "list" (update m'
+              ::ss/definition
+              #(map-every-nth
+                keyword
+                % 2))
+      m')))
+
 (defn schema-resources
   [metrics schemastore communications]
   (resource
    metrics
    {:id :schema-create
     :methods
-    {:post {:consumes "application/transit+json"
-            :produces "application/transit+json"
+    {:post {:consumes "application/json"
+            :produces "application/json"
             :response (fn [ctx]
                         (let [new-id      (uuid)
                               body        (get-in ctx [:body])
-                              schema      (add-ns-to-keywords ::ss/_ (:schema body))
+                              schema      (keywordize-values
+                                           (add-ns-to-keys ::ss/_ (:schema body)))                              
                               schema'     (dissoc schema ::ss/name)
                               schema-name (::ss/name schema)]
                           ;; Is name valid?
@@ -336,10 +367,10 @@
                                                               :schema-id-entry
                                                               {:route-params {:id (::ss/id preexists)}}))))})
                                 (do
-                                  (c/submit communications
-                                            {::ss/name schema-name
-                                             ::ss/schema schema'
-                                             ::ss/id new-id})
+                                  (c/send-event! communications :kixi.datastore/schema-created "1.0.0"
+                                                 {::ss/name schema-name
+                                                  ::ss/schema schema'
+                                                  ::ss/id new-id})
                                   (assoc (:response ctx)
                                          :status 202
                                          :headers {"Location"

@@ -4,6 +4,7 @@
              ]
             [clojure.spec.test :as stest]
             [cheshire.core :as json]
+            [environ.core :refer [env]]
             [kixi.repl :as repl]
             [kixi.datastore.transit :as t]
             [clj-http.client :as client]
@@ -14,6 +15,12 @@
   (:import [java.io
             File
             FileNotFoundException]))
+
+(def wait-tries (Integer/parseInt (env :wait-tries "80")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
+(def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
+
+(def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
 (defmacro is-submap
   [expected actual]
@@ -34,7 +41,8 @@
 
 (defn instrument-specd-functions
   []
-  (stest/instrument 'kixi.datastore.web-server/return-error))
+  (stest/instrument ['kixi.datastore.web-server/return-error
+                     'kixi.datastore.metadatastore.inmemory/update-metadata-processor]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -66,7 +74,9 @@
 
 (defn parse-json
   [s]
-  (json/parse-string s keyword))
+  (if (string? s)
+    (json/parse-string s keyword)
+    s))
 
 (def file-url (str "http://" (service-url) "/file"))
 
@@ -92,7 +102,9 @@
   (check-file file-name)
   (update (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
+                                    {:name "file-size-bytes" :content (str (.length (io/file file-name)))}
                                     {:name "name" :content "foo"}
+                                    {:name "header" :content "true"}
                                     {:name "schema-id" :content schema-id}]
                         :throw-exceptions false
                         :accept :json})
@@ -110,46 +122,48 @@
   [s]
   (client/post schema-url
                {:form-params {:schema s}
-                :content-type :transit+json
-                :accept :transit+json
-                :throw-exceptions false
-                :transit-opts {:encode t/write-handlers
-                               :decode t/read-handlers}}))
+                :content-type :json
+                :accept :json
+                :throw-exceptions false}))
+
 (defn wait-for-url
   ([url]
-   (wait-for-url url 10))
-  ([url tries]
-   (when (pos? tries)
-     (Thread/sleep 500)
+   (wait-for-url url wait-tries 1 nil))
+  ([url tries cnt last-result]
+   (if (<= cnt tries)
      (let [md (client/get url
-                          {:accept :transit+json
-                           :as :stream
-                           :throw-exceptions false
-                           :transit-opts {:encode t/write-handlers
-                                          :decode t/read-handlers}})]
+                          {:accept :json
+                           :throw-exceptions false})]
        (if (= 404 (:status md))
-         (recur url (dec tries))
-         md)))))
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
+           (Thread/sleep wait-per-try)
+           (recur url tries (inc cnt) md))
+         md))
+     last-result)))
 
 (defn get-spec
   [id]
+  (wait-for-url (str schema-url id)))
+
+(defn get-spec-direct
+  [id]
   (client/get (str schema-url id)
-              {:accept :transit+json
-               :as :stream
-               :throw-exceptions false
-               :transit-opts {:encode t/write-handlers
-                              :decode t/read-handlers}}))
+              {:accept :json
+               :throw-exceptions false}))
 
 (defn extract-schema
   [r-g]
   (when (= 200 (:status r-g))
     (-> r-g
         :body
-        (client/parse-transit :json {:decode t/read-handlers}))))
+        parse-json)))
 
 (defn dload-file
   [location]
-  (let [f (java.io.File/createTempFile (uuid) ".tmp")
+  (let [_ (wait-for-url location)
+        f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
     (bs/transfer (:body (client/get location {:as :stream}))
                  f)
@@ -161,21 +175,26 @@
 
 (defn get-metadata
   [id]
-  (client/get (metadata-url id) {:as :json
-                                 :accept :json
-                                 :throw-exceptions false}))
+  (update (client/get (metadata-url id) {:as :json
+                                         :accept :json
+                                         :throw-exceptions false})
+          :body
+          parse-json))
 
 (defn wait-for-metadata-key
   ([id k]
-   (wait-for-metadata-key id k 10))
-  ([id k tries]
-   (if (pos? tries)
-     (do (Thread/sleep 500)
-         (let [md (get-metadata id)]
-           (if-not (get-in md [:body k])
-             (recur id k (dec tries))
-             md)))
-     (throw (Exception. "Metadata key never appeared.'")))))
+   (wait-for-metadata-key id k wait-tries 1 nil))
+  ([id k tries cnt lr]
+   (if (<= cnt tries)
+     (let [md (get-metadata id)]
+       (if-not (get-in md [:body k])
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" k "to be metadata for" id))
+           (Thread/sleep wait-per-try)
+           (recur id k tries (inc cnt) md))
+         md))
+     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
 (defn extract-id
   [file-response]

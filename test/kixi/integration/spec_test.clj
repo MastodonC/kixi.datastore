@@ -2,12 +2,13 @@
   (:require [clojure.test :refer :all]
             [clojure.spec :as s]
             [clj-http.client :as client]
-            [kixi.datastore.web-server :refer [add-ns-to-keywords]]
+            [kixi.datastore.web-server :refer [add-ns-to-keys]]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer [service-url cycle-system-fixture uuid
                                            post-spec get-spec extract-schema parse-json
-                                           wait-for-url is-submap extract-id]]))
+                                           wait-for-url is-submap extract-id
+                                           get-spec-direct]]))
 
 (def uuid-regex
   #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
@@ -22,7 +23,7 @@
                 :type "integer-range"
                 :min 3
                 :max 10}
-        r1       (post-spec schema)]
+        r1 (post-spec schema)]
     (is-submap {:status 202} r1)
     (if (= 202 (:status r1))
       (let [location (get-in r1 [:headers "Location"])
@@ -31,20 +32,21 @@
         (is (re-find location-regex location))
         (is (re-find uuid-regex id))
         (is-submap {:status 200} r2)
-        (is-submap (add-ns-to-keywords ::ss/_ (dissoc schema :name))
+        (is-submap (add-ns-to-keys ::ss/_ (dissoc schema :name))
                    (::ss/schema (extract-schema r2)))))))
 
 (deftest unknown-spec-404
-  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
+  (let [r-g (get-spec-direct "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (is (= 404
            (:status r-g)))))
 
+(comment "This next test is likely to be flaky as it depends on how quickly the events are consumed. Need an idempotent schema create...")
 (deftest repost-spec-get-same-result
   (let [schema {:name ::reposted-a
                 :type "integer"}
         r-g1 (post-spec schema)
+        _ (wait-for-url (get-in r-g1 [:headers "Location"]))
         r-g2 (post-spec schema)]
-    (prn r-g2)
     (is (= 202
            (:status r-g1)))
     (is (= 202

@@ -22,13 +22,17 @@
                                     "taskid" #or [#env MESOS_TASK_ID #rand-uuid "rand"]}
                              :seconds #profile {:staging 60
                                                 :local 1}}}
- :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
+ :logging {:level :error ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]}
- :filestore {:local {:base-dir "/tmp/kixi-datastore"}}
+ :filestore {:local {:base-dir "/kixi-datastore"}}
  :metadatastore {:inmemory {}}
  :schemastore {:inmemory {}}
  :segmentation {:inmemory {}}
- :communications {:coreasync {:buffer-size 1}}}
+ :communications {:kafka #profile {:local {:host "127.0.0.1"
+                                           :port 2181
+                                           :group-id group-id
+                                           :consumer-config {:session.timeout.ms 6000
+                                                             :auto.commit.interval.ms 1500}}}}}

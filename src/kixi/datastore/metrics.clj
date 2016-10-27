@@ -107,37 +107,41 @@
     [influx-reporter registry]  
     component/Lifecycle
     (start [component]
-      (let [with-reg (update component :registry #(or %
-                                                      (let [reg (new-registry)]
-                                                        (jvm/instrument-jvm reg)
-                                                        reg)))
-            reg (:registry with-reg)]
-        (-> with-reg
-            (update :reporter #(or %
-                                   (let [reporter (influxdb/reporter reg 
-                                                                     influx-reporter)]
-                                     (log/info "Starting InfluxDb Metrics Reporter")
-                                     (influxdb/start reporter (:seconds influx-reporter))
-                                     reporter)))
-            (update :meter-mark #(or %
-                                     (meter-mark! reg)))
-            (update :insert-time-in-ctx #(or %
-                                             (insert-time :resource)))
-            (update :expose-metrics-resource #(or %
-                                                  (expose-metrics-resource reg)))
-            (update :record-ctx-metrics #(or %
-                                             (record-metrics reg :resource))))))
+      (if-not registry
+        (let [with-reg (update component :registry #(or %
+                                                        (let [reg (new-registry)]
+                                                          (jvm/instrument-jvm reg)
+                                                          reg)))
+              reg (:registry with-reg)]
+          (-> with-reg
+              (update :reporter #(or %
+                                     (let [reporter (influxdb/reporter reg 
+                                                                       influx-reporter)]
+                                       (log/info "Starting InfluxDb Metrics Reporter")
+                                       (influxdb/start reporter (:seconds influx-reporter))
+                                       reporter)))
+              (update :meter-mark #(or %
+                                       (meter-mark! reg)))
+              (update :insert-time-in-ctx #(or %
+                                               (insert-time :resource)))
+              (update :expose-metrics-resource #(or %
+                                                    (expose-metrics-resource reg)))
+              (update :record-ctx-metrics #(or %
+                                               (record-metrics reg :resource)))))
+        component))
     (stop [component]
-      (-> component
-          (update :reporter #(when %
-                               (log/info "Stopping InfluxDb Reporting")
-                               (influxdb/stop %)
-                               nil))
-          (dissoc :meter-mark)
-          (dissoc :insert-time-in-ctx)
-          (dissoc :record-ctx-metrics)
-          (update :registry #(when %
-                               (log/info "Destorying metrics registry")
-                               (.removeMatching % (com.codahale.metrics.MetricFilter/ALL))
-                               nil)))))
+      (if registry
+        (-> component
+            (update :reporter #(when %
+                                 (log/info "Stopping InfluxDb Reporting")
+                                 (influxdb/stop %)
+                                 nil))
+            (dissoc :meter-mark)
+            (dissoc :insert-time-in-ctx)
+            (dissoc :record-ctx-metrics)
+            (update :registry #(when %
+                                 (log/info "Destorying metrics registry")
+                                 (.removeMatching % (com.codahale.metrics.MetricFilter/ALL))
+                                 nil)))
+        component)))
 
