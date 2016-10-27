@@ -15,7 +15,6 @@
                  [clj-http "2.2.0"]
                  [clj-time "0.12.0"]
                  [clojure-csv/clojure-csv "2.0.1"]
-                 [criterium "0.4.4"]
                  [com.cognitect/transit-clj "0.8.288"]
                  [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
@@ -44,5 +43,7 @@
   :global-vars {*warn-on-reflection* true
                 *assert* false}
 
-  :profiles {:uberjar {:aot [kixi.datastore.bootstrap]
+  :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]
+                                  [criterium "0.4.4"]]}
+             :uberjar {:aot [kixi.datastore.bootstrap]
                        :uberjar-name "kixi.datastore-standalone.jar"}})

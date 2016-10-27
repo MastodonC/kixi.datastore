@@ -39,11 +39,26 @@
 (defmethod schema-type "integer" [_]
   (s/keys :req [::type]))
 
+(defmethod schema-type "double" [_]
+  (s/keys :req [::type]))
+
 (defmethod schema-type "id" [_]
   (s/keys :req [::type ::id]))
 
 (defmethod schema-type "integer-range" [_]
   (s/keys :req [::type ::min ::max]))
+
+(defmethod schema-type "double-range" [_]
+  (s/keys :req [::type ::min ::max]))
+
+(defmethod schema-type "set" [_]
+  (s/keys :req [::type ::elements]))
+
+(defmethod schema-type "boolean" [_]
+  (s/keys :req [::type]))
+
+(defmethod schema-type "pattern" [_]
+  (s/keys :req [::type ::pattern]))
 
 (s/def ::schema
   (s/multi-spec schema-type ::type))

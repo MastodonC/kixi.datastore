@@ -24,6 +24,15 @@
   (let [{min ::ss/min max ::ss/max} (::ss/schema definition)]
     (conformers/integer-range? min max)))
 
+(defmethod resolve-schema "double"
+  [_ _]
+  conformers/double?)
+
+(defmethod resolve-schema "double-range"
+  [definition _]
+  (let [{min ::ss/min max ::ss/max} (::ss/schema definition)]
+    (conformers/double-range? min max)))
+
 (defmethod resolve-schema "id"
   [definition schemastore]
   (->
@@ -32,9 +41,18 @@
    ((partial ss/fetch-spec schemastore))
    (resolve-schema schemastore)))
 
+(defmethod resolve-schema "set"
+  [definition _]
+  (let [{elements ::ss/elements} (::ss/schema definition)]
+    (apply conformers/set? elements)))
+
 (defmethod resolve-schema "boolean"
   [_ _]
   conformers/bool?)
+
+(defmethod resolve-schema "pattern"
+  [definition _]
+  (conformers/regex? (get-in definition [::ss/schema ::ss/pattern])))
 
 (defn resolve-form
   [definition schemastore]

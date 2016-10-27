@@ -14,7 +14,7 @@
   [^String s]
   (try
     (double->int (Double/valueOf s))
-    (catch NumberFormatException e
+    (catch Exception e
       nil)))
 
 (defn str->int
@@ -50,7 +50,7 @@
     (clojure.core/integer? x) (double x)
     (string? x) (try
                   (Double/valueOf (str x))
-                  (catch NumberFormatException e
+                  (catch Exception e
                     :clojure.spec/invalid))
     :else :clojure.spec/invalid))
 
@@ -131,8 +131,9 @@
 
 (defn -bool?
   [x]
-  (if (string? x)
-    (Boolean/valueOf (str x))
-    :clojure.spec/invalid))
+  (cond
+    (boolean? x) x
+    (string? x) (Boolean/valueOf (str x))
+    :else :clojure.spec/invalid))
 
 (def bool? (s/conformer -bool?))
