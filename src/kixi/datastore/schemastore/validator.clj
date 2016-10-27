@@ -42,17 +42,6 @@
     (ss/fetch-spec schemastore id)
     definition))
 
-(comment
-  "Converts our schema definition into a spec/cat definition. 
-   This implementation took ~8mins to process the 300MB file versus the ~2mins
-   the tuple version now takes."
-  (s/cat-impl (take-nth 2 schema-def)
-              (map
-               (fn [x] (resolve-schema {::ss/schema x} schemastore))
-               (take-nth 2 (rest schema-def)))
-              (map #(resolve-form % schemastore)
-                   (take-nth 2 (rest schema-def)))))
-
 (defmethod resolve-schema "list"
   [definition schemastore]
   (let [schema-def (get-in definition [::ss/schema ::ss/definition])]
