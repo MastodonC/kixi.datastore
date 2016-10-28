@@ -55,7 +55,7 @@
                :str  string?)
          {[:str] #()}))
 
-(def sample-size (env :generative-testing-size 100))
+(def sample-size (Integer/valueOf (env :generative-testing-size "100")))
 
 (defn double-str? 
   [^String s]
