@@ -162,3 +162,10 @@
                                          ::ss/pattern "-?[0-9]+"}]}
                (gen/tuple (gen/fmap str (s/gen int?)))
                (gen/tuple (gen/char-alpha))))
+
+(deftest string-list
+  (test-schema ::list-one-string
+               {::ss/type "list"
+                ::ss/definition [:string {::ss/type "string"}]}
+               (gen/tuple (s/gen string?))
+               (s/gen nil?)))

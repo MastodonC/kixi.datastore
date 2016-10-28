@@ -142,3 +142,9 @@
     :else :clojure.spec/invalid))
 
 (def bool? (s/conformer -bool?))
+
+(defn -string?
+  [x]
+  (cond
+    (string? x) x
+    :else (str x)))

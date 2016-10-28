@@ -54,6 +54,10 @@
   [definition _]
   (conformers/regex? (get-in definition [::ss/schema ::ss/pattern])))
 
+(defmethod resolve-schema "string"
+  [_ _]
+  conformers/-string?)
+
 (defn resolve-form
   [definition schemastore]
   (if-let [id (::ss/id definition)]

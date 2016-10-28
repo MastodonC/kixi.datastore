@@ -60,6 +60,9 @@
 (defmethod schema-type "pattern" [_]
   (s/keys :req [::type ::pattern]))
 
+(defmethod schema-type "string" [_]
+  (s/keys :req [::type]))
+
 (s/def ::schema
   (s/multi-spec schema-type ::type))
 
