@@ -3,6 +3,7 @@ machine:
     - docker
   environment:
     wait_tries: 200
+    generative_testing_size: 100
     _JAVA_OPTIONS: "-Xms248m -Xmx1024m"
 
 test:

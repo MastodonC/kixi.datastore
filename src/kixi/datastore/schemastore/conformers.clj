@@ -9,12 +9,20 @@
     (when (== int-val d)
       int-val)))
 
+(defn str->double
+  "Strings converted to doubles"
+  [^String s]
+  (try
+    (Double/valueOf (str s))
+    (catch Exception e
+      :clojure.spec/invalid)))
+
 (defn str-double->int
   "1, 1. or 1.0...0 will convert to 1"
   [^String s]
   (try
-    (double->int (Double/valueOf s))
-    (catch NumberFormatException e
+    (double->int (str->double s))
+    (catch Exception e
       nil)))
 
 (defn str->int
@@ -48,10 +56,7 @@
   (cond
     (clojure.core/double? x) x
     (clojure.core/integer? x) (double x)
-    (string? x) (try
-                  (Double/valueOf (str x))
-                  (catch NumberFormatException e
-                    :clojure.spec/invalid))
+    (string? x) (str->double x)
     :else :clojure.spec/invalid))
 
 (def double? (s/conformer -double?))
@@ -131,8 +136,15 @@
 
 (defn -bool?
   [x]
-  (if (string? x)
-    (Boolean/valueOf (str x))
-    :clojure.spec/invalid))
+  (cond
+    (boolean? x) x
+    (string? x) (Boolean/valueOf (str x))
+    :else :clojure.spec/invalid))
 
 (def bool? (s/conformer -bool?))
+
+(defn -string?
+  [x]
+  (cond
+    (string? x) x
+    :else (str x)))
