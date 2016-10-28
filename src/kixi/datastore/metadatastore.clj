@@ -2,10 +2,10 @@
   (:require [clojure.spec :as s]
             [kixi.datastore.schemastore :as schemastore]
             [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.schemastore.conformers :as sc]))
+            [kixi.datastore.schemastore.conformers :as sc :refer [uuid]]))
 
 (s/def ::type #{"csv"})
-(s/def ::id string?)
+(s/def ::id uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
 (s/def ::name string?)
@@ -33,7 +33,7 @@
 
 (defmethod provenance-type "segmentation"
   [_]
-  (s/keys :req [::source ::line-count ::seg/request ::parent-id]))
+  (s/keys :req [::source ::parent-id]))
 
 (s/def ::provenance (s/multi-spec provenance-type ::source))
 
@@ -47,7 +47,7 @@
 
 (s/def ::segmentation
   (s/keys :req [:kixi.datastore.request/request ::seg/created]
-          :opt [::seg/msg ::seg/segment-ids]))
+          :opt [::seg/error ::seg/segment-ids]))
 
 (s/def ::segmentations
   (s/cat :segmentations (s/+ ::segmentation)))
@@ -64,7 +64,7 @@
   (s/keys :req [::valid]
           :opt [::explain]))
 
-(s/def ::filemetadata
+(s/def ::file-metadata
   (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes]
           :opt [::segmentations ::segment ::structural-validation]))
 

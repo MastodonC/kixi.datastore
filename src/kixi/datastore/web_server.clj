@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.spec :as spec]
             [clojure.walk :as walk]
+            [cheshire.core :as json]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
@@ -19,7 +20,8 @@
              [yada :as yada]]
             [yada.resources.webjar-resource :refer [new-webjar-resource]]
             [kixi.datastore.transit :as t]
-            [kixi.datastore.schemastore.conformers :as sc]))
+            [kixi.datastore.schemastore.conformers :as sc]
+            [kixi.datastore.transport-specs :as ts]))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -191,36 +193,32 @@
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
-                          :file-size-bytes s/Str
-                          :header s/Str
-                          :name s/Str
-                          :schema-id s/Str}}
+                          :file-metadata s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
-                        declared-file-size (:file-size-bytes params)
-                        metadata {::ms/id (:id file)
-                                  ::ss/id (:schema-id params)
-                                  ::ms/type "csv"
-                                  ::ms/name (:name params)
-                                  ::ms/header (:header params)
-                                  ::ms/size-bytes (:size-bytes file)
-                                  ::ms/provenance {::ms/source "upload"
-                                                   ::ms/pieces-count (:count file)}}]
-                    (let [error (or (spec/explain-data ::ms/filemetadata metadata)
+                        declared-file-size (:size-bytes file);obviously broken, want to come from header
+                        file-details {::ms/id (:id file)
+                                      ::ms/size-bytes (:size-bytes file)
+                                      ::ms/provenance {::ms/source "upload"
+                                                       ::ms/pieces-count (:count file)}}
+                        metadata (ts/filemetadata-transport->internal
+                                  (json/parse-string (:file-metadata params) keyword)
+                                  file-details)]
+                    (let [error (or (spec/explain-data ::ms/file-metadata metadata)
                                     (when-not (ss/exists schemastore (::ss/id metadata))
                                       {::error :unknown-schema
                                        ::msg {:schema-id (::ss/id metadata)}})
                                     (when-not (= declared-file-size
-                                                 (str (:size-bytes file)))
+                                                 (:size-bytes file))
                                       {::error :file-upload-failed
                                        ::msg {:declared-size declared-file-size
                                               :recieved-size (:size-bytes file)}}))]
                       (if error
                         (return-error ctx error)
                         (do
-                          (let [conformed (spec/conform ::ms/filemetadata metadata)]
+                          (let [conformed (spec/conform ::ms/file-metadata metadata)]
                             (c/send-event! communications :kixi.datastore/file-created "1.0.0" conformed)
                             (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
                                                                                                          ::ms/file-metadata-created
