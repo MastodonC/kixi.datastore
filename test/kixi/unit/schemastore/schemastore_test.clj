@@ -1,34 +1,25 @@
 (ns kixi.unit.schemastore.schemastore-test
-  (:require [kixi.datastore.schemastore :as ss]
-            [kixi.datastore.schemastore.validator :as sv]
-            [kixi.datastore.schemastore.inmemory :as ssim]
-            [kixi.datastore.system :refer [new-system]]
-            [kixi.comms :as c]
-            [kixi.integration.base :refer :all]
-            [com.stuartsierra.component :as component]
-            [clojure.test :refer :all]
+  (:require [clojure
+             [spec :as s]
+             [test :refer :all]]
             [clojure.spec.gen :as gen]
-            [clojure.spec :as s]))
+            [com.gfredericks.test.chuck.clojure-test :refer [checking]]
+            [environ.core :refer [env]]
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.schemastore
+             [inmemory :as ssim]
+             [validator :as sv]]
+            [kixi.integration.base :refer :all]))
 
-(defonce system (atom nil))
+(defonce schemastore (atom nil))
 
 (defn inmemory-schemastore-fixture
   [all-tests]
-  (let [kds (select-keys (new-system :local) [:schemastore :communications])]
-    (reset! system (component/start-system kds))
-    (all-tests)
-    (reset! system (component/stop-system @system))))
+  (reset! schemastore (ssim/map->InMemory {:data (atom {})}))
+  (all-tests)
+  (reset! schemastore nil))
 
 (use-fixtures :once inmemory-schemastore-fixture)
-
-(defn wait-for-schema-id
-  [id schemastore]
-  (loop [tries 40]
-    (when-not (ss/fetch-spec schemastore id)
-      (Thread/sleep 100)
-      (if (zero? (dec tries))
-        (throw (Exception. "Schema ID never appeared."))
-        (recur (dec tries))))))
 
 (def gen-int (s/gen (s/or :int integer?
                           :str string?)
@@ -41,9 +32,13 @@
                :str string?)
          {[:str] #(gen/fmap str (s/gen (s/int-in min (inc max))))}))
 
+
+(def gen-double-str
+  (gen/fmap str (gen/double)))
+
 (def gen-double (s/gen (s/or :dbl double?
                              :str string?)
-                       {[:str] #(gen/fmap str (gen/double))}))
+                       {[:str] (constantly gen-double-str)}))
 
 (defn gen-double-range 
   [& {:keys [min max]}]
@@ -60,22 +55,29 @@
                :str  string?)
          {[:str] #()}))
 
-(def sample-size 100)
+(def sample-size (env :generative-testing-size 100))
+
+(defn double-str? 
+  [^String s]
+  (try
+    (Double/valueOf s)
+    (catch NumberFormatException e
+      false)))
 
 (defmacro test-schema
   [schema-name schema-def good-generator bad-generator]
-  `(let [{communications# :communications schemastore# :schemastore} (deref system)
-         id#         (uuid)
+  `(let [id#         (uuid)
          schema-req# {::ss/name ~schema-name
                       ::ss/schema ~schema-def
                       ::ss/id id#}]
-     (c/send-event! communications# :kixi.datastore/schema-created "1.0.0" schema-req#)
-     (wait-for-schema-id id# schemastore#)
-     (is-submap schema-req# (ss/fetch-spec schemastore# id#))
-     (doseq [gd# (gen/sample ~good-generator sample-size)]
-       (is (nil? (sv/explain-data schemastore# id# gd#))))
-     (doseq [bd# (gen/sample ~bad-generator sample-size)]
-       (is (get (sv/explain-data schemastore# id# bd#) ::s/problems)))))
+     (ssim/persist-new-schema (:data @schemastore) schema-req#)
+     (is-submap schema-req# (ss/fetch-spec @schemastore id#))
+     (checking "good data passes" sample-size
+               [gd# ~good-generator]
+               (is (nil? (sv/explain-data @schemastore id# gd#))))
+     (checking "bad data gets explained" sample-size
+               [bd# ~bad-generator]
+               (is (get (sv/explain-data @schemastore id# bd#) ::s/problems)))))
 
 (deftest integer-list
   (test-schema ::list-one-integer
@@ -83,7 +85,7 @@
                 ::ss/definition [:integer {::ss/type "integer"}]}
                (gen/tuple gen-int)
                (gen/tuple (gen/fmap 
-                           #(if (re-matches #"[0-9]+" %)
+                           #(if double-str?
                               (str % "x")
                               %)
                            (s/gen string?)))))
@@ -108,7 +110,7 @@
                 ::ss/definition [:double {::ss/type "double"}]}
                (gen/tuple gen-double)
                (gen/tuple (gen/fmap 
-                           #(if (re-matches #"[0-9]+" %)
+                           #(if double-str?
                               (str % "x")
                               %)
                            (s/gen string?)))))
