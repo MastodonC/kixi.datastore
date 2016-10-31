@@ -1,27 +1,8 @@
 (ns kixi.datastore.schemastore
   (:require [clojure.spec :as s]
-            [clj-time.core :as t]
-            [clj-time.format :as tf]
-            [kixi.datastore.schemastore.conformers :as sc]))
+            [kixi.datastore.schemastore.conformers :as sc :refer [uuid timestamp?]]))
 
-(defn timestamp
-  []
-  (tf/unparse
-   (tf/formatters :basic-date-time)
-   (t/now)))
-
-(defn timestamp?
-  [s]
-  (tf/parse
-   (tf/formatters :basic-date-time)
-   s))
-
-(defn uuid?
-  [s]
-  (re-find #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-           s))
-
-(s/def ::id uuid?)
+(s/def ::id uuid)
 (s/def ::tag keyword?)
 (s/def ::timestamp timestamp?)
 (s/def ::name #(and (keyword? %)

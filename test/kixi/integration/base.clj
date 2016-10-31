@@ -78,6 +78,10 @@
     (json/parse-string s keyword)
     s))
 
+(defn encode-json
+  [m]
+  (json/encode m))
+
 (def file-url (str "http://" (service-url) "/file"))
 
 (defn metadata-url
@@ -102,10 +106,9 @@
   (check-file file-name)
   (update (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
-                                    {:name "file-size-bytes" :content (str (.length (io/file file-name)))}
-                                    {:name "name" :content "foo"}
-                                    {:name "header" :content "true"}
-                                    {:name "schema-id" :content schema-id}]
+                                    {:name "file-metadata" :content (encode-json {:name "foo"
+                                                                                  :header true
+                                                                                  :schema-id schema-id})}]
                         :throw-exceptions false
                         :accept :json})
           :body parse-json))

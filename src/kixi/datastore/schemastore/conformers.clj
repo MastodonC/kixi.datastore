@@ -1,6 +1,9 @@
 (ns kixi.datastore.schemastore.conformers
   (:require [clojure.core :exclude [integer? double? set?]]
-            [clojure.spec :as s]))
+            [clojure.spec :as s]
+            [clojure.spec.gen :as gen]
+            [clj-time.core :as t]
+            [clj-time.format :as tf]))
 
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"
@@ -141,10 +144,26 @@
     (string? x) (Boolean/valueOf (str x))
     :else :clojure.spec/invalid))
 
-(def bool? (s/conformer -bool?))
+(def bool? (s/with-gen (s/conformer -bool?)
+             (constantly (gen/boolean))))
 
 (defn -string?
   [x]
   (cond
     (string? x) x
     :else (str x)))
+
+(defn timestamp?
+  [s]
+  (tf/parse
+   (tf/formatters :basic-date-time)
+   s))
+
+(def uuid?
+  (partial re-find #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
+
+(def uuid (s/with-gen uuid?
+            #(gen/fmap str (gen/uuid))))
+
+(def anything (s/with-gen (constantly true)
+                #(gen/any)))

@@ -7,12 +7,13 @@
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.comms :as c]
             [kixi.datastore.transit :as t]
+            [kixi.datastore.time :as time]
             [taoensso.timbre :as timbre :refer [error info infof debug]]))
 
 (defn persist-new-schema
   [data schema]
   (let [id (::ss/id schema)
-        schema' (assoc schema ::ss/timestamp (ss/timestamp))]
+        schema' (assoc schema ::ss/timestamp (time/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
       (swap! data (fn [d] (assoc d id schema')))
       (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema'))))) ;should be at the command level
