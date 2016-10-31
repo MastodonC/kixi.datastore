@@ -16,7 +16,7 @@
   (s/keys :req [::ms/id ::ms/size-bytes ::ms/provenance]))
 
 (def file-type->default-metadata
-  {"csv" {::ms/headers true}})
+  {"csv" {::ms/header true}})
 
 (def default-primary-metadata
   {::ms/type "csv"})
@@ -24,6 +24,25 @@
 (s/fdef filemetadata-transport->internal
         :args (s/cat :meta ::filemetadata-transport
                      :details ::file-details)
+        :fn #(let [{:keys [meta details]} (get % :args)
+                   file-metadata (get % :ret)]
+               (and (= (::ms/id details)
+                       (::ms/id file-metadata))
+                    (= (::ms/size-bytes details)
+                       (::ms/size-bytes file-metadata))
+                    (= (::ms/provenance details)
+                       (::ms/provenance file-metadata))
+                    (= (:schema-id meta)
+                       (::ss/id file-metadata))
+                    (= (:name meta)
+                       (::ms/name file-metadata))
+                    (case (or (:type meta) 
+                              (::ms/type file-metadata)) 
+                      "csv" (if-not (nil? (:header meta))
+                              (= (:header meta) 
+                                 (::ms/header file-metadata))
+                              (true? (::ms/header file-metadata)))
+                      true)))
         :ret ::ms/file-metadata)
 
 (def key-mapping
