@@ -8,9 +8,9 @@
 
 (s/def ::filemetadata-transport
   (s/keys :req-un [::schema-id
-                   ::ms/name
-                   ::ms/header]
-          :opt-un [::ms/type]))
+                   ::ms/name]
+          :opt-un [::ms/type
+                   ::ms/header]))
 
 (s/def ::file-details
   (s/keys :req [::ms/id ::ms/size-bytes ::ms/provenance]))
