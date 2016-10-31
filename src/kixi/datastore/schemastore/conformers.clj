@@ -124,7 +124,9 @@
 (defn -regex?
   [rs]
   (fn [x]
-    (if (and (string? x) (re-find rs x)) x :clojure.spec/invalid)))
+    (if (and (string? x) (re-find rs x)) 
+      x 
+      :clojure.spec/invalid)))
 
 (defn regex?
   [rs]
@@ -144,8 +146,9 @@
     (string? x) (Boolean/valueOf (str x))
     :else :clojure.spec/invalid))
 
-(def bool? (s/with-gen (s/conformer -bool?)
-             (constantly (gen/boolean))))
+(def bool? 
+  (s/with-gen (s/conformer -bool?)
+    (constantly (gen/boolean))))
 
 (defn -string?
   [x]
@@ -160,10 +163,13 @@
    s))
 
 (def uuid?
-  (partial re-find #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
+  (-regex? #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
 
-(def uuid (s/with-gen uuid?
-            #(gen/fmap str (gen/uuid))))
+(def uuid 
+  (s/with-gen 
+    (s/conformer uuid?)
+    #(gen/fmap str (gen/uuid))))
 
-(def anything (s/with-gen (constantly true)
-                #(gen/any)))
+(def anything 
+  (s/with-gen (constantly true)
+    #(gen/any)))

@@ -8,7 +8,9 @@
 
 (s/def ::filemetadata-transport
   (s/keys :req-un [::schema-id
-                   ::ms/name]
+                   ::ms/name
+                   ::ms/file-sharing
+                   ::ms/file-metadata-sharing]
           :opt-un [::ms/type
                    ::ms/header]))
 
@@ -36,6 +38,10 @@
                        (::ss/id file-metadata))
                     (= (:name meta)
                        (::ms/name file-metadata))
+                    (= (:file-sharing meta)
+                       (::ms/file-sharing file-metadata))
+                    (= (:file-metadata-sharing meta)
+                       (::ms/file-metadata-sharing file-metadata))
                     (case (or (:type meta) 
                               (::ms/type file-metadata)) 
                       "csv" (if-not (nil? (:header meta))
@@ -49,7 +55,9 @@
   {:name ::ms/name
    :header ::ms/header
    :type ::ms/type
-   :schema-id ::ss/id})
+   :schema-id ::ss/id
+   :file-sharing ::ms/file-sharing
+   :file-metadata-sharing ::ms/file-metadata-sharing})
 
 (defn filemetadata-transport->internal
   [transport file-details]

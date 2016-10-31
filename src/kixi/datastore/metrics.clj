@@ -139,9 +139,10 @@
             (dissoc :meter-mark)
             (dissoc :insert-time-in-ctx)
             (dissoc :record-ctx-metrics)
-            (update :registry #(when %
-                                 (log/info "Destorying metrics registry")
-                                 (.removeMatching % (com.codahale.metrics.MetricFilter/ALL))
-                                 nil)))
+            (update :registry (fn [^com.codahale.metrics.MetricRegistry mr] 
+                                (when mr
+                                  (log/info "Destorying metrics registry")
+                                  (.removeMatching mr (com.codahale.metrics.MetricFilter/ALL))
+                                  nil))))
         component)))
 

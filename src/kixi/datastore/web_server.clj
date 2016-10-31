@@ -57,7 +57,8 @@
         :args (spec/cat :ctx ::context
                         :args (spec/alt :error-map ::error-map
                                         :error-parts (spec/cat :error ::error
-                                                               :msg ::msg))))
+                                                               :msg ::msg)
+                                        :spec-error ::ms/explain)))
 
 (defn return-error
   ([ctx error]
@@ -72,6 +73,8 @@
   [metrics model]
   (-> model
       (assoc :logger yada-timbre-logger)
+      (assoc :responses {500 {:produces "text/plain"
+                              :response (fn [ctx] "Server Error, see logs")}})
       yada/resource
       (yr/insert-interceptor
        yada.interceptors/available? (:insert-time-in-ctx metrics))
@@ -198,13 +201,15 @@
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
-                        declared-file-size (:size-bytes file);obviously broken, want to come from header
+                        declared-file-size (:size-bytes file) ;obviously broken, want to come from header                        
+                        transported-metadata (json/parse-string (:file-metadata params) keyword)
                         file-details {::ms/id (:id file)
                                       ::ms/size-bytes (:size-bytes file)
                                       ::ms/provenance {::ms/source "upload"
-                                                       ::ms/pieces-count (:count file)}}
+                                                       ::ms/pieces-count (:count file)
+                                                       ::ms/user-id (:user-id transported-metadata)}}
                         metadata (ts/filemetadata-transport->internal
-                                  (json/parse-string (:file-metadata params) keyword)
+                                  (dissoc transported-metadata :user-id)
                                   file-details)]
                     (let [error (or (spec/explain-data ::ms/file-metadata metadata)
                                     (when-not (ss/exists schemastore (::ss/id metadata))
