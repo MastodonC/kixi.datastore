@@ -42,7 +42,7 @@
                               (= (:header meta) 
                                  (::ms/header file-metadata))
                               (true? (::ms/header file-metadata)))
-                      true)))
+                      false)))
         :ret ::ms/file-metadata)
 
 (def key-mapping
