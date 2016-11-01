@@ -109,16 +109,16 @@
 (def accept-status #{200 201})
 
 (defn post-file
-  [file-name schema-id]
+  [file-name schema-id user-id]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "file-metadata" :content (encode-json {:name "foo"
                                                                                   :header true
                                                                                   :schema-id schema-id
-                                                                                  :file-sharing {:read [(uuid)]}
-                                                                                  :file-metadata-sharing {:update [(uuid)]}})}]
-                        :headers {"user-id" (uuid)}
+                                                                                  :file-sharing {:read [user-id]}
+                                                                                  :file-metadata-sharing {:update [user-id]}})}]
+                        :headers {"user-id" user-id}
                         :throw-exceptions false
                         :accept :json})]
     (if-not (= 500 (:status r)) 
