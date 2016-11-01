@@ -273,7 +273,8 @@
               (let [id (uuid)
                     file-id (get-in ctx [:parameters :path :id])
                     body (get-in ctx [:body])
-                    type (:type body)]
+                    type (:type body)
+                    user-id (get-in ctx [:request :headers "user-id"])]
                 (if (ms/exists metadatastore file-id)
                   (do
                     (case type
@@ -284,7 +285,8 @@
                                                   :kixi.datastore.request/type ::seg/group-rows-by-column
                                                   ::seg/id id
                                                   ::ms/id file-id
-                                                  ::seg/column-name col-name})))
+                                                  ::seg/column-name col-name
+                                                  ::ms/user-id user-id})))
                     (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                     :id file-id}}))))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...

@@ -102,19 +102,19 @@
                           ::ms/size-bytes (:size-bytes segment-data)
                           ::ms/provenance {::ms/source "segmentation"
                                            ::ms/parent-id (::ms/id basemetadata)
-                                           ::ms/user-id "41caf67d-2d39-46fe-94d6-f2003e2ad8f2"}
+                                           ::ms/user-id (::ms/user-id request)}
                           ::seg/segment {::seg/request request
                                          ::seg/line-count (:lines segment-data)
                                          ::seg/value (:value segment-data)})]
-      (comms/send-event! communications ;cld rejig this to return all these
-                         :kixi.datastore/file-created
-                         "1.0.0"
-                         metadata)
-      (comms/send-event! communications ;cld rejig this to return all these
-                         :kixi.datastore/file-metadata-updated
-                         "1.0.0"
-                         {::cs/file-metadata-update-type ::cs/file-metadata-created
-                          ::ms/file-metadata metadata}))
+      (cs/send-event! communications
+                      (assoc metadata
+                             ::cs/event :kixi.datastore/file-created
+                             ::cs/version "1.0.0"))
+      (cs/send-event! communications
+                      {::cs/event :kixi.datastore/file-metadata-updated
+                       ::cs/version "1.0.0"
+                       ::cs/file-metadata-update-type ::cs/file-metadata-created
+                       ::ms/file-metadata metadata}))
     segment-data))
 
 (defmacro while-not->>

@@ -131,6 +131,7 @@
   [url seg]
   (client/post url
                {:form-params seg
+                :headers {"user-id" (uuid)}
                 :content-type :json
                 :throw-exceptions false
                 :as :json}))

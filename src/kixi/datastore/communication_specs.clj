@@ -42,7 +42,7 @@
 
 (defmethod payloads :kixi.datastore/file-segmentation-created
   [_]
-  (s/keys :req [::seg/id ::ms/id ::seg/column-name]))
+  (s/keys :req [::seg/id ::ms/id ::seg/column-name ::ms/user-id]))
 
 (s/def ::payloads
   (s/multi-spec payloads ::event))
