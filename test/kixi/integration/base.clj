@@ -113,11 +113,13 @@
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
-                                    {:name "file-metadata" :content (encode-json {:name "foo"
-                                                                                  :header true
-                                                                                  :schema-id schema-id
-                                                                                  :file-sharing file-sharing
-                                                                                  :file-metadata-sharing file-metadata-sharing})}]
+                                    {:name "file-metadata" :content (encode-json (merge {:name "foo"
+                                                                                         :header true
+                                                                                         :schema-id schema-id
+                                                                                         (when file-sharing
+                                                                                           {:file-sharing file-sharing})
+                                                                                         (when file-metadata-sharing
+                                                                                           {:file-metadata-sharing file-metadata-sharing})}))}]
                         :headers {"user-id" user-id}
                         :throw-exceptions false
                         :accept :json})]

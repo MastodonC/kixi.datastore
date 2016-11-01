@@ -20,16 +20,32 @@
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (def sharing-level->actions
-  {:file-sharing {:read {dload-file true}}
+  {:file-sharing {:read {dload-file true
+                         get-metadata false}}
    :file-metadata-sharing {:visible {get-metadata false
+                                     dload-file false
 ;                                     update-metadata false
                                      }
                            :read {get-metadata true
+                                  dload-file false
 ;                                  update-metadata false
                                   }
                            :update {get-metadata true
+                                    dload-file false
 ;                                    update-metadata true
                                     }}})
 
-(deftest user-with-file-read-metadata-update-can-read
-  true)
+(deftest explore-sharing-level->actions
+  true
+#_(let [post (partial post-file-flex
+                      :file-name "./test-resources/metadata-one-valid.csv"
+                      :schema-id @metadata-file-schema-id)]
+    (doseq [[share levels] sharing-level->actions]
+      (doseq [[level actions] levels]
+        (let [user-id (uuid)
+              pfr (post :user-id user-id
+                        share {level [user-id]})]
+          (is-submap {:status 201}
+                     pfr)
+          (when (= 201 (:status pfr)
+                   )))))))
