@@ -108,16 +108,16 @@
 
 (def accept-status #{200 201})
 
-(defn post-file
-  [file-name schema-id user-id]
+(defn post-file-flex
+  [& {:keys [file-name schema-id user-id file-sharing file-metadata-sharing]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "file-metadata" :content (encode-json {:name "foo"
                                                                                   :header true
                                                                                   :schema-id schema-id
-                                                                                  :file-sharing {:read [user-id]}
-                                                                                  :file-metadata-sharing {:update [user-id]}})}]
+                                                                                  :file-sharing file-sharing
+                                                                                  :file-metadata-sharing file-metadata-sharing})}]
                         :headers {"user-id" user-id}
                         :throw-exceptions false
                         :accept :json})]
@@ -126,6 +126,15 @@
       (do 
         (clojure.pprint/pprint r)
         r))))
+
+(defn post-file
+  [file-name schema-id]
+  (let [id (uuid)]
+    (post-file-flex :file-name file-name 
+                    :schema-id schema-id 
+                    :user-id id
+                    :file-sharing {:read [id]}
+                    :file-metadata-sharing {:update [id]})))
 
 (defn post-segmentation
   [url seg]

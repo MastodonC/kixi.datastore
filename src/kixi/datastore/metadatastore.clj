@@ -19,7 +19,7 @@
 (s/def :kixi.user-group/id sc/uuid)
 
 (def file-activities
-   [:visible :read])
+   [:read])
 
 (def file-metadata-activities
   [:visible :read :update])

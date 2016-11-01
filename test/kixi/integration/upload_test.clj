@@ -29,8 +29,7 @@
 
 (deftest round-trip-files
   (let [r (post-file "./test-resources/metadata-one-valid.csv"
-                     @irrelevant-schema-id
-                     (uuid))]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
@@ -39,8 +38,7 @@
            "./test-resources/metadata-one-valid.csv"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/metadata-12MB-valid.csv"
-                     @irrelevant-schema-id
-                     (uuid))]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
@@ -49,8 +47,7 @@
            "./test-resources/metadata-12MB-valid.csv"
            (dload-file locat)))))
   (let [r (post-file "./test-resources/metadata-344MB-valid.csv"
-                     @irrelevant-schema-id
-                     (uuid))]
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))

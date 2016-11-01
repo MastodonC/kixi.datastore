@@ -34,8 +34,7 @@
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
-                       @metadata-file-schema-id
-                       (uuid))]
+                       @metadata-file-schema-id)]
     (is-submap {:status 201}
                pfr)
     (when (= 201 (:status pfr))
@@ -55,8 +54,7 @@
 
 (deftest small-file-invalid-schema
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
-                       "003ba24c-2830-4f28-b6af-905d6215ea1c"
-                       (uuid)) ;; schema doesn't exist
+                       "003ba24c-2830-4f28-b6af-905d6215ea1c") ;; schema doesn't exist
         ]
     (is-submap
      {:status 400
@@ -65,8 +63,7 @@
 
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-one-invalid.csv"
-                       @metadata-file-schema-id
-                       (uuid))
+                       @metadata-file-schema-id)
         metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
     (is-submap
      {:status 201}
