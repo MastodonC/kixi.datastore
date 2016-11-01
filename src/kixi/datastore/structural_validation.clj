@@ -5,6 +5,7 @@
             [com.stuartsierra.component :as component]
             [kixi.comms :as c
              :refer [attach-event-handler!]]
+            [kixi.datastore.communication-specs :as cs]
             [kixi.datastore.filestore
              :refer [retrieve]]
             [kixi.datastore.file
@@ -63,7 +64,7 @@
                        "csv" (csv-schema-test schema file (::ms/header metadata)))]
           {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
            :kixi.comms.event/version "1.0.0"
-           :kixi.comms.event/payload {::ms/file-metadata-update-type ::ms/file-metadata-structural-validation-checked
+           :kixi.comms.event/payload {::cs/file-metadata-update-type ::cs/file-metadata-structural-validation-checked
                                       ::ms/id (::ms/id metadata)
                                       ::ms/structural-validation result}})
         (finally

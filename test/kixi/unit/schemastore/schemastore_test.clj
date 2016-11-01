@@ -55,7 +55,7 @@
                :str  string?)
          {[:str] #()}))
 
-(def sample-size (Integer/valueOf (env :generative-testing-size "100")))
+(def sample-size (Integer/valueOf (str (env :generative-testing-size "100"))))
 
 (defn double-str? 
   [^String s]
@@ -147,12 +147,20 @@
                              (gen/any))))))
 
 (deftest bool-list
-  (test-schema ::list-one-bool
-               {::ss/type "list"
-                ::ss/definition [:boolean {::ss/type "boolean"}]}
-               (gen/tuple (s/gen (s/or :bool boolean?
-                                       :str string?)))
-               (gen/tuple (s/gen nil?))))
+  (let [valid-bool-strs ["true" "TRUE" "t" "T" 
+                         "false" "FALSE" "f" "F"]]
+    (test-schema ::list-one-bool
+                 {::ss/type "list"
+                  ::ss/definition [:boolean {::ss/type "boolean"}]}
+                 (gen/tuple (gen/one-of [(s/gen boolean?)
+                                         (gen/elements valid-bool-strs)]))
+                 (gen/tuple (gen/one-of [(s/gen nil?)
+                                         (gen/fmap
+                                          #(if (or (boolean? %) 
+                                                   ((set valid-bool-strs) %))
+                                             "x"
+                                             %)
+                                          (gen/any))])))))
 
 (deftest regex-list
   "Very hard to test regex's, just a dummy example will have to do"

@@ -22,6 +22,10 @@
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
+(defn uuid 
+  []
+  (str (java.util.UUID/randomUUID)))
+
 (defmacro is-submap
   [expected actual]
   `(try
@@ -42,7 +46,8 @@
 (defn instrument-specd-functions
   []
   (stest/instrument ['kixi.datastore.web-server/return-error
-                     'kixi.datastore.metadatastore.inmemory/update-metadata-processor]))
+                     'kixi.datastore.metadatastore.inmemory/update-metadata-processor
+                     'kixi.datastore.communication-specs/send-event!]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -101,22 +106,32 @@
   (= (d/md5 (File. one))
      (d/md5 two)))
 
+(def accept-status #{200 201})
+
 (defn post-file
   [file-name schema-id]
   (check-file file-name)
-  (update (client/post file-url
+  (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
                                     {:name "file-metadata" :content (encode-json {:name "foo"
                                                                                   :header true
-                                                                                  :schema-id schema-id})}]
+                                                                                  :schema-id schema-id
+                                                                                  :file-sharing {:read [(uuid)]}
+                                                                                  :file-metadata-sharing {:update [(uuid)]}})}]
+                        :headers {"user-id" (uuid)}
                         :throw-exceptions false
-                        :accept :json})
-          :body parse-json))
+                        :accept :json})]
+    (if-not (= 500 (:status r)) 
+      (update r :body parse-json)
+      (do 
+        (clojure.pprint/pprint r)
+        r))))
 
 (defn post-segmentation
   [url seg]
   (client/post url
                {:form-params seg
+                :headers {"user-id" (uuid)}
                 :content-type :json
                 :throw-exceptions false
                 :as :json}))

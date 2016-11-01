@@ -112,5 +112,7 @@
 (deftest bool-conformer
   (is (valid? boolean? (s/conform conformers/bool? "true")))
   (is (true? (s/conform conformers/bool? "true")))
-  (is (false? (s/conform conformers/bool? "foo")))
-  (is (not (valid? boolean? (s/conform conformers/bool? 123)))))
+  (is (= (s/conform conformers/bool? "foo")
+         :clojure.spec/invalid))
+  (is (not (valid? boolean? (s/conform conformers/bool? 123))))
+  (is (not (valid? boolean? (s/conform conformers/bool? "foo")))))
