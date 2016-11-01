@@ -95,7 +95,9 @@
                                        [::ms/type
                                         ::ms/name
                                         ::ss/id
-                                        ::ms/header])
+                                        ::ms/header
+                                        ::ms/file-sharing
+                                        ::ms/file-metadata-sharing])
                           ::ms/id (:id segment-data)
                           ::ms/size-bytes (:size-bytes segment-data)
                           ::ms/provenance {::ms/source "segmentation"
