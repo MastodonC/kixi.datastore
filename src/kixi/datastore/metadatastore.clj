@@ -14,7 +14,7 @@
 (s/def ::source #{"upload" "segmentation"})
 (s/def ::line-count int?)
 (s/def ::header sc/bool?)
-(s/def ::user-id sc/uuid)
+(s/def :kixi.user/id sc/uuid)
 
 (s/def ::group-id sc/uuid)
 
@@ -46,11 +46,11 @@
 
 (defmethod provenance-type "upload"
   [_]
-  (s/keys :req [::source ::pieces-count ::user-id]))
+  (s/keys :req [::source ::pieces-count :kixi.user/id]))
 
 (defmethod provenance-type "segmentation"
   [_]
-  (s/keys :req [::source ::parent-id ::user-id]))
+  (s/keys :req [::source ::parent-id :kixi.user/id]))
 
 (s/def ::provenance (s/multi-spec provenance-type ::source))
 

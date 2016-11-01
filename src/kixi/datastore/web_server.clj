@@ -212,7 +212,7 @@
                                       ::ms/size-bytes (:size-bytes file)
                                       ::ms/provenance {::ms/source "upload"
                                                        ::ms/pieces-count (:count file)
-                                                       ::ms/user-id (ctx->user-id ctx)}}
+                                                       :kixi.user/id (ctx->user-id ctx)}}
                         metadata (ts/filemetadata-transport->internal
                                   (dissoc transported-metadata :user-id)
                                   file-details)]
@@ -290,7 +290,7 @@
                                                   ::seg/id id
                                                   ::ms/id file-id
                                                   ::seg/column-name col-name
-                                                  ::ms/user-id user-id})))
+                                                  :kixi.user/id user-id})))
                     (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                     :id file-id}}))))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...

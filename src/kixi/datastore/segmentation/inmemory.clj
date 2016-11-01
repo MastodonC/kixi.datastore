@@ -102,7 +102,7 @@
                           ::ms/size-bytes (:size-bytes segment-data)
                           ::ms/provenance {::ms/source "segmentation"
                                            ::ms/parent-id (::ms/id basemetadata)
-                                           ::ms/user-id (::ms/user-id request)}
+                                           :kixi.user/id (:kixi.user/id request)}
                           ::seg/segment {::seg/request request
                                          ::seg/line-count (:lines segment-data)
                                          ::seg/value (:value segment-data)})]

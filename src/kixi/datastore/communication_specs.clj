@@ -44,7 +44,7 @@
 
 (defmethod payloads :kixi.datastore/file-segmentation-created
   [_]
-  (s/keys :req [::seg/id ::ms/id ::seg/column-name ::ms/user-id]))
+  (s/keys :req [::seg/id ::ms/id ::seg/column-name :kixi.user/id]))
 
 (defmethod payloads :kixi.datastore/schema-created
   [_]
