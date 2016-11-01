@@ -16,7 +16,7 @@
 (s/def ::header sc/bool?)
 (s/def :kixi.user/id sc/uuid)
 
-(s/def ::group-id sc/uuid)
+(s/def :kixi.user-group/id sc/uuid)
 
 (def file-activities
    [:visible :read])
@@ -26,11 +26,11 @@
 
 (s/def ::file-sharing
   (s/map-of (set file-activities)
-            (s/coll-of ::group-id)))
+            (s/coll-of :kixi.user-group/id)))
 
 (s/def ::file-metadata-sharing
   (s/map-of (set file-metadata-activities)
-            (s/coll-of ::group-id)))
+            (s/coll-of :kixi.user-group/id)))
 
 (s/def :kixi.datastore.request/type #{::seg/group-rows-by-column})
 
