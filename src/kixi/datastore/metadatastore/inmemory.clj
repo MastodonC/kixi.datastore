@@ -4,17 +4,18 @@
             [kixi.datastore.metadatastore
              :refer [MetaDataStore] :as ms]
             [kixi.comms :as c]
+            [kixi.datastore.communication-specs :as cs]
             [taoensso.timbre :as timbre :refer [error info infof]]))
 
 (s/fdef update-metadata-processor
         :args (s/cat :data #(instance? clojure.lang.IAtom %)
-                     :update-req ::ms/file-metadata-updated))
+                     :update-req ::cs/file-metadata-updated))
 
 (defmulti update-metadata-processor
   (fn [data update-event]
-    (::ms/file-metadata-update-type update-event)))
+    (::cs/file-metadata-update-type update-event)))
 
-(defmethod update-metadata-processor ::ms/file-metadata-created
+(defmethod update-metadata-processor ::cs/file-metadata-created
   [data update-event]
   (let [metadata (::ms/file-metadata update-event)]
     (info "Update: " metadata)
@@ -25,7 +26,7 @@
                              metadata))))))
 
 
-(defmethod update-metadata-processor ::ms/file-metadata-structural-validation-checked
+(defmethod update-metadata-processor ::cs/file-metadata-structural-validation-checked
   [data update-event]
   (info "Update: " update-event)
   (swap! data
@@ -34,7 +35,7 @@
                     (assoc (or current-metadata {})
                            ::ms/structural-validation (::ms/structural-validation update-event))))))
 
-(defmethod update-metadata-processor ::ms/file-metadata-segmentation-add
+(defmethod update-metadata-processor ::cs/file-metadata-segmentation-add
   [data update-event]
   (info "Update: " update-event)
   (swap! data

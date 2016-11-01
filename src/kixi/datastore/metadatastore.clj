@@ -85,23 +85,6 @@
   (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes ::file-sharing ::file-metadata-sharing]
           :opt [::segmentations ::segment ::structural-validation]))
 
-(defmulti file-metadata-updated-type ::file-metadata-update-type)
-
-(defmethod file-metadata-updated-type ::file-metadata-created
-  [_]
-  (s/keys :req [::file-metadata-update-type ::file-metadata]))
-
-(defmethod file-metadata-updated-type ::file-metadata-segmentation-add
-  [_]
-  (s/keys :req [::file-metadata-update-type ::segmentation]))
-
-
-(defmethod file-metadata-updated-type ::file-metadata-structural-validation-checked
-  [_]
-  (s/keys :req [::file-metadata-update-type ::structural-validation ::id]))
-
-(s/def ::file-metadata-updated (s/multi-spec file-metadata-updated-type ::file-metadata-update-type))
-
 (defprotocol MetaDataStore
   (exists [this id])
   (fetch [this id])

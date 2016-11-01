@@ -10,6 +10,7 @@
             [kixi.datastore.filestore :as ds]
             [kixi.datastore.metadatastore :as ms]
             [kixi.comms :as c]
+            [kixi.datastore.communication-specs :as cs]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
@@ -224,10 +225,15 @@
                         (return-error ctx error)
                         (do
                           (let [conformed (spec/conform ::ms/file-metadata metadata)]
-                            (c/send-event! communications :kixi.datastore/file-created "1.0.0" conformed)
-                            (c/send-event! communications :kixi.datastore/file-metadata-updated "1.0.0" {::ms/file-metadata-update-type 
-                                                                                                         ::ms/file-metadata-created
-                                                                                                         ::ms/file-metadata conformed}))
+                            (cs/send-event! communications
+                                            (assoc conformed
+                                                   ::cs/event :kixi.datastore/file-created
+                                                   ::cs/version "1.0.0"))
+                            (cs/send-event! communications {::cs/event :kixi.datastore/file-metadata-updated
+                                                            ::cs/version "1.0.0"
+                                                            ::cs/file-metadata-update-type 
+                                                            ::cs/file-metadata-created
+                                                            ::ms/file-metadata conformed}))
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
@@ -272,11 +278,13 @@
                   (do
                     (case type
                       "column" (let [col-name (:column-name body)]
-                                 (c/send-event! communications :kixi.datastore/file-segmentation-created "1.0.0"
-                                                {:kixi.datastore.request/type ::seg/group-rows-by-column
-                                                 ::seg/id id
-                                                 ::ms/id file-id
-                                                 ::seg/column-name col-name})))
+                                 (cs/send-event! communications 
+                                                 {::cs/event :kixi.datastore/file-segmentation-created
+                                                  ::cs/version"1.0.0"
+                                                  :kixi.datastore.request/type ::seg/group-rows-by-column
+                                                  ::seg/id id
+                                                  ::ms/id file-id
+                                                  ::seg/column-name col-name})))
                     (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
                                                                                                     :id file-id}}))))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...

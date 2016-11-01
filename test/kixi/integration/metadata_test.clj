@@ -35,13 +35,10 @@
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
                        @metadata-file-schema-id)]
-    (is (= 201
-           (:status pfr)))
+    (is-submap {:status 201}
+               pfr)
     (when (= 201 (:status pfr))
       (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
-        (is-submap
-         {:status 201}
-         pfr)
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)

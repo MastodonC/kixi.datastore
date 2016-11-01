@@ -7,6 +7,7 @@
             [clojure-csv.core :as csv :refer [parse-csv write-csv]]
             [kixi.datastore.segmentation :as seg :refer [Segmentation]]
             [kixi.comms :refer [Communications attach-event-handler!] :as comms]
+            [kixi.datastore.communication-specs :as cs]
             [kixi.datastore.filestore :as kdfs]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
@@ -93,11 +94,13 @@
     (let [metadata (assoc (select-keys basemetadata
                                        [::ms/type
                                         ::ms/name
-                                        ::ss/id])
+                                        ::ss/id
+                                        ::ms/header])
                           ::ms/id (:id segment-data)
                           ::ms/size-bytes (:size-bytes segment-data)
                           ::ms/provenance {::ms/source "segmentation"
-                                           ::ms/parent-id (::ms/id basemetadata)}
+                                           ::ms/parent-id (::ms/id basemetadata)
+                                           ::ms/user-id "41caf67d-2d39-46fe-94d6-f2003e2ad8f2"}
                           ::seg/segment {::seg/request request
                                          ::seg/line-count (:lines segment-data)
                                          ::seg/value (:value segment-data)})]
@@ -108,7 +111,7 @@
       (comms/send-event! communications ;cld rejig this to return all these
                          :kixi.datastore/file-metadata-updated
                          "1.0.0"
-                         {::ms/file-metadata-update-type ::ms/file-metadata-created
+                         {::cs/file-metadata-update-type ::cs/file-metadata-created
                           ::ms/file-metadata metadata}))
     segment-data))
 
@@ -162,7 +165,7 @@
                {::seg/created true
                 :kixi.datastore.request/request request
                 ::seg/segment-ids result})
-             (hash-map ::ms/file-metadata-update-type ::ms/file-metadata-segmentation-add ::ms/id (::ms/id request) ::ms/segmentation)
+             (hash-map ::cs/file-metadata-update-type ::cs/file-metadata-segmentation-add ::ms/id (::ms/id request) ::ms/segmentation)
              (hash-map :kixi.comms.event/key :kixi.datastore/file-metadata-updated :kixi.comms.event/version "1.0.0" :kixi.comms.event/payload))))))
 
 (defrecord InMemory
