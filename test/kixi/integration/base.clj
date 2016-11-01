@@ -116,9 +116,9 @@
                                     {:name "file-metadata" :content (encode-json {:name "foo"
                                                                                   :header true
                                                                                   :schema-id schema-id
-                                                                                  :user-id (uuid)
                                                                                   :file-sharing {:read [(uuid)]}
                                                                                   :file-metadata-sharing {:update [(uuid)]}})}]
+                        :headers {"user-id" (uuid)}
                         :throw-exceptions false
                         :accept :json})]
     (if-not (= 500 (:status r)) 

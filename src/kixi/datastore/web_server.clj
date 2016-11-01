@@ -24,6 +24,10 @@
             [kixi.datastore.schemastore.conformers :as sc]
             [kixi.datastore.transport-specs :as ts]))
 
+(defn ctx->user-id
+  [ctx]
+  (get-in ctx [:request :headers "user-id"]))
+
 (defn say-hello [ctx]
   (info "Saying hello")
   (str "Hello " (get-in ctx [:parameters :query :p]) "!\n"))
@@ -208,7 +212,7 @@
                                       ::ms/size-bytes (:size-bytes file)
                                       ::ms/provenance {::ms/source "upload"
                                                        ::ms/pieces-count (:count file)
-                                                       ::ms/user-id (:user-id transported-metadata)}}
+                                                       ::ms/user-id (ctx->user-id ctx)}}
                         metadata (ts/filemetadata-transport->internal
                                   (dissoc transported-metadata :user-id)
                                   file-details)]
@@ -274,7 +278,7 @@
                     file-id (get-in ctx [:parameters :path :id])
                     body (get-in ctx [:body])
                     type (:type body)
-                    user-id (get-in ctx [:request :headers "user-id"])]
+                    user-id (ctx->user-id ctx)]
                 (if (ms/exists metadatastore file-id)
                   (do
                     (case type
@@ -380,10 +384,12 @@
                                                               :schema-id-entry
                                                               {:route-params {:id (::ss/id preexists)}}))))})
                                 (do
-                                  (c/send-event! communications :kixi.datastore/schema-created "1.0.0"
-                                                 {::ss/name schema-name
-                                                  ::ss/schema schema'
-                                                  ::ss/id new-id})
+                                  (cs/send-event! communications 
+                                                  {::cs/event :kixi.datastore/schema-created
+                                                   ::cs/version "1.0.0"
+                                                   ::ss/name schema-name
+                                                   ::ss/schema schema'
+                                                   ::ss/id new-id})
                                   (assoc (:response ctx)
                                          :status 202
                                          :headers {"Location"

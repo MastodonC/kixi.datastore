@@ -2,11 +2,13 @@
   (:require [clojure.spec :as s]
             [kixi.comms :as c]
             [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.segmentation :as seg]))
+            [kixi.datastore.segmentation :as seg]
+            [kixi.datastore.schemastore :as ss]))
 
 (s/def ::event #{:kixi.datastore/file-created
                  :kixi.datastore/file-metadata-updated
-                 :kixi.datastore/file-segmentation-created})
+                 :kixi.datastore/file-segmentation-created
+                 :kixi.datastore/schema-created})
 
 (s/def ::version (s/and string? #(re-matches #"\d.\d.\d" %)))
 
@@ -43,6 +45,10 @@
 (defmethod payloads :kixi.datastore/file-segmentation-created
   [_]
   (s/keys :req [::seg/id ::ms/id ::seg/column-name ::ms/user-id]))
+
+(defmethod payloads :kixi.datastore/schema-created
+  [_]
+  ::ss/create-schema-request)
 
 (s/def ::payloads
   (s/multi-spec payloads ::event))
