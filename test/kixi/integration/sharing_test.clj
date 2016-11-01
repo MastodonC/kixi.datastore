@@ -19,25 +19,35 @@
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
+(defn authorized
+  [resp]
+  (#{200 201}
+   (:status resp)))
+
+(defn unauthorized 
+  [resp]
+  (= 401
+     (:status resp)))
+
 (def sharing-level->actions
-  {:file-sharing {:read {dload-file true
-                         get-metadata false}}
-   :file-metadata-sharing {:visible {get-metadata false
-                                     dload-file false
+  {:file-sharing {:read {get-file authorized
+                         get-metadata unauthorized}}
+})
+{   :file-metadata-sharing {:visible {get-metadata false
+                                     dload-file-by-id false
 ;                                     update-metadata false
                                      }
                            :read {get-metadata true
-                                  dload-file false
+                                  dload-file-by-id false
 ;                                  update-metadata false
                                   }
                            :update {get-metadata true
-                                    dload-file false
+                                    dload-file-by-id false
 ;                                    update-metadata true
-                                    }}})
+                                    }}}
 
 (deftest explore-sharing-level->actions
-  true
-#_(let [post (partial post-file-flex
+  (let [post (partial post-file-flex
                       :file-name "./test-resources/metadata-one-valid.csv"
                       :schema-id @metadata-file-schema-id)]
     (doseq [[share levels] sharing-level->actions]
@@ -47,5 +57,9 @@
                         share {level [user-id]})]
           (is-submap {:status 201}
                      pfr)
-          (when (= 201 (:status pfr)
-                   )))))))
+          (when (= 201 (:status pfr))
+            (let [file-id (extract-id pfr)]
+              (doseq [[action result-fn] actions]
+                (is (result-fn
+                     (action file-id))
+                    (str "Is " action " " result-fn " when " share " at " level " provided"))))))))))

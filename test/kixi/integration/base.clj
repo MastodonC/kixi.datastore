@@ -189,6 +189,10 @@
         :body
         parse-json)))
 
+(defn get-file
+  [id]
+  (client/get (str file-url "/" id) {:as :stream}))
+
 (defn dload-file
   [location]
   (let [_ (wait-for-url location)
