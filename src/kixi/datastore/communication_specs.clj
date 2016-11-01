@@ -10,7 +10,7 @@
                  :kixi.datastore/file-segmentation-created
                  :kixi.datastore/schema-created})
 
-(s/def ::version (s/and string? #(re-matches #"\d.\d.\d" %)))
+(s/def ::version (s/and string? #(re-matches #"\d+\.\d+\.\d+" %)))
 
 
 (defmulti file-metadata-updated-type ::file-metadata-update-type)
