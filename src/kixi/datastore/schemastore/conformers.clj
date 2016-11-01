@@ -143,7 +143,10 @@
   [x]
   (cond
     (boolean? x) x
-    (string? x) (Boolean/valueOf (str x))
+    (string? x) (case x
+                  ("true" "TRUE" "t" "T") true
+                  ("false" "FALSE" "f" "F") false
+                  :clojure.spec/invalid)
     :else :clojure.spec/invalid))
 
 (def bool? 
