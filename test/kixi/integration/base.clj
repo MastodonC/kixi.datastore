@@ -11,7 +11,8 @@
             [clojure.data]
             [clojure.java.io :as io]
             [digest :as d]
-            [kixi.datastore.schemastore :as ss])
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.metadatastore :as ms])
   (:import [java.io
             File
             FileNotFoundException]))
@@ -76,6 +77,10 @@
 
 (def schema-url (str "http://" (service-url) "/schema/"))
 
+(defn extract-id
+  [file-response]
+  (when-let [locat (get-in file-response [:headers "Location"])]
+    (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
 (defn parse-json
   [s]
@@ -106,7 +111,49 @@
   (= (d/md5 (File. one))
      (d/md5 two)))
 
-(def accept-status #{200 201})
+(def accept-status #{200 201 202})
+
+(defn wait-for-url
+  ([url]
+   (wait-for-url url wait-tries 1 nil))
+  ([url tries cnt last-result]
+   (if (<= cnt tries)
+     (let [md (client/get url
+                          {:accept :json
+                           :throw-exceptions false})]
+       (if (= 404 (:status md))
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
+           (Thread/sleep wait-per-try)
+           (recur url tries (inc cnt) md))
+         md))
+     last-result)))
+
+
+(defn get-metadata
+  [id]
+  (update (client/get (metadata-url id) {:as :json
+                                         :accept :json
+                                         :throw-exceptions false})
+          :body
+          parse-json))
+
+(defn wait-for-metadata-key
+  ([id k]
+   (wait-for-metadata-key id k wait-tries 1 nil))
+  ([id k tries cnt lr]
+   (if (<= cnt tries)
+     (let [md (get-metadata id)]
+       (if-not (get-in md [:body k])
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" k "to be metadata for" id))
+           (Thread/sleep wait-per-try)
+           (recur id k tries (inc cnt) md))
+         md))
+     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
+
 
 (defn post-file-flex
   [& {:keys [file-name schema-id user-id file-sharing file-metadata-sharing]}]
@@ -128,6 +175,13 @@
       (do 
         (clojure.pprint/pprint r)
         r))))
+
+(defn post-file-and-wait
+  [& {:as args}]
+  (let [pfr (apply post-file-flex (flatten (seq args)))]
+    (when (accept-status (:status pfr))
+      (wait-for-metadata-key (extract-id pfr) ::ms/id))
+    pfr))
 
 (defn post-file
   [file-name schema-id]
@@ -155,26 +209,16 @@
                 :accept :json
                 :throw-exceptions false}))
 
-(defn wait-for-url
-  ([url]
-   (wait-for-url url wait-tries 1 nil))
-  ([url tries cnt last-result]
-   (if (<= cnt tries)
-     (let [md (client/get url
-                          {:accept :json
-                           :throw-exceptions false})]
-       (if (= 404 (:status md))
-         (do
-           (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
-           (Thread/sleep wait-per-try)
-           (recur url tries (inc cnt) md))
-         md))
-     last-result)))
-
 (defn get-spec
   [id]
   (wait-for-url (str schema-url id)))
+
+(defn post-spec-and-wait
+  [s]
+  (let [psr (post-spec s)]
+    (when (accept-status (:status psr))
+      (wait-for-url (get-in psr [:headers "Location"])))
+    psr))
 
 (defn get-spec-direct
   [id]
@@ -206,30 +250,3 @@
   [id]
   (dload-file (str file-url "/" id)))
 
-(defn get-metadata
-  [id]
-  (update (client/get (metadata-url id) {:as :json
-                                         :accept :json
-                                         :throw-exceptions false})
-          :body
-          parse-json))
-
-(defn wait-for-metadata-key
-  ([id k]
-   (wait-for-metadata-key id k wait-tries 1 nil))
-  ([id k tries cnt lr]
-   (if (<= cnt tries)
-     (let [md (get-metadata id)]
-       (if-not (get-in md [:body k])
-         (do
-           (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" k "to be metadata for" id))
-           (Thread/sleep wait-per-try)
-           (recur id k tries (inc cnt) md))
-         md))
-     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
-
-(defn extract-id
-  [file-response]
-  (when-let [locat (get-in file-response [:headers "Location"])]
-    (subs locat (inc (clojure.string/last-index-of locat "/")))))

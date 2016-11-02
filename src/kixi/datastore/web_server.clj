@@ -28,6 +28,10 @@
   [ctx]
   (get-in ctx [:request :headers "user-id"]))
 
+(defn ctx->user-groups
+  [ctx]
+  (get-in ctx [:request :headers "user-groups"]))
+
 (defn say-hello [ctx]
   (info "Saying hello")
   (str "Hello " (get-in ctx [:parameters :query :p]) "!\n"))

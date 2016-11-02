@@ -1,65 +1,103 @@
 (ns kixi.integration.sharing-test
-  (:require [clojure.test :refer :all]            
-            [kixi.integration.base :refer :all]))
+  (:require [clojure.test :refer :all]
+            [clojure.math.combinatorics :as combo :refer [subsets]]
+            [environ.core :refer [env]]
+            [kixi.integration.base :refer [uuid extract-id] :as base]))
 
-
-(def metadata-file-schema-id (atom nil))
 (def metadata-file-schema {:name ::metadata-file-schema
                            :type "list"
                            :definition [:cola {:type "integer"}
                                         :colb {:type "integer"}]})
-(defn setup-schema
-  [all-tests]
-  (let [r (post-spec metadata-file-schema)]
-    (if (= 202 (:status r))
-      (reset! metadata-file-schema-id (extract-id r))
-      (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r))))
-    (wait-for-url (get-in r [:headers "Location"])))
-  (all-tests))
 
-(use-fixtures :once cycle-system-fixture setup-schema)
+(use-fixtures :once base/cycle-system-fixture)
 
-(defn authorized
+(defn authorised
   [resp]
   (#{200 201}
    (:status resp)))
 
-(defn unauthorized 
+(defn unauthorised 
   [resp]
   (= 401
      (:status resp)))
 
-(def sharing-level->actions
-  {:file-sharing {:read {get-file authorized
-                         get-metadata unauthorized}}
-})
-{   :file-metadata-sharing {:visible {get-metadata false
-                                     dload-file-by-id false
-;                                     update-metadata false
-                                     }
-                           :read {get-metadata true
-                                  dload-file-by-id false
-;                                  update-metadata false
-                                  }
-                           :update {get-metadata true
-                                    dload-file-by-id false
-;                                    update-metadata true
-                                    }}}
+(defn get-file
+  [schema-id file-id]
+  (base/get-file file-id))
+
+(defn get-metadata
+  [schema-id file-id]
+  (base/get-metadata file-id))
+
+(def shares->authorised-actions
+  {[[:file-sharing :read]] [get-file]
+   [[:file-metadata-sharing :visible]] []
+   [[:file-metadata-sharing :read]] [get-metadata]
+   [[:file-metadata-sharing :update]] [get-metadata]})
+
+(def all-shares 
+  (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))
+
+(def all-actions
+  (vec (reduce (partial apply conj) #{} (vals shares->authorised-actions))))
+
+(defn actions-for
+  [shares]
+  (mapcat 
+   #(get shares->authorised-actions %)
+   (subsets shares)))
+
+(defn shares->file-shares
+  [uid shares]
+  (->> shares
+       (reduce
+        (fn [acc [share-area share-specific]] 
+          (merge-with merge
+                      acc
+                      {share-area {share-specific [uid]}}))
+        {})
+       seq
+       flatten))
+
+(defmacro when-status
+  [status resp rest]
+  `(let [rs# (:status ~resp)]
+     (base/is-submap {:status ~status}
+                ~resp)
+     (when (= ~status
+              rs#)
+       ~@rest)))
+
+(defmacro when-accepted
+  [resp & rest]
+  `(when-status 202 ~resp ~rest))
+
+(defmacro when-created
+  [resp & rest]
+  `(when-status 201 ~resp ~rest))
 
 (deftest explore-sharing-level->actions
-  (let [post (partial post-file-flex
-                      :file-name "./test-resources/metadata-one-valid.csv"
-                      :schema-id @metadata-file-schema-id)]
-    (doseq [[share levels] sharing-level->actions]
-      (doseq [[level actions] levels]
-        (let [user-id (uuid)
-              pfr (post :user-id user-id
-                        share {level [user-id]})]
-          (is-submap {:status 201}
-                     pfr)
-          (when (= 201 (:status pfr))
-            (let [file-id (extract-id pfr)]
-              (doseq [[action result-fn] actions]
-                (is (result-fn
-                     (action file-id))
-                    (str "Is " action " " result-fn " when " share " at " level " provided"))))))))))
+  (let [post-file (partial base/post-file-and-wait
+                           :file-name "./test-resources/metadata-one-valid.csv")
+        post-spec #(base/post-spec-and-wait metadata-file-schema)] ;will become partial with spec perms
+    (doseq [shares (subsets all-shares)]
+      (let [uid (uuid)
+            psr (post-spec)]
+        (when-accepted psr
+          (let [schema-id (extract-id psr)
+                pfr (apply post-file
+                           :schema-id schema-id
+                           :user-id uid
+                           (shares->file-shares uid shares))]
+            (when-created pfr
+              (let [file-id (extract-id pfr)
+                    authorised-actions (actions-for shares)
+                    unauthorised-actions (apply disj (set all-actions) authorised-actions)]
+                (doseq [action authorised-actions]
+                  (is (authorised
+                       (action
+                        schema-id file-id))))
+                (doseq [action unauthorised-actions]
+                  (is (unauthorised
+                       (action
+                        schema-id file-id))))))))))))
