@@ -8,11 +8,11 @@
 
 (s/def ::filemetadata-transport
   (s/keys :req-un [::schema-id
-                   ::ms/name
-                   ::ms/file-sharing
-                   ::ms/file-metadata-sharing]
+                   ::ms/name]
           :opt-un [::ms/type
-                   ::ms/header]))
+                   ::ms/header
+                   ::ms/file-sharing
+                   ::ms/file-metadata-sharing]))
 
 (s/def ::file-details
   (s/keys :req [::ms/id ::ms/size-bytes ::ms/provenance]))
@@ -21,7 +21,9 @@
   {"csv" {::ms/header true}})
 
 (def default-primary-metadata
-  {::ms/type "csv"})
+  {::ms/type "csv"
+   ::ms/file-sharing {}
+   ::ms/file-metadata-sharing {}})
 
 (s/fdef filemetadata-transport->internal
         :args (s/cat :meta ::filemetadata-transport
@@ -38,10 +40,14 @@
                        (::ss/id file-metadata))
                     (= (:name meta)
                        (::ms/name file-metadata))
-                    (= (:file-sharing meta)
-                       (::ms/file-sharing file-metadata))
-                    (= (:file-metadata-sharing meta)
-                       (::ms/file-metadata-sharing file-metadata))
+                    (or (= (:file-sharing meta)
+                           (::ms/file-sharing file-metadata))
+                        (= {}
+                           (::ms/file-sharing file-metadata)))
+                    (or (= (:file-metadata-sharing meta)
+                           (::ms/file-metadata-sharing file-metadata))
+                        (= {}
+                           (::ms/file-metadata-sharing file-metadata)))
                     (case (or (:type meta) 
                               (::ms/type file-metadata)) 
                       "csv" (if-not (nil? (:header meta))

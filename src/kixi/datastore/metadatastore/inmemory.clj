@@ -53,6 +53,11 @@
 (defrecord InMemory
     [data communications]
     MetaDataStore
+    (authorisation
+      [this domain action id user-groups]
+      (when-let [meta (get @data id)]
+        (not-empty (clojure.set/intersection (set (get-in meta [domain action]))
+                                             (set user-groups)))))
     (exists [this id]
       ((set
         (keys @data))

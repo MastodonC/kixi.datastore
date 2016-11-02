@@ -11,7 +11,8 @@
             [clojure.data]
             [clojure.java.io :as io]
             [digest :as d]
-            [kixi.datastore.schemastore :as ss])
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.metadatastore :as ms])
   (:import [java.io
             File
             FileNotFoundException]))
@@ -76,6 +77,10 @@
 
 (def schema-url (str "http://" (service-url) "/schema/"))
 
+(defn extract-id
+  [file-response]
+  (when-let [locat (get-in file-response [:headers "Location"])]
+    (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
 (defn parse-json
   [s]
@@ -106,19 +111,71 @@
   (= (d/md5 (File. one))
      (d/md5 two)))
 
-(def accept-status #{200 201})
+(def accept-status #{200 201 202})
 
-(defn post-file
-  [file-name schema-id]
+(defn wait-for-url
+  ([url uid]
+   (wait-for-url url uid wait-tries 1 nil))
+  ([url uid tries cnt last-result]
+   (if (<= cnt tries)
+     (let [md (client/get url
+                          {:accept :json
+                           :throw-exceptions false
+                           :headers {"user-groups" uid}})]
+       (if (= 404 (:status md))
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
+           (Thread/sleep wait-per-try)
+           (recur url uid tries (inc cnt) md))
+         md))
+     last-result)))
+
+
+(defn get-metadata
+  [id ugroup]
+  (update (client/get (metadata-url id) {:as :json
+                                         :accept :json
+                                         :throw-exceptions false
+                                         :headers {"user-groups" ugroup}})
+          :body
+          parse-json))
+
+(defn wait-for-metadata-key
+  ([id k ugroup]
+   (wait-for-metadata-key id k ugroup wait-tries 1 nil))
+  ([id k ugroup tries cnt lr]
+   (if (<= cnt tries)
+     (let [md (get-metadata id ugroup)]
+       (if-not (get-in md [:body k])
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for" k "to be metadata for" id))
+           (Thread/sleep wait-per-try)
+           (recur id k ugroup tries (inc cnt) md))
+         md))
+     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
+
+(defn vec-if-not
+  [x]
+  (if (vector? x)
+    x
+    (vector x)))
+
+(defn post-file-flex
+  [& {:keys [file-name schema-id user-id user-groups file-sharing file-metadata-sharing]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
-                                    {:name "file-metadata" :content (encode-json {:name "foo"
-                                                                                  :header true
-                                                                                  :schema-id schema-id
-                                                                                  :file-sharing {:read [(uuid)]}
-                                                                                  :file-metadata-sharing {:update [(uuid)]}})}]
-                        :headers {"user-id" (uuid)}
+                                    {:name "file-metadata" :content (encode-json (merge {:name "foo"
+                                                                                         :header true
+                                                                                         :schema-id schema-id}
+                                                                                        (when file-sharing
+                                                                                          {:file-sharing file-sharing})
+                                                                                        (when file-metadata-sharing
+                                                                                          {:file-metadata-sharing file-metadata-sharing})))}]
+                        :headers {"user-id" user-id
+                                  "user-groups" (vec-if-not user-groups)}
                         :throw-exceptions false
                         :accept :json})]
     (if-not (= 500 (:status r)) 
@@ -126,6 +183,23 @@
       (do 
         (clojure.pprint/pprint r)
         r))))
+
+(defn post-file-and-wait
+  [& {:as args}]
+  (let [pfr (apply post-file-flex (flatten (seq args)))]
+    (when (accept-status (:status pfr))
+      (wait-for-metadata-key (extract-id pfr) ::ms/id
+                             (:user-group args)))
+    pfr))
+
+(defn post-file
+  [file-name schema-id id]
+  (post-file-flex :file-name file-name 
+                  :schema-id schema-id 
+                  :user-id id
+                  :user-groups id
+                  :file-sharing {:read [id]}
+                  :file-metadata-sharing {:read [id]}))
 
 (defn post-segmentation
   [url seg]
@@ -144,26 +218,16 @@
                 :accept :json
                 :throw-exceptions false}))
 
-(defn wait-for-url
-  ([url]
-   (wait-for-url url wait-tries 1 nil))
-  ([url tries cnt last-result]
-   (if (<= cnt tries)
-     (let [md (client/get url
-                          {:accept :json
-                           :throw-exceptions false})]
-       (if (= 404 (:status md))
-         (do
-           (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" url ". Getting:" (:status md)))
-           (Thread/sleep wait-per-try)
-           (recur url tries (inc cnt) md))
-         md))
-     last-result)))
-
 (defn get-spec
-  [id]
-  (wait-for-url (str schema-url id)))
+  [id uid]
+  (wait-for-url (str schema-url id) uid))
+
+(defn post-spec-and-wait
+  [s uid]
+  (let [psr (post-spec s)]
+    (when (accept-status (:status psr))
+      (wait-for-url (get-in psr [:headers "Location"]) uid))
+    psr))
 
 (defn get-spec-direct
   [id]
@@ -178,43 +242,24 @@
         :body
         parse-json)))
 
+(defn get-file
+  [id uid ugroups]
+  (client/get (str file-url "/" id) 
+              {:headers (apply merge {"user-id" uid}
+                               (map #(hash-map "user-groups" %) (vec-if-not ugroups)))
+               :throw-exceptions false}))
+
 (defn dload-file
-  [location]
-  (let [_ (wait-for-url location)
+  [location uid]
+  (let [_ (wait-for-url location uid)
         f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
-    (bs/transfer (:body (client/get location {:as :stream}))
+    (bs/transfer (:body (client/get location {:as :stream
+                                              :headers {"user-groups" uid}}))
                  f)
     f))
 
 (defn dload-file-by-id
-  [id]
-  (dload-file (str file-url "/" id)))
+  [id uid]
+  (dload-file (str file-url "/" id) uid))
 
-(defn get-metadata
-  [id]
-  (update (client/get (metadata-url id) {:as :json
-                                         :accept :json
-                                         :throw-exceptions false})
-          :body
-          parse-json))
-
-(defn wait-for-metadata-key
-  ([id k]
-   (wait-for-metadata-key id k wait-tries 1 nil))
-  ([id k tries cnt lr]
-   (if (<= cnt tries)
-     (let [md (get-metadata id)]
-       (if-not (get-in md [:body k])
-         (do
-           (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" k "to be metadata for" id))
-           (Thread/sleep wait-per-try)
-           (recur id k tries (inc cnt) md))
-         md))
-     (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
-
-(defn extract-id
-  [file-response]
-  (when-let [locat (get-in file-response [:headers "Location"])]
-    (subs locat (inc (clojure.string/last-index-of locat "/")))))

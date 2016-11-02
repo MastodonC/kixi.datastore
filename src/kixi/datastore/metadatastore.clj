@@ -19,7 +19,7 @@
 (s/def :kixi.user-group/id sc/uuid)
 
 (def file-activities
-   [:visible :read])
+   [:read])
 
 (def file-metadata-activities
   [:visible :read :update])
@@ -86,6 +86,8 @@
           :opt [::segmentations ::segment ::structural-validation]))
 
 (defprotocol MetaDataStore
+  (authorisation
+    [this domain action id user-groups])
   (exists [this id])
   (fetch [this id])
   (query [this criteria]))

@@ -11,7 +11,8 @@
              [metrics :as metrics]
              [web-server :as web-server]
              [schemaextracter :as se]
-             [structural-validation :as sv]]
+             [structural-validation :as sv]
+             [sharing :as share]]            
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
@@ -25,7 +26,8 @@
              [inmemory :as ss-inmemory]]
             [kixi.datastore.segmentation
              [inmemory :as segementation-inmemory]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [kixi.datastore.sharing :as share]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -40,8 +42,9 @@
 (def component-dependencies
   {:metrics [] 
    :logging [:metrics]
-   :communications []   
-   :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
+   :communications []
+   :sharing [:metadatastore]
+   :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications :sharing]
    :filestore []
    :metadatastore [:communications]
    :schemastore [:communications]
@@ -55,6 +58,7 @@
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
    :logging (logging/map->Log {})
+   :sharing (share/map->Sharing {})
    :filestore (case (first (keys (:filestore config)))
                     :local (local/map->Local {})
                     :s3 (s3/map->S3 {}))

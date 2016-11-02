@@ -16,29 +16,33 @@
                            :type "list"
                            :definition [:cola {:type "integer"}
                                         :colb {:type "integer"}]})
+
+(def uid (uuid))
+
 (defn setup-schema
   [all-tests]
   (let [r (post-spec metadata-file-schema)]
     (if (= 202 (:status r))
       (reset! metadata-file-schema-id (extract-id r))
       (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r))))
-    (wait-for-url (get-in r [:headers "Location"])))
+    (wait-for-url (get-in r [:headers "Location"]) uid))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
-(deftest unknown-file-404
-  (let [sr (get-metadata "foo")]
-    (is (= 404
+(deftest unknown-file-401
+  (let [sr (get-metadata "foo" uid)]
+    (is (= 401
            (:status sr)))))
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
-                       @metadata-file-schema-id)]
+                       @metadata-file-schema-id
+                       uid)]
     (is-submap {:status 201}
                pfr)
     (when (= 201 (:status pfr))
-      (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
+      (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation uid)]
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)
@@ -54,7 +58,8 @@
 
 (deftest small-file-invalid-schema
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
-                       "003ba24c-2830-4f28-b6af-905d6215ea1c") ;; schema doesn't exist
+                       "003ba24c-2830-4f28-b6af-905d6215ea1c"
+                       uid) ;; schema doesn't exist
         ]
     (is-submap
      {:status 400
@@ -63,8 +68,9 @@
 
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-one-invalid.csv"
-                       @metadata-file-schema-id)
-        metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
+                       @metadata-file-schema-id
+                       uid)
+        metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation uid)]
     (is-submap
      {:status 201}
      pfr)

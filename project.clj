@@ -44,6 +44,7 @@
                 *assert* false}
 
   :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]
+                                  [org.clojure/math.combinatorics "0.1.3"]
                                   [com.gfredericks/test.chuck "0.2.7"]
                                   [criterium "0.4.4"]]}
              :uberjar {:aot [kixi.datastore.bootstrap]

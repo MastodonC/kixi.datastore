@@ -12,6 +12,8 @@
 (alias 'ss 'kixi.datastore.schemastore)
 (alias 'seg 'kixi.datastore.segmentation)
 
+(def uid (uuid))
+
 (def small-segmentable-file-schema-id (atom nil))
 (def small-segmentable-file-schema {:name ::small-segmentable-file-schema
                                     :type "list"
@@ -26,7 +28,7 @@
     (if (= 202 (:status r))
       (reset! small-segmentable-file-schema-id (extract-id r))
       (throw (Exception. "Couldn't post small-segmentable-file-schema")))
-    (wait-for-url (get-in r [:headers "Location"])))
+    (wait-for-url (get-in r [:headers "Location"]) uid))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -46,12 +48,14 @@
 
 (deftest group-rows-by-invalid-column
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       @small-segmentable-file-schema-id)
+                       @small-segmentable-file-schema-id
+                       uid)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))   
     (when-let [locat (get-in pfr [:headers "Location"])]
-      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta"))
+      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta")
+                    uid)
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "bar"})]
@@ -59,8 +63,8 @@
                (:status sr)))
         (when (= 201
                  (:status sr))
-          (wait-for-metadata-key base-file-id ::ms/segmentations)
-          (let [base-file-meta-resp (get-metadata base-file-id)
+          (wait-for-metadata-key base-file-id ::ms/segmentations uid)
+          (let [base-file-meta-resp (get-metadata base-file-id uid)
                 base-file-meta (:body base-file-meta-resp)
                 segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
             (is-submap
@@ -72,12 +76,13 @@
 
 (deftest group-rows-by-column-small
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
-                       @small-segmentable-file-schema-id)
+                       @small-segmentable-file-schema-id
+                       uid)
         base-file-id (extract-id pfr)]
     (is (= 201
            (:status pfr)))
     (when-let [locat (get-in pfr [:headers "Location"])]      
-      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta"))
+      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta") uid)
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "cola"})]
@@ -85,8 +90,8 @@
                (:status sr)))
         (when (= 201
                  (:status sr))
-          (wait-for-metadata-key base-file-id ::ms/segmentations)
-          (let [base-file-meta-resp (get-metadata base-file-id)
+          (wait-for-metadata-key base-file-id ::ms/segmentations uid)
+          (let [base-file-meta-resp (get-metadata base-file-id uid)
                 base-file-meta (:body base-file-meta-resp)
                 segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
             (is (= 200
@@ -94,7 +99,7 @@
             (is (= 3
                    (count segment-ids)))
             (doseq [seg-id segment-ids]
-              (let [seg-meta-resp (get-metadata seg-id)]
+              (let [seg-meta-resp (get-metadata seg-id uid)]
                 (is-submap {:status 200
                             :body {::ss/id @small-segmentable-file-schema-id
                                    ::ms/type (::ms/type base-file-meta)
@@ -104,4 +109,4 @@
                 (if (= 200 (:status seg-meta-resp))
                   (is (files-match?
                        (str base-segmented-file-name (get-in seg-meta-resp [:body ::seg/segment ::seg/value]) ".csv")
-                       (dload-file-by-id seg-id))))))))))))
+                       (dload-file-by-id seg-id uid))))))))))))
