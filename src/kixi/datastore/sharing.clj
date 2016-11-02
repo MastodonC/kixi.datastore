@@ -7,7 +7,7 @@
     [domain action]))
 
 (defmethod authorisation
-  [::ms/file-sharing :read]  
+  [::ms/sharing :file-read]  
   [file-metadatastore domain action id groups]
   (ms/authorisation file-metadatastore
                     domain
@@ -16,7 +16,7 @@
                     groups))
 
 (defmethod authorisation
-  [::ms/file-metadata-sharing :read]  
+  [::ms/sharing :meta-read]  
   [file-metadatastore domain action id groups]
   (ms/authorisation file-metadatastore
                     domain

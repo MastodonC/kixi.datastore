@@ -267,7 +267,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/file-sharing :read id (ctx->user-groups ctx))
+               (if (share/authorised sharing ::ms/sharing :file-read id (ctx->user-groups ctx))
                  (ds/retrieve filestore
                               id)
                  (return-unauthorised ctx))))}}}))
@@ -282,7 +282,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/file-metadata-sharing :read id (ctx->user-groups ctx))
+               (if (share/authorised sharing ::ms/sharing :meta-read id (ctx->user-groups ctx))
                  (ms/fetch metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
@@ -385,7 +385,7 @@
                               body        (get-in ctx [:body])
                               schema      (keywordize-values
                                            (add-ns-to-keys ::ss/_ (:schema body)))                              
-                              schema'     (dissoc schema ::ss/name)
+                              schema'     (dissoc schema ::ss/name ::ss/sharing)
                               schema-name (::ss/name schema)]
                           ;; Is name valid?
                           (if-let [error (sv/invalid-name? schema-name)]
@@ -410,7 +410,8 @@
                                                    ::cs/version "1.0.0"
                                                    ::ss/name schema-name
                                                    ::ss/schema schema'
-                                                   ::ss/id new-id})
+                                                   ::ss/id new-id
+                                                   ::ss/sharing (get schema ::ss/sharing)})
                                   (assoc (:response ctx)
                                          :status 202
                                          :headers {"Location"

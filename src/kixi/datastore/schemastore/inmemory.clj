@@ -8,7 +8,7 @@
             [kixi.comms :as c]
             [kixi.datastore.transit :as t]
             [kixi.datastore.time :as time]
-            [taoensso.timbre :as timbre :refer [error info infof debug]]))
+            [taoensso.timbre :as timbre :refer [error info infof debug fatal]]))
 
 (defn persist-new-schema
   [data schema]

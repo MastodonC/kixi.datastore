@@ -163,17 +163,16 @@
     (vector x)))
 
 (defn post-file-flex
-  [& {:keys [file-name schema-id user-id user-groups file-sharing file-metadata-sharing]}]
+  [& {:keys [file-name schema-id user-id user-groups sharing]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
-                                    {:name "file-metadata" :content (encode-json (merge {:name "foo"
-                                                                                         :header true
-                                                                                         :schema-id schema-id}
-                                                                                        (when file-sharing
-                                                                                          {:file-sharing file-sharing})
-                                                                                        (when file-metadata-sharing
-                                                                                          {:file-metadata-sharing file-metadata-sharing})))}]
+                                    {:name "file-metadata" 
+                                     :content (encode-json (merge {:name "foo"
+                                                                   :header true
+                                                                   :schema-id schema-id}
+                                                                  (when sharing
+                                                                    {:sharing sharing})))}]
                         :headers {"user-id" user-id
                                   "user-groups" (vec-if-not user-groups)}
                         :throw-exceptions false
@@ -198,8 +197,8 @@
                   :schema-id schema-id 
                   :user-id id
                   :user-groups id
-                  :file-sharing {:read [id]}
-                  :file-metadata-sharing {:read [id]}))
+                  :sharing {:file-read [id]
+                            :meta-read [id]}))
 
 (defn post-segmentation
   [url seg]
@@ -210,11 +209,14 @@
                 :throw-exceptions false
                 :as :json}))
 
-(defn post-spec
-  [s]
+(defn post-spec  
+  [s uid ugroup sharing]
   (client/post schema-url
-               {:form-params {:schema s}
+               {:form-params {:schema (merge s
+                                             sharing)}
                 :content-type :json
+                :headers {"user-id" uid
+                          "user-groups" (vec-if-not ugroup)}
                 :accept :json
                 :throw-exceptions false}))
 
@@ -223,11 +225,17 @@
   (wait-for-url (str schema-url id) uid))
 
 (defn post-spec-and-wait
-  [s uid]
-  (let [psr (post-spec s)]
-    (when (accept-status (:status psr))
-      (wait-for-url (get-in psr [:headers "Location"]) uid))
-    psr))
+  ([s uid]
+   (post-spec-and-wait s uid uid))
+  ([s uid ugroup]
+   (post-spec-and-wait s uid ugroup
+                       {:sharing {:read [ugroup]
+                                  :use [ugroup]}}))
+  ([s uid ugroup sharing]
+   (let [psr (post-spec s uid ugroup sharing)]
+     (when (accept-status (:status psr))
+       (wait-for-url (get-in psr [:headers "Location"]) uid))
+     psr)))
 
 (defn get-spec-direct
   [id]
@@ -263,3 +271,20 @@
   [id uid]
   (dload-file (str file-url "/" id) uid))
 
+
+(defmacro when-status
+  [status resp rest]
+  `(let [rs# (:status ~resp)]
+     (is-submap {:status ~status}
+                ~resp)
+     (when (= ~status
+              rs#)
+       ~@rest)))
+
+(defmacro when-accepted
+  [resp & rest]
+  `(when-status 202 ~resp ~rest))
+
+(defmacro when-created
+  [resp & rest]
+  `(when-status 201 ~resp ~rest))

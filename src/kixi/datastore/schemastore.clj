@@ -8,6 +8,13 @@
 (s/def ::name #(and (keyword? %)
                     (namespace %)))
 
+(def activities
+  [::read ::use])
+
+(s/def ::sharing
+  (s/map-of (set activities)
+            (s/coll-of :kixi.user-group/id)))
+
 (s/def ::definition
   (s/cat :pairs (s/+ (s/cat :tag ::tag
                             :type ::schema))))
@@ -48,10 +55,10 @@
   (s/multi-spec schema-type ::type))
 
 (s/def ::stored-schema
-  (s/keys :req [::schema ::id ::name ::timestamp]))
+  (s/keys :req [::schema ::id ::name ::timestamp ::sharing]))
 
 (s/def ::create-schema-request
-  (s/keys :req [::schema ::id ::name]))
+  (s/keys :req [::schema ::id ::name ::sharing]))
 
 (defprotocol SchemaStore
   (exists [this spec-name])
