@@ -13,6 +13,8 @@
 (def uuid-regex
   #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
+(def uid (uuid))
+
 (def location-regex
   (re-pattern (str #"schema\/" uuid-regex)))
 
@@ -28,7 +30,7 @@
     (if (= 202 (:status r1))
       (let [location (get-in r1 [:headers "Location"])
             id       (extract-id r1)
-            r2       (get-spec id)]
+            r2       (get-spec id uid)]
         (is (re-find location-regex location))
         (is (re-find uuid-regex id))
         (is-submap {:status 200} r2)
@@ -45,7 +47,7 @@
   (let [schema {:name ::reposted-a
                 :type "integer"}
         r-g1 (post-spec schema)
-        _ (wait-for-url (get-in r-g1 [:headers "Location"]))
+        _ (wait-for-url (get-in r-g1 [:headers "Location"]) uid)
         r-g2 (post-spec schema)]
     (is (= 202
            (:status r-g1)))

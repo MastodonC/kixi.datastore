@@ -15,6 +15,7 @@
                         :definition [:cola {:type "integer"}
                                      :colb {:type "integer"}]})
 
+(def uid (uuid))
 
 (defn setup-schema
   [all-tests]
@@ -22,36 +23,39 @@
     (if (= 202 (:status r))
       (reset! irrelevant-schema-id (extract-id r))
       (throw (Exception. "Couldn't post irrelevant-schema")))
-    (wait-for-url (get-in r [:headers "Location"])))
+    (wait-for-url (get-in r [:headers "Location"]) uid))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest round-trip-files
   (let [r (post-file "./test-resources/metadata-one-valid.csv"
-                     @irrelevant-schema-id)]
+                     @irrelevant-schema-id
+                     uid)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-one-valid.csv"
-           (dload-file locat)))))
+           (dload-file locat uid)))))
   (let [r (post-file "./test-resources/metadata-12MB-valid.csv"
-                     @irrelevant-schema-id)]
+                     @irrelevant-schema-id
+                     uid)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-12MB-valid.csv"
-           (dload-file locat)))))
+           (dload-file locat uid)))))
   (let [r (post-file "./test-resources/metadata-344MB-valid.csv"
-                     @irrelevant-schema-id)]
+                     @irrelevant-schema-id
+                     uid)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-344MB-valid.csv"
-           (dload-file locat))))))
+           (dload-file locat uid))))))
