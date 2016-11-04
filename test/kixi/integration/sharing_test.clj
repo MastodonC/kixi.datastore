@@ -47,8 +47,9 @@
    [[:file :sharing :meta-visible]] []
    [[:file :sharing :meta-read]] [get-metadata]
    [[:file :sharing :meta-update]] []
-   [[:schema :sharing :read]] [get-spec]
-   [[:schema :sharing :use]] [post-file-using-schema]})
+;   [[:schema :sharing :read]] [get-spec]
+;   [[:schema :sharing :use]] [post-file-using-schema]
+   })
 
 (def all-shares 
   (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))

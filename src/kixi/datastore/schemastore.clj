@@ -79,6 +79,8 @@
   (s/keys :req [::schema ::id ::name ::sharing]))
 
 (defprotocol SchemaStore
-  (exists [this spec-name])
+  (authorisation
+    [this action id user-groups])
+  (exists [this spec-name])  
   (fetch-with [this sub-schema])
   (fetch-spec [this spec-name]))

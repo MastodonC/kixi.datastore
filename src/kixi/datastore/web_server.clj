@@ -13,7 +13,6 @@
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.validator :as sv]
             [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.sharing :as share]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada
@@ -258,7 +257,7 @@
                           (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
 
 (defn file-entry
-  [metrics filestore sharing]
+  [metrics filestore metadatastore]
   (resource
    metrics
    {:id :file-entry
@@ -267,13 +266,13 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/sharing :file-read id (ctx->user-groups ctx))
+               (if (ms/authorised metadatastore :file-read id (ctx->user-groups ctx))
                  (ds/retrieve filestore
                               id)
                  (return-unauthorised ctx))))}}}))
 
 (defn file-meta
-  [metrics metadatastore sharing]
+  [metrics metadatastore]
   (resource
    metrics
    {:id :file-meta
@@ -282,7 +281,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/sharing :meta-read id (ctx->user-groups ctx))
+               (if (ms/authorised metadatastore :meta-read id (ctx->user-groups ctx))
                  (ms/fetch metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
@@ -395,11 +394,11 @@
   "All is well")
 
 (defn service-routes
-  [metrics filestore metadatastore communications schemastore sharing]
+  [metrics filestore metadatastore communications schemastore]
   [""
    [["/file" [["" (file-create metrics filestore communications schemastore)]
-              [["/" :id] (file-entry metrics filestore sharing)]
-              [["/" :id "/meta"] (file-meta metrics metadatastore sharing)]
+              [["/" :id] (file-entry metrics filestore metadatastore)]
+              [["/" :id "/meta"] (file-meta metrics metadatastore)]
               [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
@@ -409,10 +408,10 @@
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics filestore metadatastore communications schemastore sharing]
+  [metrics filestore metadatastore communications schemastore]
   [""
    [(hello-routes metrics)
-    (service-routes metrics filestore metadatastore communications schemastore sharing)
+    (service-routes metrics filestore metadatastore communications schemastore)
     ["/healthcheck" healthcheck]
 
     #_      ["/api" (-> roots
@@ -440,7 +439,7 @@
     [true (yada/handler nil)]]])
 
 (defrecord WebServer
-    [port listener log-config metrics filestore metadatastore communications schemastore sharing]
+    [port listener log-config metrics filestore metadatastore communications schemastore]
     component/Lifecycle
     (start [component]
       (if listener
@@ -448,7 +447,7 @@
         (let [vhosts-model
               (vhosts-model
                [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics filestore metadatastore communications schemastore sharing)])
+                (routes metrics filestore metadatastore communications schemastore)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))
