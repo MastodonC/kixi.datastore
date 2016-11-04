@@ -1,5 +1,6 @@
 (ns kixi.datastore.transport-specs
   (:require [clojure.spec :as s]
+            [clojure.walk :as walk]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.schemastore.conformers :refer [uuid]]))
@@ -69,3 +70,52 @@
                               with-primaries)]
     (merge with-file-type
            file-details)))
+
+(s/def ::schema-transport
+  (s/keys :req [::ss/schema ::ss/id ::ss/name ::ss/sharing]))
+
+(defn add-ns-to-keys
+  ([ns m]
+   (letfn [(process [n]
+             (if (= (type n) clojure.lang.MapEntry)
+               (clojure.lang.MapEntry. (keyword (namespace ns) (name (first n))) (second n))
+               n))]
+     (walk/prewalk process m))))
+
+(defn map-every-nth [f coll n]
+  (map-indexed #(if (zero? (mod %1 n)) (f %2) %2) coll))
+
+(defn keywordize-values
+  [m]
+  (let [keys-values-to-keywordize [::ss/name]
+        m' (reduce
+            (fn [a k]
+              (update a
+                      k
+                      keyword))
+            m
+            keys-values-to-keywordize)]
+    (case (get-in m' [::ss/schema ::ss/type])
+      "list" (update-in m'
+                        [::ss/schema ::ss/definition]
+                        #(map-every-nth
+                          keyword
+                          % 2))
+      m')))
+
+(s/fdef schema-transport->internal
+        :args (s/cat :transport ::schema-transport)
+        :ret ::ss/create-schema-request)
+
+(defn schema-transport->internal
+  [transport]
+ ; (prn transport)
+  (let [schema transport]
+;    (prn schema)
+    schema))
+
+(defn raise-spec
+  [conformed]
+  (assoc conformed
+         ::ss/schema
+         (second (::ss/schema conformed))))

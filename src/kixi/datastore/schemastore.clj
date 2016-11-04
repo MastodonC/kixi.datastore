@@ -1,28 +1,38 @@
 (ns kixi.datastore.schemastore
   (:require [clojure.spec :as s]
-            [kixi.datastore.schemastore.conformers :as sc :refer [uuid timestamp?]]))
+            [clojure.spec.gen :as gen]
+            [kixi.datastore.schemastore.conformers :as sc 
+             :refer [uuid timestamp ns-keyword]]))
 
 (s/def ::id uuid)
 (s/def ::tag keyword?)
-(s/def ::timestamp timestamp?)
-(s/def ::name #(and (keyword? %)
-                    (namespace %)))
+(s/def ::timestamp timestamp)
+(s/def ::name ns-keyword)
+(s/def ::min integer?)
+(s/def ::max integer?)
+(s/def ::pattern string?)
+(s/def ::elements (s/with-gen set?
+                    #(gen/set (gen/string)
+                              {:min-elements 1
+                               :max-elements 10})))
 
 (def activities
   [::read ::use])
 
 (s/def ::sharing
   (s/map-of (set activities)
-            (s/coll-of :kixi.user-group/id)))
+            (s/with-gen
+              (s/coll-of :kixi.user-group/id)
+              #(gen/vector (s/gen uuid) 1 10))))
 
 (s/def ::definition
   (s/cat :pairs (s/+ (s/cat :tag ::tag
-                            :type ::schema))))
+                            :type ::primative-schema))))
+
+(s/def ::list-spec
+  (s/keys :req [::type ::definition]))
 
 (defmulti schema-type ::type)
-
-(defmethod schema-type "list" [_]
-  (s/keys :req [::type ::definition]))
 
 (defmethod schema-type "integer" [_]
   (s/keys :req [::type]))
@@ -51,8 +61,16 @@
 (defmethod schema-type "string" [_]
   (s/keys :req [::type]))
 
-(s/def ::schema
+(s/def ::primative-schema 
   (s/multi-spec schema-type ::type))
+
+(s/def ::schema
+  (s/or
+   :list ::list-spec
+   :primative ::primative-schema))
+
+(s/def ::type (set (conj (keys (methods schema-type))
+                         "list")))
 
 (s/def ::stored-schema
   (s/keys :req [::schema ::id ::name ::timestamp ::sharing]))

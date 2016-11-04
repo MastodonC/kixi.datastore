@@ -6,14 +6,25 @@
             [clojure.spec.gen :as gen]
             [environ.core :refer [env]]
             [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.transport-specs :as ts]))
+            [kixi.datastore.transport-specs :as ts]
+            [kixi.datastore.schemastore :as ss]))
 
-(stest/instrument `ts/filemetadata-transport->internal)
+(stest/instrument `ts/filemetadata-transport->internal
+                  `ts/schema-transport->internal)
 
-(def sample-size (Integer/valueOf (str (env :generative-testing-size "1000"))))
+(def sample-size (Integer/valueOf (str (env :generative-testing-size "100"))))
+
+(defn check
+  [sym]
+  (-> sym
+      (stest/check {:clojure.spec.test.check/opts {:num-tests sample-size}})
+      first
+      stest/abbrev-result
+      :failure))
 
 (deftest test-filemetadata-transport->internal
-  (is (nil? (:failure
-             (stest/abbrev-result (first (stest/check `ts/filemetadata-transport->internal {:num-tests sample-size})))))))
+  (is (nil? (check `ts/filemetadata-transport->internal))))
 
 
+(deftest test-schema-transport->internal
+  (is (nil? (check `ts/schema-transport->internal))))

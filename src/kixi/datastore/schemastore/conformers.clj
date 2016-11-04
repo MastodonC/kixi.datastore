@@ -159,11 +159,24 @@
     (string? x) x
     :else (str x)))
 
+(def time-parser   
+  (partial tf/parse (tf/formatters :basic-date-time)))
+
 (defn timestamp?
-  [s]
-  (tf/parse
-   (tf/formatters :basic-date-time)
-   s))
+  [x]
+  (if (instance? org.joda.time.DateTime x)
+    x
+    (try
+      (if (string? x)
+        (time-parser x)
+        :clojure.spec/invalid)
+      (catch IllegalArgumentException e
+        :clojure.spec/invalid))))
+
+(def timestamp
+  (s/with-gen
+    (s/conformer timestamp?)
+    #(gen/return (t/now))))
 
 (def uuid?
   (-regex? #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
@@ -176,3 +189,22 @@
 (def anything 
   (s/with-gen (constantly true)
     #(gen/any)))
+
+(defn ns-keyword?
+  [x]
+  (cond
+    (and (keyword? x)
+         (namespace x)) x
+    (string? x) (try 
+                  (let [kw (apply keyword (clojure.string/split x #"/" 2))]
+                    (if (namespace kw)
+                      kw
+                      :clojure.spec/invalid))
+                  (catch Exception e
+                    :clojure.spec/invalid))
+    :else :clojure.spec/invalid))
+
+(def ns-keyword
+  (s/with-gen
+    (s/conformer ns-keyword?)
+    #(gen/such-that namespace (gen/keyword-ns))))

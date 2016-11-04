@@ -48,7 +48,9 @@
   []
   (stest/instrument ['kixi.datastore.web-server/return-error
                      'kixi.datastore.metadatastore.inmemory/update-metadata-processor
-                     'kixi.datastore.communication-specs/send-event!]))
+                     'kixi.datastore.communication-specs/send-event!
+                     'kixi.datastore.transport-specs/filemetadata-transport->internal
+                     'kixi.datastore.transport-specs/schema-transport->internal]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -210,15 +212,18 @@
                 :as :json}))
 
 (defn post-spec  
-  [s uid ugroup sharing]
-  (client/post schema-url
-               {:form-params {:schema (merge s
-                                             sharing)}
-                :content-type :json
-                :headers {"user-id" uid
-                          "user-groups" (vec-if-not ugroup)}
-                :accept :json
-                :throw-exceptions false}))
+  ([s uid]
+   (post-spec s uid uid {:sharing {:read [uid]
+                                 :use [uid]}}))
+  ([s uid ugroup sharing]
+   (client/post schema-url
+                {:form-params (merge s
+                                     sharing)
+                 :content-type :json
+                 :headers {"user-id" uid
+                           "user-groups" (vec-if-not ugroup)}
+                 :accept :json
+                 :throw-exceptions false})))
 
 (defn get-spec
   [id uid]
@@ -277,9 +282,12 @@
   `(let [rs# (:status ~resp)]
      (is-submap {:status ~status}
                 ~resp)
-     (when (= ~status
+     (if (= ~status
               rs#)
-       ~@rest)))
+       ~@rest
+       (when (= "application/json" (get-in ~resp [:headers "Content-Type"]))
+         (clojure.pprint/pprint
+          (parse-json (:body ~resp)))))))
 
 (defmacro when-accepted
   [resp & rest]
