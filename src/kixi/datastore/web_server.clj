@@ -356,42 +356,38 @@
                               body        (get-in ctx [:body])
                               raw-schema-req (assoc body
                                                     :id new-id)
-                              conformed-sr (ts/keywordize-values
-                                            (ts/add-ns-to-keys ::ss/_ 
-                                                               raw-schema-req))]
+                              internal-sr (ts/schema-transport->internal raw-schema-req)]
                           (if-not (spec/valid?
-                               ::ts/schema-transport
-                               conformed-sr)
+                                   ::ss/create-schema-request
+                                   internal-sr)
                             (return-error ctx :schema-invalid-request
                                           (spec/explain-data ::ts/schema-transport
-                                                             conformed-sr))
-                            (let [internal-sr (ts/schema-transport->internal 
-                                               (ts/raise-spec conformed-sr))]
-                              (if-let [preexists (ss/fetch-with schemastore
-                                                                (select-keys internal-sr
-                                                                             [::ss/name
-                                                                              ::ss/schema]))]
+                                                             internal-sr))
+                            (if-let [preexists (ss/fetch-with schemastore
+                                                              (select-keys internal-sr
+                                                                           [::ss/name
+                                                                            ::ss/schema]))]
+                              (assoc (:response ctx)
+                                     :status 202 ;; wants to be a 303
+                                     :headers {"Location"
+                                               (str (java.net.URI.
+                                                     (:uri (yada/uri-for
+                                                            ctx
+                                                            :schema-id-entry
+                                                            {:route-params {:id (::ss/id preexists)}}))))})
+                              (do
+                                (cs/send-event! communications 
+                                                (merge {::cs/event :kixi.datastore/schema-created
+                                                        ::cs/version "1.0.0"}
+                                                       internal-sr))
                                 (assoc (:response ctx)
-                                       :status 202 ;; wants to be a 303
+                                       :status 202
                                        :headers {"Location"
-                                                 (str (java.net.URI.
-                                                       (:uri (yada/uri-for
-                                                              ctx
-                                                              :schema-id-entry
-                                                              {:route-params {:id (::ss/id preexists)}}))))})
-                                (do
-                                  (cs/send-event! communications 
-                                                  (merge {::cs/event :kixi.datastore/schema-created
-                                                          ::cs/version "1.0.0"}
-                                                         internal-sr))
-                                  (assoc (:response ctx)
-                                         :status 202
-                                         :headers {"Location"
-                                                   (java.net.URI.
-                                                    (:uri (yada/uri-for
-                                                           ctx
-                                                           :schema-id-entry
-                                                           {:route-params {:id new-id}})))})))))))}}}))
+                                                 (java.net.URI.
+                                                  (:uri (yada/uri-for
+                                                         ctx
+                                                         :schema-id-entry
+                                                         {:route-params {:id new-id}})))}))))))}}}))
 
 (defn healthcheck
   [ctx]

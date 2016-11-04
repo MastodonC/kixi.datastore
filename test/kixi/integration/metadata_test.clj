@@ -13,9 +13,9 @@
 
 (def metadata-file-schema-id (atom nil))
 (def metadata-file-schema {:name ::metadata-file-schema
-                           :type "list"
-                           :definition [:cola {:type "integer"}
-                                        :colb {:type "integer"}]})
+                           :schema {:type "list"
+                                    :definition [:cola {:type "integer"}
+                                                 :colb {:type "integer"}]}})
 
 (def uid (uuid))
 
@@ -31,8 +31,7 @@
 
 (deftest unknown-file-401
   (let [sr (get-metadata "foo" uid)]
-    (is (= 401
-           (:status sr)))))
+    (unauthorised sr)))
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"

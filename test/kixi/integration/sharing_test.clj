@@ -5,9 +5,9 @@
             [kixi.integration.base :refer [uuid extract-id when-accepted when-created] :as base]))
 
 (def metadata-file-schema {:name ::metadata-file-schema
-                           :type "list"
-                           :definition [:cola {:type "integer"}
-                                        :colb {:type "integer"}]})
+                           :schema {:type "list"
+                                    :definition [:cola {:type "integer"}
+                                                 :colb {:type "integer"}]}})
 
 (use-fixtures :once base/cycle-system-fixture)
 
@@ -34,8 +34,9 @@
    [[:sharing :meta-visible]] []
    [[:sharing :meta-read]] [get-metadata]
    [[:sharing :meta-update]] []
-   [[:sharing :read]] []
-   [[:sharing :use]] []})
+   ;[[:sharing :read]] []
+   ;[[:sharing :use]] []
+   })
 
 (def all-shares 
   (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))
@@ -77,7 +78,7 @@
                 pfr (apply post-file
                            :schema-id schema-id
                            :user-id upload-uid
-                           :user-group upload-ugroup
+                           :user-groups upload-ugroup
                            (shares->file-shares upload-ugroup shares use-ugroup))]
             (when-created pfr
               (let [file-id (extract-id pfr)

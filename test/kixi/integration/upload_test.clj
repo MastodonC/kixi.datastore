@@ -11,9 +11,9 @@
 
 (def irrelevant-schema-id (atom nil))
 (def irrelevant-schema {:name ::irrelevant-schema
-                        :type "list"
-                        :definition [:cola {:type "integer"}
-                                     :colb {:type "integer"}]})
+                        :schema {:type "list"
+                                 :definition [:cola {:type "integer"}
+                                              :colb {:type "integer"}]}})
 
 (def uid (uuid))
 

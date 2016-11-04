@@ -28,14 +28,14 @@
   (str (java.util.UUID/randomUUID)))
 
 (defmacro is-submap
-  [expected actual]
+  [expected actual & [msg]]
   `(try
      (let [act# ~actual
            exp# ~expected
            [only-in-ex# only-in-ac# shared#] (clojure.data/diff exp# act#)]
        (if only-in-ex#
          (clojure.test/do-report {:type :fail
-                                  :message "Missing expected elements."
+                                  :message (or ~msg "Missing expected elements.")
                                   :expected only-in-ex# :actual act#})
          (clojure.test/do-report {:type :pass
                                   :message "Matched"
@@ -190,17 +190,17 @@
   (let [pfr (apply post-file-flex (flatten (seq args)))]
     (when (accept-status (:status pfr))
       (wait-for-metadata-key (extract-id pfr) ::ms/id
-                             (:user-group args)))
+                             (:user-groups args)))
     pfr))
 
 (defn post-file
   [file-name schema-id id]
-  (post-file-flex :file-name file-name 
-                  :schema-id schema-id 
-                  :user-id id
-                  :user-groups id
-                  :sharing {:file-read [id]
-                            :meta-read [id]}))
+  (post-file-and-wait :file-name file-name 
+                      :schema-id schema-id 
+                      :user-id id
+                      :user-groups id
+                      :sharing {:file-read [id]
+                                :meta-read [id]}))
 
 (defn post-segmentation
   [url seg]
@@ -276,18 +276,51 @@
   [id uid]
   (dload-file (str file-url "/" id) uid))
 
+(defmacro has-status
+  [status resp]
+  `(let [parsed# (if (= "application/json" (get-in ~resp [:headers "Content-Type"]))
+                   (update ~resp :body parse-json)
+                   ~resp)]
+     (is-submap {:status ~status}
+                parsed#)))
+
+(defmacro success
+  [resp]
+  `(has-status 200
+               ~resp))
+
+(defmacro created
+  [resp]
+ `(has-status 201
+              ~resp))
+
+(defmacro accepted
+  [resp]
+  `(has-status 202
+               ~resp))
+
+(defmacro not-found
+  [resp]
+  `(has-status 404
+               ~resp))
+
+(defmacro bad-request
+  [resp]
+  `(has-status 400
+               ~resp))
+
+(defmacro unauthorised
+  [resp]
+  `(has-status 401
+               ~resp))
 
 (defmacro when-status
   [status resp rest]
   `(let [rs# (:status ~resp)]
-     (is-submap {:status ~status}
-                ~resp)
-     (if (= ~status
+     (has-status ~status ~resp)
+     (when (= ~status
               rs#)
-       ~@rest
-       (when (= "application/json" (get-in ~resp [:headers "Content-Type"]))
-         (clojure.pprint/pprint
-          (parse-json (:body ~resp)))))))
+       ~@rest)))
 
 (defmacro when-accepted
   [resp & rest]

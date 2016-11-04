@@ -103,15 +103,14 @@
                           % 2))
       m')))
 
-(s/fdef schema-transport->internal
-        :args (s/cat :transport ::schema-transport)
+(s/fdef schema-transport->internal      
         :ret ::ss/create-schema-request)
 
 (defn schema-transport->internal
   [transport]
- ; (prn transport)
-  (let [schema transport]
-;    (prn schema)
+  (let [schema (keywordize-values
+                (add-ns-to-keys ::ss/_ 
+                                   transport))]
     schema))
 
 (defn raise-spec

@@ -8,11 +8,11 @@
 (s/def ::tag keyword?)
 (s/def ::timestamp timestamp)
 (s/def ::name ns-keyword)
-(s/def ::min integer?)
-(s/def ::max integer?)
+(s/def ::min number?)
+(s/def ::max number?)
 (s/def ::pattern string?)
-(s/def ::elements (s/with-gen set?
-                    #(gen/set (gen/string)
+(s/def ::elements (s/with-gen vector?
+                    #(gen/vector (gen/string)
                               {:min-elements 1
                                :max-elements 10})))
 
