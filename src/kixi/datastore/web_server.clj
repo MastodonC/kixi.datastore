@@ -365,10 +365,11 @@
                             (return-error ctx :schema-invalid-request
                                           (spec/explain-data ::ss/create-schema-request
                                                              internal-sr))
-                            (if-let [preexists (and nil (ss/fetch-with schemastore
-                                                                       (select-keys internal-sr
-                                                                                    [::ss/name
-                                                                                     ::ss/schema])))]
+                            (if-let [preexists (ss/fetch-with schemastore
+                                                              (select-keys internal-sr
+                                                                           [::ss/name
+                                                                            ::ss/schema
+                                                                            ::ss/sharing]))]
                               (assoc (:response ctx)
                                      :status 202 ;; wants to be a 303
                                      :headers {"Location"
