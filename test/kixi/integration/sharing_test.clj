@@ -30,10 +30,10 @@
   (base/get-metadata file-id ugroups))
 
 (def shares->authorised-actions
-  {[[:sharing :file-read]] [get-file]
-   [[:sharing :meta-visible]] []
-   [[:sharing :meta-read]] [get-metadata]
-   [[:sharing :meta-update]] []
+  {[[:file :sharing :file-read]] [get-file]
+   [[:file :sharing :meta-visible]] []
+   [[:file :sharing :meta-read]] [get-metadata]
+   [[:file :sharing :meta-update]] []
    ;[[:sharing :read]] []
    ;[[:sharing :use]] []
    })
@@ -50,18 +50,23 @@
    #(get shares->authorised-actions %)
    (subsets shares)))
 
-(defn shares->file-shares
-  [ugroup shares dload-ugroup]
+(defn shares->sharing-map
+  [type ugroup shares dload-ugroup]
   (->> shares
        (reduce
-        (fn [acc [share-area share-specific]] 
-          (merge-with (partial merge-with concat)
-                      acc
-                      {share-area {share-specific [dload-ugroup]}}))
+        (fn [acc [stype share-area share-specific]]
+          (if (= type stype)
+            (merge-with (partial merge-with concat)
+                        acc
+                        {share-area {share-specific [dload-ugroup]}})
+            acc))
         {:sharing {:file-read [ugroup]
                    :meta-read [ugroup]}})
        seq
        flatten))
+
+(def shares->file-sharing-map 
+  (partial shares->sharing-map :file))
 
 (deftest explore-sharing-level->actions
   (let [post-file (partial base/post-file-and-wait
@@ -79,7 +84,7 @@
                            :schema-id schema-id
                            :user-id upload-uid
                            :user-groups upload-ugroup
-                           (shares->file-shares upload-ugroup shares use-ugroup))]
+                           (shares->file-sharing-map upload-ugroup shares use-ugroup))]
             (when-created pfr
               (let [file-id (extract-id pfr)
                     authorised-actions (actions-for shares)
