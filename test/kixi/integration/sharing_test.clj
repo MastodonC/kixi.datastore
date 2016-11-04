@@ -35,21 +35,21 @@
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
-  (base/post-file :file-name "./test-resources/metadata-one-valid.csv"
-                  :schema-id schema-id
-                  :user-id uid
-                  :user-groups ugroups
-                  :sharing {:file-read [ugroups]
-                            :meta-read [ugroups]}))
+  (base/post-file-and-wait 
+   :file-name "./test-resources/metadata-one-valid.csv"
+   :schema-id schema-id
+   :user-id uid
+   :user-groups ugroups
+   :sharing {:file-read [ugroups]
+             :meta-read [ugroups]}))
 
 (def shares->authorised-actions
   {[[:file :sharing :file-read]] [get-file]
-   [[:file :sharing :meta-visible]] []
+   ;[[:file :sharing :meta-visible]] []
    [[:file :sharing :meta-read]] [get-metadata]
-   [[:file :sharing :meta-update]] []
+   ;[[:file :sharing :meta-update]] []
    [[:schema :sharing :read]] [get-spec]
-;   [[:schema :sharing :use]] [post-file-using-schema]
-   })
+   [[:schema :sharing :use]] [post-file-using-schema]})
 
 (def all-shares 
   (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))
