@@ -31,7 +31,7 @@
 
 (defn get-spec
   [schema-id file-id uid ugroups]
-  (base/get-spec schema-id ugroups))
+  (base/get-spec-direct schema-id ugroups))
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
@@ -47,7 +47,7 @@
    [[:file :sharing :meta-visible]] []
    [[:file :sharing :meta-read]] [get-metadata]
    [[:file :sharing :meta-update]] []
-;   [[:schema :sharing :read]] [get-spec]
+   [[:schema :sharing :read]] [get-spec]
 ;   [[:schema :sharing :use]] [post-file-using-schema]
    })
 

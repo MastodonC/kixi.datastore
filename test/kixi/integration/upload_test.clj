@@ -9,13 +9,17 @@
             File
             FileNotFoundException]))
 
+
+(def uid (uuid))
+
 (def irrelevant-schema-id (atom nil))
 (def irrelevant-schema {:name ::irrelevant-schema
                         :schema {:type "list"
                                  :definition [:cola {:type "integer"}
-                                              :colb {:type "integer"}]}})
+                                              :colb {:type "integer"}]
+                                 :sharing {:read [uid]
+                                           :use [uid]}}})
 
-(def uid (uuid))
 
 (defn setup-schema
   [all-tests]

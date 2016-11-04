@@ -340,7 +340,10 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (ss/fetch-with schemastore {::ss/id id})))}}}))
+               (when (ss/exists schemastore id)
+                 (if (ss/authorised schemastore ::ss/read id (ctx->user-groups ctx))
+                   (ss/fetch-with schemastore {::ss/id id})
+                   (return-unauthorised ctx)))))}}}))
 
 (defn schema-resources
   [metrics schemastore communications]
@@ -360,12 +363,12 @@
                                    ::ss/create-schema-request
                                    internal-sr)
                             (return-error ctx :schema-invalid-request
-                                          (spec/explain-data ::ts/schema-transport
+                                          (spec/explain-data ::ss/create-schema-request
                                                              internal-sr))
-                            (if-let [preexists (ss/fetch-with schemastore
-                                                              (select-keys internal-sr
-                                                                           [::ss/name
-                                                                            ::ss/schema]))]
+                            (if-let [preexists (and nil (ss/fetch-with schemastore
+                                                                       (select-keys internal-sr
+                                                                                    [::ss/name
+                                                                                     ::ss/schema])))]
                               (assoc (:response ctx)
                                      :status 202 ;; wants to be a 303
                                      :headers {"Location"
