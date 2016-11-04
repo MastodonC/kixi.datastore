@@ -231,30 +231,32 @@
                                                        :kixi.user/id (ctx->user-id ctx)}}
                         metadata (ts/filemetadata-transport->internal
                                   (dissoc transported-metadata :user-id)
-                                  file-details)]
-                    (let [error (or (spec/explain-data ::ms/file-metadata metadata)
-                                    (when-not (ss/exists schemastore (::ss/id metadata))
-                                      {::error :unknown-schema
-                                       ::msg {:schema-id (::ss/id metadata)}})
-                                    (when-not (= declared-file-size
-                                                 (:size-bytes file))
-                                      {::error :file-upload-failed
-                                       ::msg {:declared-size declared-file-size
-                                              :recieved-size (:size-bytes file)}}))]
-                      (if error
-                        (return-error ctx error)
-                        (do
-                          (let [conformed (spec/conform ::ms/file-metadata metadata)]
-                            (cs/send-event! communications
-                                            (assoc conformed
-                                                   ::cs/event :kixi.datastore/file-created
-                                                   ::cs/version "1.0.0"))
-                            (cs/send-event! communications {::cs/event :kixi.datastore/file-metadata-updated
-                                                            ::cs/version "1.0.0"
-                                                            ::cs/file-metadata-update-type 
-                                                            ::cs/file-metadata-created
-                                                            ::ms/file-metadata conformed}))
-                          (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))))}}}))
+                                  file-details)
+                        explained (spec/explain-data ::ms/file-metadata metadata)]
+                    (cond
+                      explained (return-error ctx explained)
+                      (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 
+                                                                                  {::error :unknown-schema
+                                                                                   ::msg {:schema-id (::ss/id metadata)}})
+                      (not (ss/authorised schemastore
+                                          ::ss/use
+                                          (::ss/id metadata)
+                                          (ctx->user-groups ctx))) (return-unauthorised ctx)
+                      (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
+                                                                              {::error :file-upload-failed
+                                                                               ::msg {:declared-size declared-file-size
+                                                                                      :recieved-size (:size-bytes file)}})
+                      :else (let [conformed (spec/conform ::ms/file-metadata metadata)]
+                              (cs/send-event! communications
+                                              (assoc conformed
+                                                     ::cs/event :kixi.datastore/file-created
+                                                     ::cs/version "1.0.0"))
+                              (cs/send-event! communications {::cs/event :kixi.datastore/file-metadata-updated
+                                                              ::cs/version "1.0.0"
+                                                              ::cs/file-metadata-update-type 
+                                                              ::cs/file-metadata-created
+                                                              ::ms/file-metadata conformed})
+                              (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}})))))))}}}))
 
 (defn file-entry
   [metrics filestore metadatastore]
