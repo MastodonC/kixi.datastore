@@ -187,7 +187,7 @@
 
 (defn post-file-and-wait
   [& {:as args}]
-  (let [pfr (apply post-file-flex (flatten (seq args)))]
+  (let [pfr (apply post-file-flex (mapcat identity (seq args)))]
     (when (accept-status (:status pfr))
       (wait-for-metadata-key (extract-id pfr) ::ms/id
                              (:user-groups args)))
