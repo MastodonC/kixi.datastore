@@ -11,13 +11,16 @@
 
 (alias 'ms 'kixi.datastore.metadatastore)
 
+(def uid (uuid))
+
 (def metadata-file-schema-id (atom nil))
 (def metadata-file-schema {:name ::metadata-file-schema
                            :schema {:type "list"
                                     :definition [:cola {:type "integer"}
-                                                 :colb {:type "integer"}]}})
+                                                 :colb {:type "integer"}]}
+                           :sharing {:read [uid]
+                                     :use [uid]}})
 
-(def uid (uuid))
 
 (defn setup-schema
   [all-tests]

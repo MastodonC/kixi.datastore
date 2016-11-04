@@ -16,7 +16,7 @@
         schema' (assoc schema ::ss/timestamp (time/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
       (swap! data (fn [d] (assoc d id schema')))
-      (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema'))))) ;should be at the command level
+      (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema')))))                               ;should be at the command level
 
 (defn sub-map
   [f s]
@@ -40,6 +40,11 @@
 (defrecord InMemory
     [data communications]
     SchemaStore
+    (authorised
+      [_ action id user-groups]
+      (when-let [meta (get @data id)]
+        (not-empty (clojure.set/intersection (set (get-in meta [::ss/sharing action]))
+                                             (set user-groups)))))
     (exists [_ id]
       (get @data id))
     (fetch-with [_ sub-spec]

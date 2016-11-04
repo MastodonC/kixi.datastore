@@ -187,20 +187,22 @@
 
 (defn post-file-and-wait
   [& {:as args}]
-  (let [pfr (apply post-file-flex (flatten (seq args)))]
+  (let [pfr (apply post-file-flex (mapcat identity (seq args)))]
     (when (accept-status (:status pfr))
       (wait-for-metadata-key (extract-id pfr) ::ms/id
                              (:user-groups args)))
     pfr))
 
 (defn post-file
-  [file-name schema-id id]
-  (post-file-and-wait :file-name file-name 
-                      :schema-id schema-id 
-                      :user-id id
-                      :user-groups id
-                      :sharing {:file-read [id]
-                                :meta-read [id]}))
+  ([file-name schema-id uid]
+   (post-file file-name schema-id uid uid))
+  ([file-name schema-id uid ugroup]
+   (post-file-and-wait :file-name file-name 
+                       :schema-id schema-id 
+                       :user-id uid
+                       :user-groups ugroup
+                       :sharing {:file-read [ugroup]
+                                 :meta-read [ugroup]})))
 
 (defn post-segmentation
   [url seg]
@@ -214,7 +216,7 @@
 (defn post-spec  
   ([s uid]
    (post-spec s uid uid {:sharing {:read [uid]
-                                 :use [uid]}}))
+                                   :use [uid]}}))
   ([s uid ugroup sharing]
    (client/post schema-url
                 {:form-params (merge s
@@ -239,13 +241,14 @@
   ([s uid ugroup sharing]
    (let [psr (post-spec s uid ugroup sharing)]
      (when (accept-status (:status psr))
-       (wait-for-url (get-in psr [:headers "Location"]) uid))
+       (wait-for-url (get-in psr [:headers "Location"]) ugroup))
      psr)))
 
 (defn get-spec-direct
-  [id]
+  [id ugroup]
   (client/get (str schema-url id)
               {:accept :json
+               :headers {"user-groups" ugroup}
                :throw-exceptions false}))
 
 (defn extract-schema

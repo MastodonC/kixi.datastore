@@ -19,7 +19,9 @@
                                     :schema {:type "list"
                                              :definition [:cola {:type "integer"}
                                                           :colb {:type "integer"}
-                                                          :colc {:type "integer"}]}})
+                                                          :colc {:type "integer"}]}
+                                    :sharing {:read [uid]
+                                              :use [uid]}})
 
 
 (defn setup-schema

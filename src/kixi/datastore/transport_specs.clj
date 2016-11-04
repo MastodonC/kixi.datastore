@@ -71,9 +71,6 @@
     (merge with-file-type
            file-details)))
 
-(s/def ::schema-transport
-  (s/keys :req [::ss/schema ::ss/id ::ss/name ::ss/sharing]))
-
 (defn add-ns-to-keys
   ([ns m]
    (letfn [(process [n]

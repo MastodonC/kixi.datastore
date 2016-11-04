@@ -29,13 +29,26 @@
   [schema-id file-id uid ugroups]
   (base/get-metadata file-id ugroups))
 
+(defn get-spec
+  [schema-id file-id uid ugroups]
+  (base/get-spec-direct schema-id ugroups))
+
+(defn post-file-using-schema
+  [schema-id file-id uid ugroups]
+  (base/post-file :file-name "./test-resources/metadata-one-valid.csv"
+                  :schema-id schema-id
+                  :user-id uid
+                  :user-groups ugroups
+                  :sharing {:file-read [ugroups]
+                            :meta-read [ugroups]}))
+
 (def shares->authorised-actions
   {[[:file :sharing :file-read]] [get-file]
    [[:file :sharing :meta-visible]] []
    [[:file :sharing :meta-read]] [get-metadata]
    [[:file :sharing :meta-update]] []
-   ;[[:sharing :read]] []
-   ;[[:sharing :use]] []
+   [[:schema :sharing :read]] [get-spec]
+;   [[:schema :sharing :use]] [post-file-using-schema]
    })
 
 (def all-shares 
@@ -51,51 +64,67 @@
    (subsets shares)))
 
 (defn shares->sharing-map
-  [type ugroup shares dload-ugroup]
+  [type shares upload-ugroup use-ugroup]
   (->> shares
        (reduce
         (fn [acc [stype share-area share-specific]]
           (if (= type stype)
-            (merge-with (partial merge-with concat)
+            (merge-with concat
                         acc
-                        {share-area {share-specific [dload-ugroup]}})
+                        {share-specific [use-ugroup]})
             acc))
-        {:sharing {:file-read [ugroup]
-                   :meta-read [ugroup]}})
-       seq
-       flatten))
+        (case type
+          :file {:file-read [upload-ugroup]
+                 :meta-read [upload-ugroup]}
+          :schema {:read [upload-ugroup]
+                   :use [upload-ugroup]}))))
 
 (def shares->file-sharing-map 
   (partial shares->sharing-map :file))
 
+(def shares->schema-sharing-map 
+  (partial shares->sharing-map :schema))
+
+(defn post-file
+  [schema-id file-id upload-uid upload-ugroup use-ugroup shares]
+  (base/post-file-and-wait
+   :file-name "./test-resources/metadata-one-valid.csv"
+   :schema-id schema-id
+   :user-id upload-uid
+   :user-groups upload-ugroup
+   :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)))
+
+(defn post-spec 
+  [shares upload-uid upload-ugroup use-ugroup]
+  (base/post-spec-and-wait metadata-file-schema
+                           upload-uid
+                           upload-ugroup
+                           {:sharing (shares->schema-sharing-map
+                                      shares
+                                      upload-ugroup
+                                      use-ugroup)}))
+
 (deftest explore-sharing-level->actions
-  (let [post-file (partial base/post-file-and-wait
-                           :file-name "./test-resources/metadata-one-valid.csv")
-        post-spec (partial base/post-spec-and-wait metadata-file-schema)]
-    (doseq [shares (subsets all-shares)]
-      (let [upload-uid (uuid)
-            upload-ugroup (uuid)
-            use-uid (uuid)
-            use-ugroup (uuid)
-            psr (post-spec upload-uid upload-ugroup)]
-        (when-accepted psr
-          (let [schema-id (extract-id psr)
-                pfr (apply post-file
-                           :schema-id schema-id
-                           :user-id upload-uid
-                           :user-groups upload-ugroup
-                           (shares->file-sharing-map upload-ugroup shares use-ugroup))]
-            (when-created pfr
-              (let [file-id (extract-id pfr)
-                    authorised-actions (actions-for shares)
-                    unauthorised-actions (apply disj (set all-actions) authorised-actions)]
-                (doseq [action authorised-actions]
-                  (is (authorised
-                       (action
-                        schema-id file-id use-uid use-ugroup))
-                      (str "Is " action " allowed with " shares)))
-                (doseq [action unauthorised-actions]
-                  (is (unauthorised
-                       (action
-                        schema-id file-id use-uid use-ugroup))
-                      (str "Is " action " NOT allowed with " shares)))))))))))
+  (doseq [shares (subsets all-shares)]
+    (let [upload-uid (uuid)
+          upload-ugroup (uuid)
+          use-uid (uuid)
+          use-ugroup (uuid)
+          psr (post-spec shares upload-uid upload-ugroup use-ugroup)]
+      (when-accepted psr
+        (let [schema-id (extract-id psr)
+              pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
+          (when-created pfr
+            (let [file-id (extract-id pfr)
+                  authorised-actions (actions-for shares)
+                  unauthorised-actions (apply disj (set all-actions) authorised-actions)]
+              (doseq [action authorised-actions]
+                (is (authorised
+                     (action
+                      schema-id file-id use-uid use-ugroup))
+                    (str "Is " action " allowed with " shares)))
+              (doseq [action unauthorised-actions]
+                (is (unauthorised
+                     (action
+                      schema-id file-id use-uid use-ugroup))
+                    (str "Is " action " NOT allowed with " shares))))))))))
