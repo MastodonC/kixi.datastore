@@ -2,12 +2,12 @@
   (:require [clojure.test :refer :all]
             [clojure.math.combinatorics :as combo :refer [subsets]]
             [environ.core :refer [env]]
-            [kixi.integration.base :refer [uuid extract-id] :as base]))
+            [kixi.integration.base :refer [uuid extract-id when-accepted when-created] :as base]))
 
 (def metadata-file-schema {:name ::metadata-file-schema
-                           :type "list"
-                           :definition [:cola {:type "integer"}
-                                        :colb {:type "integer"}]})
+                           :schema {:type "list"
+                                    :definition [:cola {:type "integer"}
+                                                 :colb {:type "integer"}]}})
 
 (use-fixtures :once base/cycle-system-fixture)
 
@@ -30,10 +30,12 @@
   (base/get-metadata file-id ugroups))
 
 (def shares->authorised-actions
-  {[[:file-sharing :read]] [get-file]
-   [[:file-metadata-sharing :visible]] []
-   [[:file-metadata-sharing :read]] [get-metadata]
-   [[:file-metadata-sharing :update]] []
+  {[[:file :sharing :file-read]] [get-file]
+   [[:file :sharing :meta-visible]] []
+   [[:file :sharing :meta-read]] [get-metadata]
+   [[:file :sharing :meta-update]] []
+   ;[[:sharing :read]] []
+   ;[[:sharing :use]] []
    })
 
 (def all-shares 
@@ -48,53 +50,41 @@
    #(get shares->authorised-actions %)
    (subsets shares)))
 
-(defn shares->file-shares
-  [ugroup shares dload-ugroup]
+(defn shares->sharing-map
+  [type ugroup shares dload-ugroup]
   (->> shares
        (reduce
-        (fn [acc [share-area share-specific]] 
-          (merge-with (partial merge-with concat)
-                      acc
-                      {share-area {share-specific [dload-ugroup]}}))
-        {:file-sharing {:read [ugroup]}
-         :file-metadata-sharing {:read [ugroup]}})
+        (fn [acc [stype share-area share-specific]]
+          (if (= type stype)
+            (merge-with (partial merge-with concat)
+                        acc
+                        {share-area {share-specific [dload-ugroup]}})
+            acc))
+        {:sharing {:file-read [ugroup]
+                   :meta-read [ugroup]}})
        seq
        flatten))
 
-(defmacro when-status
-  [status resp rest]
-  `(let [rs# (:status ~resp)]
-     (base/is-submap {:status ~status}
-                ~resp)
-     (when (= ~status
-              rs#)
-       ~@rest)))
-
-(defmacro when-accepted
-  [resp & rest]
-  `(when-status 202 ~resp ~rest))
-
-(defmacro when-created
-  [resp & rest]
-  `(when-status 201 ~resp ~rest))
+(def shares->file-sharing-map 
+  (partial shares->sharing-map :file))
 
 (deftest explore-sharing-level->actions
   (let [post-file (partial base/post-file-and-wait
                            :file-name "./test-resources/metadata-one-valid.csv")
-        post-spec #(base/post-spec-and-wait metadata-file-schema (uuid))] ;will become partial with spec perms
+        post-spec (partial base/post-spec-and-wait metadata-file-schema)]
     (doseq [shares (subsets all-shares)]
       (let [upload-uid (uuid)
             upload-ugroup (uuid)
             use-uid (uuid)
             use-ugroup (uuid)
-            psr (post-spec)]
+            psr (post-spec upload-uid upload-ugroup)]
         (when-accepted psr
           (let [schema-id (extract-id psr)
                 pfr (apply post-file
                            :schema-id schema-id
                            :user-id upload-uid
-                           :user-group upload-ugroup
-                           (shares->file-shares upload-ugroup shares use-ugroup))]
+                           :user-groups upload-ugroup
+                           (shares->file-sharing-map upload-ugroup shares use-ugroup))]
             (when-created pfr
               (let [file-id (extract-id pfr)
                     authorised-actions (actions-for shares)

@@ -6,14 +6,55 @@
             [clojure.spec.gen :as gen]
             [environ.core :refer [env]]
             [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.transport-specs :as ts]))
+            [kixi.datastore.transport-specs :as ts :refer [add-ns-to-keys]]
+            [kixi.datastore.schemastore :as ss]))
 
-(stest/instrument `ts/filemetadata-transport->internal)
+(stest/instrument `ts/filemetadata-transport->internal
+                  `ts/schema-transport->internal)
 
-(def sample-size (Integer/valueOf (str (env :generative-testing-size "1000"))))
+(def sample-size (Integer/valueOf (str (env :generative-testing-size "100"))))
+
+(defn check
+  [sym]
+  (-> sym
+      (stest/check {:clojure.spec.test.check/opts {:num-tests sample-size}})
+      first
+      stest/abbrev-result
+      :failure))
 
 (deftest test-filemetadata-transport->internal
-  (is (nil? (:failure
-             (stest/abbrev-result (first (stest/check `ts/filemetadata-transport->internal {:num-tests sample-size})))))))
+  (is (nil? (check `ts/filemetadata-transport->internal))))
 
 
+(deftest add-schemastore-keywords-simple
+  (let [r (add-ns-to-keys ::ss/_ {:foo 1 :bar 2 :baz 3})]
+    (is (= 1 (::ss/foo r)))
+    (is (= 2 (::ss/bar r)))
+    (is (= 3 (::ss/baz r)))))
+
+(deftest add-schemastore-keywords-nested
+  (let [r (add-ns-to-keys ::ss/_ {:foo 1 :bar {:baz 2}})]
+    (is (= 1 (::ss/foo r)))
+    (is (= 2 (get-in r [::ss/bar ::ss/baz])))))
+
+(deftest add-schemastore-keywords-nestedx2
+  (let [r (add-ns-to-keys ::ss/_ {:foo 1 :bar {:baz {:quaz 2}}})]
+    (is (= 1 (::ss/foo r)))
+    (is (= 2 (get-in r [::ss/bar ::ss/baz ::ss/quaz])))))
+
+(deftest add-schemastore-keywords-not-vectors
+  (let [r (add-ns-to-keys ::ss/_ {:foo 1 :bar [:a 1 :b 2]})]
+    (is (= 1 (::ss/foo r)))
+    (is (= [:a 1 :b 2] (::ss/bar r)))))
+
+(deftest add-schemastore-epic-test
+  (let [r (add-ns-to-keys ::ss/_ {:name ::good-spec-c
+                                      :type "list"
+                                      :definition [:foo {:type "integer"}
+                                                   :bar {:type "integer"}
+                                                   :baz {:type "integer-range"
+                                                         :min 3
+                                                         :max 10}]})]
+    (is (= "list" (::ss/type r)))
+    (is (= :bar (get-in r [::ss/definition 2])))
+    (is (= 10 (get-in r [::ss/definition 5 ::ss/max])))))

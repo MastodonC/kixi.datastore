@@ -96,8 +96,7 @@
                                         ::ms/name
                                         ::ss/id
                                         ::ms/header
-                                        ::ms/file-sharing
-                                        ::ms/file-metadata-sharing])
+                                        ::ms/sharing])
                           ::ms/id (:id segment-data)
                           ::ms/size-bytes (:size-bytes segment-data)
                           ::ms/provenance {::ms/source "segmentation"
@@ -169,6 +168,9 @@
                 ::seg/segment-ids result})
              (hash-map ::cs/file-metadata-update-type ::cs/file-metadata-segmentation-add ::ms/id (::ms/id request) ::ms/segmentation)
              (hash-map :kixi.comms.event/key :kixi.datastore/file-metadata-updated :kixi.comms.event/version "1.0.0" :kixi.comms.event/payload))))))
+
+(comment "There is something horrible happening when target file has invalid metadata, seems to end up with the entire consumer config in the payload.
+Not a problem for now, but when productionising this code, investigate!")
 
 (defrecord InMemory
     [communications filestore metadatastore]

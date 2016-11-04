@@ -69,7 +69,8 @@
   `(let [id#         (uuid)
          schema-req# {::ss/name ~schema-name
                       ::ss/schema ~schema-def
-                      ::ss/id id#}]
+                      ::ss/id id#
+                      ::ss/sharing {}}]
      (ssim/persist-new-schema (:data @schemastore) schema-req#)
      (is-submap schema-req# (ss/fetch-spec @schemastore id#))
      (checking "good data passes" sample-size

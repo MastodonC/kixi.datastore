@@ -11,19 +11,18 @@
 
 (def irrelevant-schema-id (atom nil))
 (def irrelevant-schema {:name ::irrelevant-schema
-                        :type "list"
-                        :definition [:cola {:type "integer"}
-                                     :colb {:type "integer"}]})
+                        :schema {:type "list"
+                                 :definition [:cola {:type "integer"}
+                                              :colb {:type "integer"}]}})
 
 (def uid (uuid))
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec irrelevant-schema)]
+  (let [r (post-spec-and-wait irrelevant-schema uid)]
     (if (= 202 (:status r))
       (reset! irrelevant-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post irrelevant-schema")))
-    (wait-for-url (get-in r [:headers "Location"]) uid))
+      (throw (Exception. "Couldn't post irrelevant-schema"))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)

@@ -18,18 +18,11 @@
 
 (s/def :kixi.user-group/id sc/uuid)
 
-(def file-activities
-   [:read])
+(def activities
+  [:file-read :meta-visible :meta-read :meta-update])
 
-(def file-metadata-activities
-  [:visible :read :update])
-
-(s/def ::file-sharing
-  (s/map-of (set file-activities)
-            (s/coll-of :kixi.user-group/id)))
-
-(s/def ::file-metadata-sharing
-  (s/map-of (set file-metadata-activities)
+(s/def ::sharing
+  (s/map-of (set activities)
             (s/coll-of :kixi.user-group/id)))
 
 (s/def :kixi.datastore.request/type #{::seg/group-rows-by-column})
@@ -82,7 +75,7 @@
           :opt [::explain]))
 
 (s/def ::file-metadata
-  (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes ::file-sharing ::file-metadata-sharing]
+  (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes ::sharing]
           :opt [::segmentations ::segment ::structural-validation]))
 
 (defprotocol MetaDataStore

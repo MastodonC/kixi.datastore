@@ -16,19 +16,18 @@
 
 (def small-segmentable-file-schema-id (atom nil))
 (def small-segmentable-file-schema {:name ::small-segmentable-file-schema
-                                    :type "list"
-                                    :definition [:cola {:type "integer"}
-                                                 :colb {:type "integer"}
-                                                 :colc {:type "integer"}]})
+                                    :schema {:type "list"
+                                             :definition [:cola {:type "integer"}
+                                                          :colb {:type "integer"}
+                                                          :colc {:type "integer"}]}})
 
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec small-segmentable-file-schema)]
+  (let [r (post-spec-and-wait small-segmentable-file-schema uid)]
     (if (= 202 (:status r))
       (reset! small-segmentable-file-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post small-segmentable-file-schema")))
-    (wait-for-url (get-in r [:headers "Location"]) uid))
+      (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
@@ -42,27 +41,20 @@
   (let [sr (post-segmentation (str file-url "/foo/segmentation")
                               {:type "column"
                                :column-name "foo"})]
-    (is (= 404
-           (:status sr)))))
+    (not-found sr)))
 
 
 (deftest group-rows-by-invalid-column
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
                        @small-segmentable-file-schema-id
                        uid)
-        base-file-id (extract-id pfr)]
-    (is (= 201
-           (:status pfr)))   
-    (when-let [locat (get-in pfr [:headers "Location"])]
-      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta")
-                    uid)
+        base-file-id (extract-id pfr)
+        locat  (get-in pfr [:headers "Location"])]
+    (when-created pfr
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "bar"})]
-        (is (= 201
-               (:status sr)))
-        (when (= 201
-                 (:status sr))
+        (when-created sr
           (wait-for-metadata-key base-file-id ::ms/segmentations uid)
           (let [base-file-meta-resp (get-metadata base-file-id uid)
                 base-file-meta (:body base-file-meta-resp)
@@ -78,24 +70,18 @@
   (let [pfr (post-file "./test-resources/segmentation/small-segmentable-file.csv"
                        @small-segmentable-file-schema-id
                        uid)
-        base-file-id (extract-id pfr)]
-    (is (= 201
-           (:status pfr)))
-    (when-let [locat (get-in pfr [:headers "Location"])]      
-      (wait-for-url (str (get-in pfr [:headers "Location"]) "/meta") uid)
+        base-file-id (extract-id pfr)
+        locat (get-in pfr [:headers "Location"])]
+    (when-created pfr      
       (let [sr (post-segmentation (str locat "/segmentation")
                                   {:type "column"
                                    :column-name "cola"})]
-        (is (= 201
-               (:status sr)))
-        (when (= 201
-                 (:status sr))
+        (when-created sr
           (wait-for-metadata-key base-file-id ::ms/segmentations uid)
           (let [base-file-meta-resp (get-metadata base-file-id uid)
                 base-file-meta (:body base-file-meta-resp)
                 segment-ids (::seg/segment-ids (first (::ms/segmentations base-file-meta)))]
-            (is (= 200
-                   (:status base-file-meta-resp)))
+            (success base-file-meta-resp)
             (is (= 3
                    (count segment-ids)))
             (doseq [seg-id segment-ids]

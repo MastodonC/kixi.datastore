@@ -13,35 +13,31 @@
 
 (def metadata-file-schema-id (atom nil))
 (def metadata-file-schema {:name ::metadata-file-schema
-                           :type "list"
-                           :definition [:cola {:type "integer"}
-                                        :colb {:type "integer"}]})
+                           :schema {:type "list"
+                                    :definition [:cola {:type "integer"}
+                                                 :colb {:type "integer"}]}})
 
 (def uid (uuid))
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec metadata-file-schema)]
+  (let [r (post-spec-and-wait metadata-file-schema uid)]
     (if (= 202 (:status r))
       (reset! metadata-file-schema-id (extract-id r))
-      (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r))))
-    (wait-for-url (get-in r [:headers "Location"]) uid))
+      (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r)))))
   (all-tests))
 
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest unknown-file-401
   (let [sr (get-metadata "foo" uid)]
-    (is (= 401
-           (:status sr)))))
+    (unauthorised sr)))
 
 (deftest small-file
   (let [pfr (post-file "./test-resources/metadata-one-valid.csv"
                        @metadata-file-schema-id
                        uid)]
-    (is-submap {:status 201}
-               pfr)
-    (when (= 201 (:status pfr))
+    (when-created pfr
       (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation uid)]
         (is-submap
          {:status 200
@@ -69,19 +65,17 @@
 (deftest small-file-invalid-data
   (let [pfr (post-file "./test-resources/metadata-one-invalid.csv"
                        @metadata-file-schema-id
-                       uid)
-        metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation uid)]
-    (is-submap
-     {:status 201}
-     pfr)
-    (is-submap
-     {:status 200
-      :body {::ms/id (extract-id pfr)
-             ::ss/id @metadata-file-schema-id
-             ::ms/type "csv",
-             ::ms/name "foo",
-             ::ms/size-bytes 14,
-             ::ms/provenance {::ms/source "upload"
-                              ::ms/pieces-count 1}
-             ::ms/structural-validation {::ms/valid false}}}
-     metadata-response)))
+                       uid)]
+    (when-created pfr
+      (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation uid)]
+        (is-submap
+         {:status 200
+          :body {::ms/id (extract-id pfr)
+                 ::ss/id @metadata-file-schema-id
+                 ::ms/type "csv",
+                 ::ms/name "foo",
+                 ::ms/size-bytes 14,
+                 ::ms/provenance {::ms/source "upload"
+                                  ::ms/pieces-count 1}
+                 ::ms/structural-validation {::ms/valid false}}}
+         metadata-response)))))

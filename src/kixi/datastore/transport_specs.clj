@@ -1,5 +1,6 @@
 (ns kixi.datastore.transport-specs
   (:require [clojure.spec :as s]
+            [clojure.walk :as walk]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.schemastore.conformers :refer [uuid]]))
@@ -11,8 +12,7 @@
                    ::ms/name]
           :opt-un [::ms/type
                    ::ms/header
-                   ::ms/file-sharing
-                   ::ms/file-metadata-sharing]))
+                   ::ms/sharing]))
 
 (s/def ::file-details
   (s/keys :req [::ms/id ::ms/size-bytes ::ms/provenance]))
@@ -22,8 +22,7 @@
 
 (def default-primary-metadata
   {::ms/type "csv"
-   ::ms/file-sharing {}
-   ::ms/file-metadata-sharing {}})
+   ::ms/sharing {}})
 
 (s/fdef filemetadata-transport->internal
         :args (s/cat :meta ::filemetadata-transport
@@ -40,14 +39,10 @@
                        (::ss/id file-metadata))
                     (= (:name meta)
                        (::ms/name file-metadata))
-                    (or (= (:file-sharing meta)
-                           (::ms/file-sharing file-metadata))
+                    (or (= (:sharing meta)
+                           (::ms/sharing file-metadata))
                         (= {}
-                           (::ms/file-sharing file-metadata)))
-                    (or (= (:file-metadata-sharing meta)
-                           (::ms/file-metadata-sharing file-metadata))
-                        (= {}
-                           (::ms/file-metadata-sharing file-metadata)))
+                           (::ms/sharing file-metadata)))
                     (case (or (:type meta) 
                               (::ms/type file-metadata)) 
                       "csv" (if-not (nil? (:header meta))
@@ -62,8 +57,7 @@
    :header ::ms/header
    :type ::ms/type
    :schema-id ::ss/id
-   :file-sharing ::ms/file-sharing
-   :file-metadata-sharing ::ms/file-metadata-sharing})
+   :sharing ::ms/sharing})
 
 (defn filemetadata-transport->internal
   [transport file-details]
@@ -76,3 +70,51 @@
                               with-primaries)]
     (merge with-file-type
            file-details)))
+
+(s/def ::schema-transport
+  (s/keys :req [::ss/schema ::ss/id ::ss/name ::ss/sharing]))
+
+(defn add-ns-to-keys
+  ([ns m]
+   (letfn [(process [n]
+             (if (= (type n) clojure.lang.MapEntry)
+               (clojure.lang.MapEntry. (keyword (namespace ns) (name (first n))) (second n))
+               n))]
+     (walk/prewalk process m))))
+
+(defn map-every-nth [f coll n]
+  (map-indexed #(if (zero? (mod %1 n)) (f %2) %2) coll))
+
+(defn keywordize-values
+  [m]
+  (let [keys-values-to-keywordize [::ss/name]
+        m' (reduce
+            (fn [a k]
+              (update a
+                      k
+                      keyword))
+            m
+            keys-values-to-keywordize)]
+    (case (get-in m' [::ss/schema ::ss/type])
+      "list" (update-in m'
+                        [::ss/schema ::ss/definition]
+                        #(map-every-nth
+                          keyword
+                          % 2))
+      m')))
+
+(s/fdef schema-transport->internal      
+        :ret ::ss/create-schema-request)
+
+(defn schema-transport->internal
+  [transport]
+  (let [schema (keywordize-values
+                (add-ns-to-keys ::ss/_ 
+                                   transport))]
+    schema))
+
+(defn raise-spec
+  [conformed]
+  (assoc conformed
+         ::ss/schema
+         (second (::ss/schema conformed))))

@@ -4,7 +4,6 @@
              [vhosts :refer [vhosts-model]]]
             [clojure.java.io :as io]
             [clojure.spec :as spec]
-            [clojure.walk :as walk]
             [cheshire.core :as json]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as ds]
@@ -64,7 +63,8 @@
   (spec/keys :req []
              :opts []))
 
-(spec/def ::error #{:schema-invalid-name :schema-invalid-definition :unknown-schema :file-upload-failed})
+(spec/def ::error #{:schema-invalid-request
+                    :unknown-schema :file-upload-failed})
 (spec/def ::msg (spec/keys :req []
                            :opts []))
 (spec/def ::error-map
@@ -267,7 +267,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/file-sharing :read id (ctx->user-groups ctx))
+               (if (share/authorised sharing ::ms/sharing :file-read id (ctx->user-groups ctx))
                  (ds/retrieve filestore
                               id)
                  (return-unauthorised ctx))))}}}))
@@ -282,7 +282,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (share/authorised sharing ::ms/file-metadata-sharing :read id (ctx->user-groups ctx))
+               (if (share/authorised sharing ::ms/sharing :meta-read id (ctx->user-groups ctx))
                  (ms/fetch metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
@@ -343,35 +343,6 @@
              (let [id (get-in ctx [:parameters :path :id])]
                (ss/fetch-with schemastore {::ss/id id})))}}}))
 
-(defn add-ns-to-keys
-  ([ns m]
-   (letfn [(process [n]
-             (if (= (type n) clojure.lang.MapEntry)
-               (clojure.lang.MapEntry. (keyword (namespace ns) (name (first n))) (second n))
-               n))]
-     (walk/prewalk process m))))
-
-(defn map-every-nth [f coll n]
-  (map-indexed #(if (zero? (mod %1 n)) (f %2) %2) coll))
-
-(defn keywordize-values
-  [m]
-  (let [keys-values-to-keywordize [::ss/name]
-        m' (reduce
-            (fn [a k]
-              (update a
-                      k
-                      keyword))
-            m
-            keys-values-to-keywordize)]
-    (case (::ss/type m')
-      "list" (update m'
-              ::ss/definition
-              #(map-every-nth
-                keyword
-                % 2))
-      m')))
-
 (defn schema-resources
   [metrics schemastore communications]
   (resource
@@ -383,42 +354,40 @@
             :response (fn [ctx]
                         (let [new-id      (uuid)
                               body        (get-in ctx [:body])
-                              schema      (keywordize-values
-                                           (add-ns-to-keys ::ss/_ (:schema body)))                              
-                              schema'     (dissoc schema ::ss/name)
-                              schema-name (::ss/name schema)]
-                          ;; Is name valid?
-                          (if-let [error (sv/invalid-name? schema-name)]
-                            (return-error ctx :schema-invalid-name error)
-                            ;; Is definition valid?
-                            (if-let [error (sv/invalid-schema? schema')]
-                              (return-error ctx :schema-invalid-definition error)
-                              ;; Does this name + definition already exist?
-                              (if-let [preexists (ss/fetch-with schemastore {::ss/name schema-name
-                                                                             ::ss/schema schema'})]
+                              raw-schema-req (assoc body
+                                                    :id new-id)
+                              internal-sr (ts/schema-transport->internal raw-schema-req)]
+                          (if-not (spec/valid?
+                                   ::ss/create-schema-request
+                                   internal-sr)
+                            (return-error ctx :schema-invalid-request
+                                          (spec/explain-data ::ts/schema-transport
+                                                             internal-sr))
+                            (if-let [preexists (ss/fetch-with schemastore
+                                                              (select-keys internal-sr
+                                                                           [::ss/name
+                                                                            ::ss/schema]))]
+                              (assoc (:response ctx)
+                                     :status 202 ;; wants to be a 303
+                                     :headers {"Location"
+                                               (str (java.net.URI.
+                                                     (:uri (yada/uri-for
+                                                            ctx
+                                                            :schema-id-entry
+                                                            {:route-params {:id (::ss/id preexists)}}))))})
+                              (do
+                                (cs/send-event! communications 
+                                                (merge {::cs/event :kixi.datastore/schema-created
+                                                        ::cs/version "1.0.0"}
+                                                       internal-sr))
                                 (assoc (:response ctx)
-                                       :status 202 ;; wants to be a 303
+                                       :status 202
                                        :headers {"Location"
-                                                 (str (java.net.URI.
-                                                       (:uri (yada/uri-for
-                                                              ctx
-                                                              :schema-id-entry
-                                                              {:route-params {:id (::ss/id preexists)}}))))})
-                                (do
-                                  (cs/send-event! communications 
-                                                  {::cs/event :kixi.datastore/schema-created
-                                                   ::cs/version "1.0.0"
-                                                   ::ss/name schema-name
-                                                   ::ss/schema schema'
-                                                   ::ss/id new-id})
-                                  (assoc (:response ctx)
-                                         :status 202
-                                         :headers {"Location"
-                                                   (java.net.URI.
-                                                    (:uri (yada/uri-for
-                                                           ctx
-                                                           :schema-id-entry
-                                                           {:route-params {:id new-id}})))})))))))}}}))
+                                                 (java.net.URI.
+                                                  (:uri (yada/uri-for
+                                                         ctx
+                                                         :schema-id-entry
+                                                         {:route-params {:id new-id}})))}))))))}}}))
 
 (defn healthcheck
   [ctx]

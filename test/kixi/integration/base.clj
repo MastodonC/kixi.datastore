@@ -28,14 +28,14 @@
   (str (java.util.UUID/randomUUID)))
 
 (defmacro is-submap
-  [expected actual]
+  [expected actual & [msg]]
   `(try
      (let [act# ~actual
            exp# ~expected
            [only-in-ex# only-in-ac# shared#] (clojure.data/diff exp# act#)]
        (if only-in-ex#
          (clojure.test/do-report {:type :fail
-                                  :message "Missing expected elements."
+                                  :message (or ~msg "Missing expected elements.")
                                   :expected only-in-ex# :actual act#})
          (clojure.test/do-report {:type :pass
                                   :message "Matched"
@@ -48,7 +48,9 @@
   []
   (stest/instrument ['kixi.datastore.web-server/return-error
                      'kixi.datastore.metadatastore.inmemory/update-metadata-processor
-                     'kixi.datastore.communication-specs/send-event!]))
+                     'kixi.datastore.communication-specs/send-event!
+                     'kixi.datastore.transport-specs/filemetadata-transport->internal
+                     'kixi.datastore.transport-specs/schema-transport->internal]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -163,17 +165,16 @@
     (vector x)))
 
 (defn post-file-flex
-  [& {:keys [file-name schema-id user-id user-groups file-sharing file-metadata-sharing]}]
+  [& {:keys [file-name schema-id user-id user-groups sharing]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file" :content (io/file file-name)}
-                                    {:name "file-metadata" :content (encode-json (merge {:name "foo"
-                                                                                         :header true
-                                                                                         :schema-id schema-id}
-                                                                                        (when file-sharing
-                                                                                          {:file-sharing file-sharing})
-                                                                                        (when file-metadata-sharing
-                                                                                          {:file-metadata-sharing file-metadata-sharing})))}]
+                                    {:name "file-metadata" 
+                                     :content (encode-json (merge {:name "foo"
+                                                                   :header true
+                                                                   :schema-id schema-id}
+                                                                  (when sharing
+                                                                    {:sharing sharing})))}]
                         :headers {"user-id" user-id
                                   "user-groups" (vec-if-not user-groups)}
                         :throw-exceptions false
@@ -189,17 +190,17 @@
   (let [pfr (apply post-file-flex (flatten (seq args)))]
     (when (accept-status (:status pfr))
       (wait-for-metadata-key (extract-id pfr) ::ms/id
-                             (:user-group args)))
+                             (:user-groups args)))
     pfr))
 
 (defn post-file
   [file-name schema-id id]
-  (post-file-flex :file-name file-name 
-                  :schema-id schema-id 
-                  :user-id id
-                  :user-groups id
-                  :file-sharing {:read [id]}
-                  :file-metadata-sharing {:read [id]}))
+  (post-file-and-wait :file-name file-name 
+                      :schema-id schema-id 
+                      :user-id id
+                      :user-groups id
+                      :sharing {:file-read [id]
+                                :meta-read [id]}))
 
 (defn post-segmentation
   [url seg]
@@ -210,24 +211,36 @@
                 :throw-exceptions false
                 :as :json}))
 
-(defn post-spec
-  [s]
-  (client/post schema-url
-               {:form-params {:schema s}
-                :content-type :json
-                :accept :json
-                :throw-exceptions false}))
+(defn post-spec  
+  ([s uid]
+   (post-spec s uid uid {:sharing {:read [uid]
+                                 :use [uid]}}))
+  ([s uid ugroup sharing]
+   (client/post schema-url
+                {:form-params (merge s
+                                     sharing)
+                 :content-type :json
+                 :headers {"user-id" uid
+                           "user-groups" (vec-if-not ugroup)}
+                 :accept :json
+                 :throw-exceptions false})))
 
 (defn get-spec
   [id uid]
   (wait-for-url (str schema-url id) uid))
 
 (defn post-spec-and-wait
-  [s uid]
-  (let [psr (post-spec s)]
-    (when (accept-status (:status psr))
-      (wait-for-url (get-in psr [:headers "Location"]) uid))
-    psr))
+  ([s uid]
+   (post-spec-and-wait s uid uid))
+  ([s uid ugroup]
+   (post-spec-and-wait s uid ugroup
+                       {:sharing {:read [ugroup]
+                                  :use [ugroup]}}))
+  ([s uid ugroup sharing]
+   (let [psr (post-spec s uid ugroup sharing)]
+     (when (accept-status (:status psr))
+       (wait-for-url (get-in psr [:headers "Location"]) uid))
+     psr)))
 
 (defn get-spec-direct
   [id]
@@ -263,3 +276,56 @@
   [id uid]
   (dload-file (str file-url "/" id) uid))
 
+(defmacro has-status
+  [status resp]
+  `(let [parsed# (if (= "application/json" (get-in ~resp [:headers "Content-Type"]))
+                   (update ~resp :body parse-json)
+                   ~resp)]
+     (is-submap {:status ~status}
+                parsed#)))
+
+(defmacro success
+  [resp]
+  `(has-status 200
+               ~resp))
+
+(defmacro created
+  [resp]
+ `(has-status 201
+              ~resp))
+
+(defmacro accepted
+  [resp]
+  `(has-status 202
+               ~resp))
+
+(defmacro not-found
+  [resp]
+  `(has-status 404
+               ~resp))
+
+(defmacro bad-request
+  [resp]
+  `(has-status 400
+               ~resp))
+
+(defmacro unauthorised
+  [resp]
+  `(has-status 401
+               ~resp))
+
+(defmacro when-status
+  [status resp rest]
+  `(let [rs# (:status ~resp)]
+     (has-status ~status ~resp)
+     (when (= ~status
+              rs#)
+       ~@rest)))
+
+(defmacro when-accepted
+  [resp & rest]
+  `(when-status 202 ~resp ~rest))
+
+(defmacro when-created
+  [resp & rest]
+  `(when-status 201 ~resp ~rest))
