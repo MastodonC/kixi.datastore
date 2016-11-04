@@ -27,7 +27,7 @@
 
 (s/def ::definition
   (s/cat :pairs (s/+ (s/cat :tag ::tag
-                            :type ::primative-schema))))
+                            :type ::primitive-schema))))
 
 (s/def ::list-spec
   (s/keys :req [::type ::definition]))
@@ -61,13 +61,13 @@
 (defmethod schema-type "string" [_]
   (s/keys :req [::type]))
 
-(s/def ::primative-schema 
+(s/def ::primitive-schema 
   (s/multi-spec schema-type ::type))
 
 (s/def ::schema
   (s/or
    :list ::list-spec
-   :primative ::primative-schema))
+   :primitive ::primitive-schema))
 
 (s/def ::type (set (conj (keys (methods schema-type))
                          "list")))
