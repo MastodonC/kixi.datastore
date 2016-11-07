@@ -20,7 +20,8 @@
             [kixi.comms.components
              [kafka :as kafka]]
             [kixi.datastore.metadatastore
-             [inmemory :as md-inmemory]]
+             [inmemory :as md-inmemory]
+             [elasticsearch :as md-es]]
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]]
             [kixi.datastore.segmentation
@@ -59,7 +60,8 @@
                     :local (local/map->Local {})
                     :s3 (s3/map->S3 {}))
    :metadatastore (case (first (keys (:metadatastore config)))
-                    :inmemory (md-inmemory/map->InMemory {}))
+                    :inmemory (md-inmemory/map->InMemory {})
+                    :elasticsearch (md-es/map->ElasticSearch {}))
    :schemastore (case (first (keys (:schemastore config)))
                     :inmemory (ss-inmemory/map->InMemory {}))
    :segmentation (case (first (keys (:schemastore config)))
