@@ -7,8 +7,7 @@
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.web-server :as ws]
             [kixi.datastore.schemastore.conformers :as conformers]
-            [kixi.datastore.schemastore :as ss]
-            [kixi.integration.base :as base]))
+            [kixi.datastore.schemastore :as ss]))
 
 (alias 'ms 'kixi.datastore.metadatastore)
 
