@@ -28,7 +28,9 @@
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]}
  :filestore {:local {:base-dir "/kixi-datastore"}}
- :metadatastore {:inmemory {}}
+ :metadatastore {:inmemory {}
+                 :elasticsearch {:host {:local "localhost"}
+                                 :post 9300}}
  :schemastore {:inmemory {}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host "127.0.0.1"

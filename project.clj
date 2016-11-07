@@ -7,22 +7,30 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[aero "1.0.0"]
                  [aleph "0.4.2-alpha8"]
-                 [amazonica "0.3.74" :exclusions [com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                 [amazonica "0.3.74" :exclusions [ch.qos.logback/logback-classic
+                                                  com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                                   commons-logging
-                                                  com.fasterxml.jackson.core/jackson-core]]
+                                                  com.fasterxml.jackson.core/jackson-databind
+                                                  com.fasterxml.jackson.core/jackson-core
+                                                  org.apache.httpcomponents/httpclient
+                                                  joda-time]]
                  [bidi "2.0.9"]
                  [byte-streams "0.2.2"]
                  [clj-http "2.2.0"]
                  [clj-time "0.12.0"]
                  [clojure-csv/clojure-csv "2.0.1"]
+                 [cheshire "5.6.3"]
                  [com.cognitect/transit-clj "0.8.288"]
-                 [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic]]
+                 [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic 
+                                                                               com.fasterxml.jackson.core/jackson-core
+                                                                               joda-time]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
                  [com.stuartsierra/component "0.3.1"]
                  [com.taoensso/timbre "4.7.0"]
                  [digest "1.4.4"]
+                 [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.8" :exclusions [cheshire]]
+                 [kixi/kixi.comms "0.1.8"]
                  [manifold "0.1.6-alpha1"]
                  [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]
@@ -35,7 +43,9 @@
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
-                 [yada "1.1.33"]]
+                 [yada "1.1.33" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
+
+  :exclusions [cheshire]
 
   :test-selectors {:default (complement :integration)
                    :integration :integration}
