@@ -23,15 +23,15 @@
 
 (defn get-file
   [schema-id file-id uid ugroups]
-  (base/get-file file-id uid ugroups))
+  (base/get-file uid ugroups file-id))
 
 (defn get-metadata
   [schema-id file-id uid ugroups]
-  (base/get-metadata file-id ugroups))
+  (base/get-metadata ugroups file-id))
 
 (defn get-spec
   [schema-id file-id uid ugroups]
-  (base/get-spec-direct schema-id ugroups))
+  (base/get-spec-direct ugroups schema-id))
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
@@ -96,9 +96,9 @@
 
 (defn post-spec 
   [shares upload-uid upload-ugroup use-ugroup]
-  (base/post-spec-and-wait metadata-file-schema
-                           upload-uid
+  (base/post-spec-and-wait upload-uid
                            upload-ugroup
+                           metadata-file-schema
                            {:sharing (shares->schema-sharing-map
                                       shares
                                       upload-ugroup

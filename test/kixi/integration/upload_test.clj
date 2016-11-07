@@ -23,7 +23,7 @@
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec-and-wait irrelevant-schema uid)]
+  (let [r (post-spec-and-wait uid irrelevant-schema)]
     (if (= 202 (:status r))
       (reset! irrelevant-schema-id (extract-id r))
       (throw (Exception. "Couldn't post irrelevant-schema"))))
@@ -32,33 +32,33 @@
 (use-fixtures :once cycle-system-fixture setup-schema)
 
 (deftest round-trip-files
-  (let [r (post-file "./test-resources/metadata-one-valid.csv"
-                     @irrelevant-schema-id
-                     uid)]
+  (let [r (post-file uid
+                     "./test-resources/metadata-one-valid.csv"
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-one-valid.csv"
-           (dload-file locat uid)))))
-  (let [r (post-file "./test-resources/metadata-12MB-valid.csv"
-                     @irrelevant-schema-id
-                     uid)]
+           (dload-file uid locat)))))
+  (let [r (post-file uid
+                     "./test-resources/metadata-12MB-valid.csv"
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-12MB-valid.csv"
-           (dload-file locat uid)))))
-  (let [r (post-file "./test-resources/metadata-344MB-valid.csv"
-                     @irrelevant-schema-id
-                     uid)]
+           (dload-file uid locat)))))
+  (let [r (post-file uid
+                     "./test-resources/metadata-344MB-valid.csv"
+                     @irrelevant-schema-id)]
     (is (= 201
            (:status r))
         (str "Reason: " (parse-json (:body r))))
     (when-let [locat (get-in r [:headers "Location"])]
       (is (files-match?
            "./test-resources/metadata-344MB-valid.csv"
-           (dload-file locat uid))))))
+           (dload-file uid locat))))))

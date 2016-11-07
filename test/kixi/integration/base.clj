@@ -116,9 +116,9 @@
 (def accept-status #{200 201 202})
 
 (defn wait-for-url
-  ([url uid]
-   (wait-for-url url uid wait-tries 1 nil))
-  ([url uid tries cnt last-result]
+  ([uid url]
+   (wait-for-url uid url wait-tries 1 nil))
+  ([uid url tries cnt last-result]
    (if (<= cnt tries)
      (let [md (client/get url
                           {:accept :json
@@ -129,26 +129,27 @@
            (when (zero? (mod cnt every-count-tries-emit))
              (println "Waited" cnt "times for" url ". Getting:" (:status md)))
            (Thread/sleep wait-per-try)
-           (recur url uid tries (inc cnt) md))
+           (recur uid url tries (inc cnt) md))
          md))
      last-result)))
 
 
 (defn get-metadata
-  [id ugroup]
-  (update (client/get (metadata-url id) {:as :json
-                                         :accept :json
-                                         :throw-exceptions false
-                                         :headers {"user-groups" ugroup}})
+  [ugroup id]
+  (update (client/get (metadata-url id) 
+                      {:as :json
+                       :accept :json
+                       :throw-exceptions false
+                       :headers {"user-groups" ugroup}})
           :body
           parse-json))
 
 (defn wait-for-metadata-key
-  ([id k ugroup]
-   (wait-for-metadata-key id k ugroup wait-tries 1 nil))
-  ([id k ugroup tries cnt lr]
+  ([ugroup id k]
+   (wait-for-metadata-key ugroup id k wait-tries 1 nil))
+  ([ugroup id k tries cnt lr]
    (if (<= cnt tries)
-     (let [md (get-metadata id ugroup)]
+     (let [md (get-metadata ugroup id)]
        (if-not (get-in md [:body k])
          (do
            (when (zero? (mod cnt every-count-tries-emit))
@@ -194,9 +195,9 @@
     pfr))
 
 (defn post-file
-  ([file-name schema-id uid]
-   (post-file file-name schema-id uid uid))
-  ([file-name schema-id uid ugroup]
+  ([uid file-name schema-id]
+   (post-file uid uid file-name schema-id))
+  ([uid ugroup file-name schema-id]
    (post-file-and-wait :file-name file-name 
                        :schema-id schema-id 
                        :user-id uid
@@ -214,10 +215,12 @@
                 :as :json}))
 
 (defn post-spec  
-  ([s uid]
-   (post-spec s uid uid {:sharing {:read [uid]
-                                   :use [uid]}}))
-  ([s uid ugroup sharing]
+  ([uid s]
+   (post-spec uid uid s))
+  ([uid ugroup s]
+   (post-spec uid ugroup s {:sharing {:read [ugroup]
+                                      :use [ugroup]}}))
+  ([uid ugroup s sharing]
    (client/post schema-url
                 {:form-params (merge s
                                      sharing)
@@ -228,24 +231,24 @@
                  :throw-exceptions false})))
 
 (defn get-spec
-  [id uid]
-  (wait-for-url (str schema-url id) uid))
+  [uid id]
+  (wait-for-url uid (str schema-url id)))
 
 (defn post-spec-and-wait
-  ([s uid]
-   (post-spec-and-wait s uid uid))
-  ([s uid ugroup]
-   (post-spec-and-wait s uid ugroup
+  ([uid s]
+   (post-spec-and-wait uid uid s))
+  ([uid ugroup s]
+   (post-spec-and-wait uid ugroup s
                        {:sharing {:read [ugroup]
                                   :use [ugroup]}}))
-  ([s uid ugroup sharing]
-   (let [psr (post-spec s uid ugroup sharing)]
+  ([uid ugroup s sharing]
+   (let [psr (post-spec uid ugroup s sharing)]
      (when (accept-status (:status psr))
-       (wait-for-url (get-in psr [:headers "Location"]) ugroup))
+       (wait-for-url ugroup (get-in psr [:headers "Location"])))
      psr)))
 
 (defn get-spec-direct
-  [id ugroup]
+  [ugroup id]
   (client/get (str schema-url id)
               {:accept :json
                :headers {"user-groups" ugroup}
@@ -259,15 +262,15 @@
         parse-json)))
 
 (defn get-file
-  [id uid ugroups]
+  [uid ugroups id]
   (client/get (str file-url "/" id) 
               {:headers (apply merge {"user-id" uid}
                                (map #(hash-map "user-groups" %) (vec-if-not ugroups)))
                :throw-exceptions false}))
 
 (defn dload-file
-  [location uid]
-  (let [_ (wait-for-url location uid)
+  [uid location]
+  (let [_ (wait-for-url uid location)
         f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
     (bs/transfer (:body (client/get location {:as :stream
@@ -276,8 +279,8 @@
     f))
 
 (defn dload-file-by-id
-  [id uid]
-  (dload-file (str file-url "/" id) uid))
+  [uid id]
+  (dload-file uid (str file-url "/" id)))
 
 (defmacro has-status
   [status resp]
