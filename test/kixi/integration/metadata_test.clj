@@ -3,7 +3,7 @@
             [clojure.test :refer :all]
             [clj-http.client :as client]
             [clojure.java.io :as io]
-            [kixi.integration.base :refer :all :exclude [post-file wait-for-metadata-key]]
+            [kixi.integration.base :as base :refer :all :exclude [post-file wait-for-metadata-key]]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.web-server :as ws]
             [kixi.datastore.schemastore.conformers :as conformers]
