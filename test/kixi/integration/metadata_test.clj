@@ -43,7 +43,6 @@
                        @metadata-file-schema-id)]
     (when-created pfr
       (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
-        (clojure.pprint/pprint (:body metadata-response))
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)

@@ -150,7 +150,6 @@
   ([ugroup id k tries cnt lr]
    (if (<= cnt tries)
      (let [md (get-metadata ugroup id)]
-       (prn "MD: " md)
        (if-not (get-in md [:body k])
          (do
            (when (zero? (mod cnt every-count-tries-emit))
