@@ -30,7 +30,8 @@
  :filestore {:local {:base-dir "/kixi-datastore"}}
  :metadatastore {:elasticsearch {:host #profile {:local "localhost"}
                                  :port 9200}}
- :schemastore {:inmemory {}}
+ :schemastore {:elasticsearch {:host #profile {:local "localhost"}
+                               :port 9200}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host "127.0.0.1"
                                            :port 2181
