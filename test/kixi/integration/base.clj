@@ -153,9 +153,9 @@
        (if-not (get-in md [:body k])
          (do
            (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" k "to be metadata for" id))
+             (println "Waited" cnt "times for" k "to be in metadata for" id))
            (Thread/sleep wait-per-try)
-           (recur id k ugroup tries (inc cnt) md))
+           (recur ugroup id k tries (inc cnt) md))
          md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
@@ -190,8 +190,9 @@
   [& {:as args}]
   (let [pfr (apply post-file-flex (mapcat identity (seq args)))]
     (when (accept-status (:status pfr))
-      (wait-for-metadata-key (extract-id pfr) ::ms/id
-                             (:user-groups args)))
+      (wait-for-metadata-key (:user-groups args) 
+                             (extract-id pfr)
+                             ::ms/id))
     pfr))
 
 (defn post-file
