@@ -82,5 +82,5 @@
   (authorised
     [this action id user-groups])
   (exists [this id])
-  (fetch [this id])
+  (retrieve [this id])
   (query [this criteria]))

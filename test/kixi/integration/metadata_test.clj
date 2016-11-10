@@ -47,10 +47,10 @@
          {:status 200
           :body {::ms/id (extract-id pfr)
                  ::ss/id @metadata-file-schema-id
-                 ::ms/type "csv",
-                 ::ms/name "foo",
+                 ::ms/type "csv"
+                 ::ms/name "foo"
                  ::ms/header true
-                 ::ms/size-bytes 14,
+                 ::ms/size-bytes 14
                  ::ms/provenance {::ms/source "upload"
                                   ::ms/pieces-count 1}
                  ::ms/structural-validation {::ms/valid true}}}

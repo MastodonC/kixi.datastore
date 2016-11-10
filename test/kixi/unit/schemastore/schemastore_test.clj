@@ -72,7 +72,7 @@
                       ::ss/id id#
                       ::ss/sharing {}}]
      (ssim/persist-new-schema (:data @schemastore) schema-req#)
-     (is-submap schema-req# (ss/fetch-spec @schemastore id#))
+     (is-submap schema-req# (ss/retrieve @schemastore id#))
      (checking "good data passes" sample-size
                [gd# ~good-generator]
                (is (nil? (sv/explain-data @schemastore id# gd#))))

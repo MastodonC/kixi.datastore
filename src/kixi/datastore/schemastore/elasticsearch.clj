@@ -1,15 +1,14 @@
 (ns kixi.datastore.schemastore.elasticsearch
-  (:require [clojure.spec :as s]
-            [clojure.data :as data]
+  (:require [clojure
+             [data :as data]
+             [spec :as s]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications :refer [Communications]]
-            [kixi.datastore.elasticsearch :as es :refer [all-keys->kw ensure-index kw->es-format string-stored-not_analyzed string-analyzed]]
-            [kixi.datastore.schemastore :refer [SchemaStore] :as ss]
-            [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.comms :as c]
-            [kixi.datastore.transit :as t]
-            [kixi.datastore.time :as time]
-            [taoensso.timbre :as timbre :refer [error info infof debug fatal]]))
+            [kixi.datastore
+             [elasticsearch :as es :refer [ensure-index string-analyzed string-stored-not_analyzed]]
+             [schemastore :as ss :refer [SchemaStore]]
+             [time :as time]]
+            [taoensso.timbre :as timbre :refer [error info]]))
 
 (def index-name "kixi-datastore_schema-data")
 (def doc-type "schema-data")
@@ -121,7 +120,7 @@
       (prn "fetching: " sub-spec)
 ;      (fetch-with-sub-spec data sub-spec)
       )
-    (fetch-spec [_ id]
+    (retrieve [_ id]
       (extract-tags
        (get-document conn id)))
     component/Lifecycle

@@ -1,8 +1,9 @@
 (ns kixi.datastore.elasticsearch
   (:require [clojurewerkz.elastisch.rest :as esr]
-            [clojurewerkz.elastisch.rest.document :as esd]
-            [clojurewerkz.elastisch.rest.index :as esi]
-            [taoensso.timbre :as timbre :refer [error info]]))
+            [clojurewerkz.elastisch.rest
+             [document :as esd]
+             [index :as esi]]
+            [taoensso.timbre :as timbre :refer [error]]))
 
 (def put-opts {:consistency "default"})
 
@@ -108,7 +109,7 @@
 (defn apply-func
   ([index-name doc-type conn id f]
    (loop [tries apply-attempts]
-     (let [curr (get-document index-name doc-type conn id)]
+     (let [curr (get-document-raw index-name doc-type conn id)]
        (let [resp (esd/put conn
                            index-name
                            doc-type

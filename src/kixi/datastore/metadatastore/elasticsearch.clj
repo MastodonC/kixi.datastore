@@ -1,13 +1,11 @@
 
 (ns kixi.datastore.metadatastore.elasticsearch
   (:require [clojure.spec :as s]
-            [clojurewerkz.elastisch.rest :as esr]
-            [clojurewerkz.elastisch.rest.document :as esd]
             [com.stuartsierra.component :as component]
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
-             [elasticsearch :as es :refer [all-keys->kw ensure-index kw->es-format string-stored-not_analyzed]]
+             [elasticsearch :as es :refer [ensure-index string-stored-not_analyzed]]
              [metadatastore :as ms :refer [MetaDataStore]]
              [schemastore :as ss]
              [segmentation :as seg]]
@@ -99,7 +97,7 @@
                                              (set user-groups)))))
     (exists [this id]
       (present? conn id))
-    (fetch [this id]
+    (retrieve [this id]
       (get-document conn id))
     (query [this criteria])
 

@@ -156,7 +156,7 @@
   (let [segment-uploader (upload-segment filestore communications)
         file-retriever (partial retrieve-file-to-local filestore)]
     (fn [request]
-      (let [metadata (ms/fetch metadatastore (::ms/id request))
+      (let [metadata (ms/retrieve metadatastore (::ms/id request))
             result (case (:kixi.datastore.request/type request)
                      ::seg/group-rows-by-column (group-rows-by-column segment-uploader file-retriever request metadata))]
         (->> (if (s/valid? ::seg/error result)

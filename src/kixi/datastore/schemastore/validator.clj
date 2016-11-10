@@ -38,7 +38,7 @@
   (->
    definition
    (get-in [::ss/schema ::ss/id])
-   ((partial ss/fetch-spec schemastore))
+   ((partial ss/retrieve schemastore))
    (resolve-schema schemastore)))
 
 (defmethod resolve-schema "set"
@@ -61,7 +61,7 @@
 (defn resolve-form
   [definition schemastore]
   (if-let [id (::ss/id definition)]
-    (ss/fetch-spec schemastore id)
+    (ss/retrieve schemastore id)
     definition))
 
 (defmethod resolve-schema "list"
@@ -77,16 +77,16 @@
 
 (defn valid?
   [schemastore schema-id data]
-  (let [schema (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)]
+  (let [schema (resolve-schema (ss/retrieve schemastore schema-id) schemastore)]
     (s/valid? schema data)))
 
 (defn schema-id->schema
   [schemastore schema-id]
-  (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore))
+  (resolve-schema (ss/retrieve schemastore schema-id) schemastore))
 
 (defn explain-data
   ([schemastore schema-id data]
-   (explain-data (resolve-schema (ss/fetch-spec schemastore schema-id) schemastore)
+   (explain-data (resolve-schema (ss/retrieve schemastore schema-id) schemastore)
                  data))
   ([schema data]
    (s/explain-data schema data)))

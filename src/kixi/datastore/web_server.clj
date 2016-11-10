@@ -284,7 +284,7 @@
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
                (if (ms/authorised metadatastore :meta-read id (ctx->user-groups ctx))
-                 (ms/fetch metadatastore id)
+                 (ms/retrieve metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
 (defn file-segmentation-create
@@ -344,7 +344,7 @@
              (let [id (get-in ctx [:parameters :path :id])]
                (when (ss/exists schemastore id)
                  (if (ss/authorised schemastore ::ss/read id (ctx->user-groups ctx))
-                   (ss/fetch-with schemastore {::ss/id id})
+                   (ss/retrieve schemastore id)
                    (return-unauthorised ctx)))))}}}))
 
 (defn schema-resources
@@ -367,32 +367,19 @@
                             (return-error ctx :schema-invalid-request
                                           (spec/explain-data ::ss/create-schema-request
                                                              internal-sr))
-                            (if-let [preexists (ss/fetch-with schemastore
-                                                              (select-keys internal-sr
-                                                                           [::ss/name
-                                                                            ::ss/schema
-                                                                            ::ss/sharing]))]
+                            (do
+                              (cs/send-event! communications 
+                                              (merge {::cs/event :kixi.datastore/schema-created
+                                                      ::cs/version "1.0.0"}
+                                                     internal-sr))
                               (assoc (:response ctx)
-                                     :status 202 ;; wants to be a 303
+                                     :status 202
                                      :headers {"Location"
-                                               (str (java.net.URI.
-                                                     (:uri (yada/uri-for
-                                                            ctx
-                                                            :schema-id-entry
-                                                            {:route-params {:id (::ss/id preexists)}}))))})
-                              (do
-                                (cs/send-event! communications 
-                                                (merge {::cs/event :kixi.datastore/schema-created
-                                                        ::cs/version "1.0.0"}
-                                                       internal-sr))
-                                (assoc (:response ctx)
-                                       :status 202
-                                       :headers {"Location"
-                                                 (java.net.URI.
-                                                  (:uri (yada/uri-for
-                                                         ctx
-                                                         :schema-id-entry
-                                                         {:route-params {:id new-id}})))}))))))}}}))
+                                               (java.net.URI.
+                                                (:uri (yada/uri-for
+                                                       ctx
+                                                       :schema-id-entry
+                                                       {:route-params {:id new-id}})))})))))}}}))
 
 (defn healthcheck
   [ctx]

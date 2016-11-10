@@ -62,7 +62,7 @@
       ((set
         (keys @data))
        id))
-    (fetch [this id]
+    (retrieve [this id]
       (get @data id))
     (query [this criteria])
 

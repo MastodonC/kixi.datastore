@@ -43,18 +43,6 @@
   (let [r-g (get-spec-direct uid "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (not-found r-g)))
 
-(deftest repost-spec-get-same-result
-  (let [schema {:name ::reposted-a
-                :schema {:type "integer"}
-                :sharing {:read [uid]
-                          :use [uid]}}
-        r-g1 (post-spec-and-wait schema)
-        r-g2 (post-spec schema)]
-    (when-accepted r-g1
-      (when-accepted r-g2
-        (is (= (get-in r-g1 [:headers "Location"])
-               (get-in r-g2 [:headers "Location"])))))))
-
 (deftest good-spec-202
   (accepted 
    (post-spec {:name ::good-spec-a

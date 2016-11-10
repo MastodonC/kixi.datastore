@@ -153,7 +153,7 @@
        (if-not (get-in md [:body k])
          (do
            (when (zero? (mod cnt every-count-tries-emit))
-             (println "Waited" cnt "times for" k "to be in metadata for" id))
+             (println "Waited" cnt "times for" k "to be in metadata for" id ". Getting: " md))
            (Thread/sleep wait-per-try)
            (recur ugroup id k tries (inc cnt) md))
          md))
