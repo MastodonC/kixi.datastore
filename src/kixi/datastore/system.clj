@@ -23,7 +23,8 @@
              [inmemory :as md-inmemory]
              [elasticsearch :as md-es]]
             [kixi.datastore.schemastore
-             [inmemory :as ss-inmemory]]
+             [inmemory :as ss-inmemory]
+             [elasticsearch :as ss-es]]
             [kixi.datastore.segmentation
              [inmemory :as segementation-inmemory]]
             [taoensso.timbre :as log]))
@@ -57,18 +58,19 @@
    :metrics (metrics/map->Metrics {})
    :logging (logging/map->Log {})
    :filestore (case (first (keys (:filestore config)))
-                    :local (local/map->Local {})
-                    :s3 (s3/map->S3 {}))
+                :local (local/map->Local {})
+                :s3 (s3/map->S3 {}))
    :metadatastore (case (first (keys (:metadatastore config)))
                     :inmemory (md-inmemory/map->InMemory {})
                     :elasticsearch (md-es/map->ElasticSearch {}))
    :schemastore (case (first (keys (:schemastore config)))
-                    :inmemory (ss-inmemory/map->InMemory {}))
-   :segmentation (case (first (keys (:schemastore config)))
-                    :inmemory (segementation-inmemory/map->InMemory {}))
+                  :inmemory (ss-inmemory/map->InMemory {})
+                  :elasticsearch (ss-es/map->ElasticSearch {}))
+   :segmentation (case (first (keys (:segmentation config)))
+                   :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
                      :kafka (kafka/map->Kafka {}))
- ;  :schema-extracter (se/map->SchemaExtracter {})
+                                        ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 
 (defn raise-first

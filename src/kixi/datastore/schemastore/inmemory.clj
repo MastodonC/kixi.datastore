@@ -49,7 +49,7 @@
       (get @data id))
     (fetch-with [_ sub-spec]
       (fetch-with-sub-spec data sub-spec))
-    (fetch-spec [_ id]
+    (retrieve [_ id]
       (read-spec data id))
     component/Lifecycle
     (start [component]

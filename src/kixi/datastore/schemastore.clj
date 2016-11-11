@@ -83,4 +83,4 @@
     [this action id user-groups])
   (exists [this spec-name])  
   (fetch-with [this sub-schema])
-  (fetch-spec [this spec-name]))
+  (retrieve [this id]))
