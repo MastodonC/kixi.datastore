@@ -1,5 +1,6 @@
 (ns kixi.datastore.filestore.local
   (:require [clojure.java.io :as io]
+            [clojure.core.async :as async :refer [go]]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :refer [FileStore]]
             [taoensso.timbre :as timbre :refer [error info infof]]))
@@ -11,11 +12,12 @@
       (let [^java.io.File file (io/file dir
                                         id)]
         (.exists file)))
-    (output-stream [this id]
+    (output-stream [this id content-length]
       (let [^java.io.File file (io/file dir 
                                         id)
             _ (.createNewFile file)]
-        (io/output-stream file)))
+        [(go :done)
+         (io/output-stream file)]))
     (retrieve [this id]      
       (let [^java.io.File file (io/file dir
                                         id)]

@@ -6,7 +6,7 @@
 (defprotocol FileStore
   (exists [this id]
     "Checks if there is a file with this id in the store")
-  (output-stream [this id]
+  (output-stream [this id content-length]
     "Returns an outputstream for writing a files contents to")
   (retrieve [this id] 
     "Returns an inputstream for read a files contents from"))

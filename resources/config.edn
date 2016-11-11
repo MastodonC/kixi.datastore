@@ -27,7 +27,14 @@
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]}
- :filestore {:local {:base-dir "/kixi-datastore"}}
+ :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
+                              ;To use S3 locally, remove :local config and set some keys.
+                              :s3 {:bucket "city-data-store-file-store"
+                                   :endpoint "s3.eu-central-1.amazonaws.com"
+                                   :access-key ""
+                                   :secret-key ""}}                      
+                      :prod {:s3 {:bucket "city-data-store-file-store"
+                                  :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch {:host #profile {:local "localhost"}
                                  :port 9200}}
  :schemastore {:elasticsearch {:host #profile {:local "localhost"}

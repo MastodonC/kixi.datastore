@@ -44,16 +44,11 @@
   (fn mapper [m]
     (cond
       (map? m) (zipmap (map f (keys m))
-                       (map (fn [v]
-                              (cond
-                                (map? v) (mapper v)
-                                (list? v) (map mapper v)
-                                (vector? v) (mapv mapper v)
-                                (seq? v) (map mapper v)
-                                (symbol? v) (name v)
-                                (keyword? v) (f v)
-                                :else v))
-                            (vals m)))
+                       (map mapper (vals m)))
+      (list? m) (map mapper m)
+      (vector? m) (mapv mapper m)
+      (seq? m) (str m) ; (map mapper m) spec errors contain seq's of sexp's containing code, which breaks elasticsearch validation.
+      (symbol? m) (name m)
       (keyword? m) (f m)
       :else m)))
 
@@ -109,19 +104,19 @@
 (defn apply-func
   ([index-name doc-type conn id f]
    (loop [tries apply-attempts]
-     (let [curr (get-document-raw index-name doc-type conn id)]
-       (let [resp (esd/put conn
-                           index-name
-                           doc-type
-                           id
-                           (f curr) 
-                           (merge put-opts
-                                  (when (:_version curr)
-                                    {:version (:_version curr)})))]
-         (if (and (version-conflict resp)
-                  (pos? tries))
-           (recur (dec tries))
-           resp))))))
+     (let [curr (get-document-raw index-name doc-type conn id)
+           resp (esd/put conn
+                         index-name
+                         doc-type
+                         id
+                         (f curr) 
+                         (merge put-opts
+                                (when (:_version curr)
+                                  {:version (:_version curr)})))]
+       (if (and (version-conflict resp)
+                (pos? tries))
+         (recur (dec tries))
+         resp)))))
 
 (defn merge-data
   [index-name doc-type conn id update]

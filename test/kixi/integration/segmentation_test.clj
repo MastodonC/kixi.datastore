@@ -90,6 +90,7 @@
               (let [seg-meta-resp (get-metadata uid seg-id)]
                 (is-submap {:status 200
                             :body {::ss/id @small-segmentable-file-schema-id
+                                   ::ms/id seg-id
                                    ::ms/type (::ms/type base-file-meta)
                                    ::ms/provenance {::ms/parent-id base-file-id}
                                    ::ms/size-bytes 27}}

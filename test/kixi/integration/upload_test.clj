@@ -52,7 +52,7 @@
       (is (files-match?
            "./test-resources/metadata-12MB-valid.csv"
            (dload-file uid locat)))))
-  (let [r (post-file uid
+  #_(let [r (post-file uid
                      "./test-resources/metadata-344MB-valid.csv"
                      @irrelevant-schema-id)]
     (is (= 201
