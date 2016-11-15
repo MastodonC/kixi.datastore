@@ -45,7 +45,7 @@
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
-                 [yada "1.1.41" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
+                 [yada "1.1.43" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
 
   :exclusions [cheshire]
 

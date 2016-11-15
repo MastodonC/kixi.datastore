@@ -18,7 +18,8 @@
             [yada
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]])
+  (:import [java.io IOException]))
 
 (defn ctx->user-id
   [ctx]
@@ -67,11 +68,11 @@
   (spec/keys :req [::error ::msg]))
 
 (spec/fdef return-error
-        :args (spec/cat :ctx ::context
-                        :args (spec/alt :error-map ::error-map
-                                        :error-parts (spec/cat :error ::error
-                                                               :msg ::msg)
-                                        :spec-error ::ms/explain)))
+           :args (spec/cat :ctx ::context
+                           :args (spec/alt :error-map ::error-map
+                                           :error-parts (spec/cat :error ::error
+                                                                  :msg ::msg)
+                                           :spec-error ::ms/explain)))
 
 (defn return-error
   ([ctx error]
@@ -87,12 +88,15 @@
   (assoc (:response ctx)
          :status 401))
 
+(def server-error-resp
+  {:msg "Server Error, see logs"})
+
 (defn resource
   [metrics model]
   (-> model
       (assoc :logger yada-timbre-logger)
-      (assoc :responses {500 {:produces "text/plain"
-                              :response (fn [ctx] "Server Error, see logs")}})
+      (assoc :responses {500 {:produces "application/json"
+                              :response server-error-resp}})
       yada/resource
       (yr/insert-interceptor
        yada.interceptors/available? (:insert-time-in-ctx metrics))
@@ -178,7 +182,17 @@
       (when (or close false)
         (.close output-stream)))))
 
-(defrecord StreamingPartial [id ^java.io.OutputStream output-stream complete-chan initial size-bytes]
+(defrecord ErrorPartial
+    [type exception]
+  yada.multipart/Partial
+  (continue
+    [this piece]
+    this)
+  (complete
+    [this state piece]
+    this))
+
+(defrecord StreamingPartial [id ^java.io.OutputStream output-stream complete-chan initial size-bytes pieces-count]
   yada.multipart/Partial
   (continue [this piece]
     (transfer-piece! output-stream piece (:body-offset piece))
@@ -186,14 +200,14 @@
         (update :pieces-count (fnil inc 0))
         (update :size-bytes (partial + (payload-size piece)))))
   (complete [this state piece]
-    (transfer-piece! output-stream piece true)
-    (<!! complete-chan)
+    (transfer-piece! output-stream piece true)    
     (-> initial
         (assoc :type :part
-               :count (:pieces-count this)
+               :count ((fnil inc 1) (:pieces-count this))
                :id id
                :size-bytes (+ size-bytes
-                              (payload-size piece)))
+                              (payload-size piece))
+               :complete (<!! complete-chan))
         (add-part state))))
 
 (defn flush-tiny-file!
@@ -207,27 +221,34 @@
 
 (def Map {s/Keyword s/Any})
 
+(defn file-size
+  [piece]
+  (let [^String fs (get-in piece [:request-headers :file-size])]
+    (Long/valueOf fs)))
+
 (defrecord PartConsumer
     [filestore]
     yada.multipart/PartConsumer
     (consume-part [this state part]
       (if (file-part? part)
-        (let [id (uuid)]
-          (flush-tiny-file! filestore id part (last-file-size state))
+        (let [id (uuid)
+              complete-chan-r (flush-tiny-file! filestore id part (last-file-size state))]          
           (-> part
               (assoc :id id
                      :count 1
-                     :size-bytes (payload-size part))
+                     :size-bytes (payload-size part)
+                     :complete complete-chan-r)
               (dissoc :bytes)
               (add-part state)))
         (add-part part state)))
-    (start-partial [this state piece]
+    (start-partial [this piece]
       (let [id (uuid)
-            [complete-chan out] (ds/output-stream filestore id (last-file-size state))]
+            [complete-chan out] (ds/output-stream filestore id (file-size piece))]
         (transfer-piece! out piece)
         (->StreamingPartial id out complete-chan
                             (dissoc piece :bytes)
-                            (payload-size piece)))))
+                            (payload-size piece)
+                            1))))
 
 (defn file-create
   [metrics filestore communications schemastore]
@@ -239,13 +260,12 @@
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
-                          :file-metadata s/Str
-                          :file-size s/Str}}
+                          :file-metadata s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
-                        declared-file-size (Long/valueOf (str (:file-size params)))
+                        declared-file-size (Long/valueOf (str (get-in ctx [:request :headers :file-size])))
                         transported-metadata (json/parse-string (:file-metadata params) keyword)
                         file-details {::ms/id (:id file)
                                       ::ms/size-bytes (:size-bytes file)
@@ -257,18 +277,21 @@
                                   file-details)
                         explained (spec/explain-data ::ms/file-metadata metadata)]
                     (cond
+                      (not= :done (:complete file)) (assoc (:response ctx)
+                                                           :status 500
+                                                           :body server-error-resp)
                       explained (return-error ctx explained)
                       (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 
-                                                                                  {::error :unknown-schema
-                                                                                   ::msg {:schema-id (::ss/id metadata)}})
+                                                                                     {::error :unknown-schema
+                                                                                      ::msg {:schema-id (::ss/id metadata)}})
                       (not (ss/authorised schemastore
                                           ::ss/use
                                           (::ss/id metadata)
                                           (ctx->user-groups ctx))) (return-unauthorised ctx)
                       (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
-                                                                              {::error :file-upload-failed
-                                                                               ::msg {:declared-size declared-file-size
-                                                                                      :recieved-size (:size-bytes file)}})
+                                                                                 {::error :file-upload-failed
+                                                                                  ::msg {:declared-size declared-file-size
+                                                                                         :received-size (:size-bytes file)}})
                       :else (let [conformed (spec/conform ::ms/file-metadata metadata)]
                               (cs/send-event! communications
                                               (assoc conformed

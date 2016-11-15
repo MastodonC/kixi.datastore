@@ -55,9 +55,10 @@
 (defn cycle-system-fixture
   [all-tests]
   (repl/start)
-  (instrument-specd-functions)
-  (all-tests)
-  (repl/stop))
+  (try (instrument-specd-functions)
+       (all-tests)
+       (finally
+         (repl/stop))))
 
 (defn uuid
   []
@@ -169,9 +170,7 @@
   [& {:keys [^String file-name schema-id user-id user-groups sharing]}]
   (check-file file-name)
   (let [r (client/post file-url
-                       {:multipart [{:name "file-size"
-                                     :content (str (.length (io/file file-name)))}
-                                    {:name "file"
+                       {:multipart [{:name "file"
                                      :content (io/file file-name)}
                                     {:name "file-metadata" 
                                      :content (encode-json (merge {:name "foo"

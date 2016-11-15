@@ -1,6 +1,7 @@
 (ns kixi.repl
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.system :as system]))
+            [kixi.datastore.system :as system]
+            [environ.core :refer [env]]))
 
 (defonce system (atom nil))
 
@@ -9,7 +10,7 @@
   (when-not @system
     (try
       (prn "Starting system")
-      (->> (system/new-system :local)
+      (->> (system/new-system (keyword (env :system-profile "local")))
            component/start-system
            (reset! system))
       (catch Exception e
