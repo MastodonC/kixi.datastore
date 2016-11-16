@@ -45,7 +45,7 @@
   (when (= 500 (get-in ctx [:response :status]))
     (if (:error ctx)
       (error (:error ctx) "Server error")
-      (error "Server error, no exception available")))
+      (error "Server error, no exception available. Ctx: " ctx)))
   ctx)
 
 (defn append-error-interceptor
@@ -218,7 +218,7 @@
     (consume-part [this state part]
       (if (file-part? part)
         (let [id (uuid)
-              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]          
+              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]
           (-> part
               (assoc :id id
                      :count 1
