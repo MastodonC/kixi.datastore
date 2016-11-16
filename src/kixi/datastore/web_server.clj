@@ -144,24 +144,10 @@
   (= "application/octet-stream"
      (get-in part [:headers "content-type"])))
 
-(defn file-size-part?
-  [part]
-  (= "file-size"
-     (get-in part [:content-disposition :params "name"])))
-
-(defn last-file-size
-  [state]
-  (last (:sizes state)))
-
 (defn add-part
   [part state]
-  (let [added (update state :parts (fnil conj [])
-                      (yada.multipart/map->DefaultPart part))]
-    (if (file-size-part? part)
-      (let [^Long size (part->long part)]
-        (update added :sizes (fnil conj [])
-                size))
-      added)))
+  (update state :parts (fnil conj [])
+          (yada.multipart/map->DefaultPart part)))
 
 (defn payload-size
   [{:keys [bytes body-offset] :as piece-or-part}]
@@ -232,7 +218,7 @@
     (consume-part [this state part]
       (if (file-part? part)
         (let [id (uuid)
-              complete-chan-r (flush-tiny-file! filestore id part (last-file-size state))]          
+              complete-chan-r (flush-tiny-file! filestore id part (file-size state))]          
           (-> part
               (assoc :id id
                      :count 1
