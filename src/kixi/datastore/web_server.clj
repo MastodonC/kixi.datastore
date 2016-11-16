@@ -45,7 +45,7 @@
   (when (= 500 (get-in ctx [:response :status]))
     (if (:error ctx)
       (error (:error ctx) "Server error")
-      (error "Server error, no exception available. Ctx: " ctx)))
+      (error "Server error, no exception available")))
   ctx)
 
 (defn append-error-interceptor
@@ -167,16 +167,6 @@
     (finally
       (when (or close false)
         (.close output-stream)))))
-
-(defrecord ErrorPartial
-    [type exception]
-  yada.multipart/Partial
-  (continue
-    [this piece]
-    this)
-  (complete
-    [this state piece]
-    this))
 
 (defrecord StreamingPartial [id ^java.io.OutputStream output-stream complete-chan initial size-bytes pieces-count]
   yada.multipart/Partial
