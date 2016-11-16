@@ -255,6 +255,7 @@
                     (cond
                       (not= :done (:complete file)) (assoc (:response ctx)
                                                            :status 500
+                                                           :error (:complete file)
                                                            :body server-error-resp)
                       explained (return-error ctx explained)
                       (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 
