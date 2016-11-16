@@ -22,7 +22,8 @@
                                     "service" ^:ref [:service-name]
                                     "taskid" #or [#env MESOS_TASK_ID #rand-uuid "rand"]}
                              :seconds #profile {:staging 60
-                                                :local 1}}}
+                                                :local 1
+                                                :circleci 30}}}
  :logging {:level :error ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
