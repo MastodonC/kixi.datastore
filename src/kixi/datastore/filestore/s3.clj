@@ -40,11 +40,11 @@
     component/Lifecycle
     (start [component]      
       (if-not creds
-        (let [c (if endpoint 
-                  {:endpoint endpoint
-                   :secret-key secret-key
-                   :access-key access-key}
-                  {:region region})]
+        (let [c (merge {:endpoint endpoint}
+                       (when secret-key 
+                         {:secret-key secret-key})
+                       (when access-key 
+                         {:access-key access-key}))]
           (ensure-bucket c bucket)
           (assoc component
                  :creds

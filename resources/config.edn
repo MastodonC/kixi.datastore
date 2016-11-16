@@ -36,9 +36,9 @@
                                    :access-key ""
                                    :secret-key ""}}
                       :circleci {:s3 {:bucket "kixi-data-store-file-store"
-                                      :region "eu-central-1"}}
+                                      :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
-                                  :region "eu-central-1"}}}
+                                  :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch {:host #profile {:local "localhost"
                                                  :circleci "localhost"}
                                  :port 9200}}
