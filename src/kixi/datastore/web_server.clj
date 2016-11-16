@@ -209,7 +209,7 @@
 
 (defn file-size
   [piece]
-  (let [^String fs (get-in piece [:request-headers :file-size])]
+  (let [^String fs (get-in piece [:request-headers "file-size"])]
     (Long/valueOf fs)))
 
 (defrecord PartConsumer
@@ -218,7 +218,7 @@
     (consume-part [this state part]
       (if (file-part? part)
         (let [id (uuid)
-              complete-chan-r (flush-tiny-file! filestore id part (file-size state))]          
+              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]          
           (-> part
               (assoc :id id
                      :count 1
