@@ -31,13 +31,13 @@
            :ns-blacklist ["org.eclipse.jetty"]}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
-                              :s3 {:bucket "city-data-store-file-store"
+                              :s3 {:bucket "kixi-data-store-file-store"
                                    :endpoint "s3.eu-central-1.amazonaws.com"
                                    :access-key ""
                                    :secret-key ""}}
-                      :circleci {:s3 {:bucket "city-data-store-file-store"
+                      :circleci {:s3 {:bucket "kixi-data-store-file-store"
                                       :endpoint "s3.eu-central-1.amazonaws.com"}}
-                      :prod {:s3 {:bucket "city-data-store-file-store"
+                      :prod {:s3 {:bucket "kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch {:host #profile {:local "localhost"
                                                  :circleci "localhost"}
