@@ -26,9 +26,9 @@
          (s3/put-object creds
                         bucket id in-stream 
                         {:content-length content-length})
+         :done
          (catch Throwable t
-           (error t "S3 put exception")
-           (throw t))))
+           t)))
      out-stream]))
 
 (defrecord S3
