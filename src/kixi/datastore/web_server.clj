@@ -2,26 +2,24 @@
   (:require [bidi
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
-            [clojure.java.io :as io]
-            [clojure.spec :as spec]
             [cheshire.core :as json]
+            [clojure.spec :as spec]
+            [clojure.core.async :as async :refer [<!!]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.filestore :as ds]
-            [kixi.datastore.metadatastore :as ms]
-            [kixi.comms :as c]
-            [kixi.datastore.communication-specs :as cs]
-            [kixi.datastore.schemastore :as ss]
-            [kixi.datastore.schemastore.validator :as sv]
-            [kixi.datastore.segmentation :as seg]
+            [kixi.datastore
+             [communication-specs :as cs]
+             [filestore :as ds]
+             [metadatastore :as ms]
+             [schemastore :as ss]
+             [segmentation :as seg]
+             [transport-specs :as ts]]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]]
-            [kixi.datastore.transit :as t]
-            [kixi.datastore.schemastore.conformers :as sc]
-            [kixi.datastore.transport-specs :as ts]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]])
+  (:import [java.io IOException]))
 
 (defn ctx->user-id
   [ctx]
@@ -70,11 +68,11 @@
   (spec/keys :req [::error ::msg]))
 
 (spec/fdef return-error
-        :args (spec/cat :ctx ::context
-                        :args (spec/alt :error-map ::error-map
-                                        :error-parts (spec/cat :error ::error
-                                                               :msg ::msg)
-                                        :spec-error ::ms/explain)))
+           :args (spec/cat :ctx ::context
+                           :args (spec/alt :error-map ::error-map
+                                           :error-parts (spec/cat :error ::error
+                                                                  :msg ::msg)
+                                           :spec-error ::ms/explain)))
 
 (defn return-error
   ([ctx error]
@@ -90,12 +88,15 @@
   (assoc (:response ctx)
          :status 401))
 
+(def server-error-resp
+  {:msg "Server Error, see logs"})
+
 (defn resource
   [metrics model]
   (-> model
       (assoc :logger yada-timbre-logger)
-      (assoc :responses {500 {:produces "text/plain"
-                              :response (fn [ctx] "Server Error, see logs")}})
+      (assoc :responses {500 {:produces "application/json"
+                              :response server-error-resp}})
       yada/resource
       (yr/insert-interceptor
        yada.interceptors/available? (:insert-time-in-ctx metrics))
@@ -123,6 +124,26 @@
   []
   (str (java.util.UUID/randomUUID)))
 
+(defn part->string
+  [part]
+  (let [offset (or (:body-offset part) 0)]
+    (String. ^bytes (:bytes part)
+             ^int offset
+             ^int (- (alength ^bytes (:bytes part)) offset))))
+
+(defn part->long
+  [part]
+  (let [offset (or (:body-offset part) 0)]
+    (Long/valueOf
+     (String. ^bytes (:bytes part)
+              ^int offset
+              ^int (- (alength ^bytes (:bytes part)) offset)))))
+
+(defn file-part?
+  [part]
+  (= "application/octet-stream"
+     (get-in part [:headers "content-type"])))
+
 (defn add-part
   [part state]
   (update state :parts (fnil conj [])
@@ -147,7 +168,7 @@
       (when (or close false)
         (.close output-stream)))))
 
-(defrecord StreamingPartial [id output-stream initial size-bytes]
+(defrecord StreamingPartial [id ^java.io.OutputStream output-stream complete-chan initial size-bytes pieces-count]
   yada.multipart/Partial
   (continue [this piece]
     (transfer-piece! output-stream piece (:body-offset piece))
@@ -155,57 +176,55 @@
         (update :pieces-count (fnil inc 0))
         (update :size-bytes (partial + (payload-size piece)))))
   (complete [this state piece]
-    (transfer-piece! output-stream piece true)
+    (transfer-piece! output-stream piece true)    
     (-> initial
         (assoc :type :part
-               :count (:pieces-count this)
+               :count ((fnil inc 1) (:pieces-count this))
                :id id
                :size-bytes (+ size-bytes
-                              (payload-size piece)))
+                              (payload-size piece))
+               :complete (<!! complete-chan))
         (add-part state))))
 
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
-  [filestore id part]
-  (transfer-piece! (ds/output-stream filestore id)
-                   part
-                   true))
-
-(defn file-part?
-  [part]
-  (= "application/octet-stream"
-     (get-in part [:headers "content-type"])))
+  [filestore id part file-size]
+  (let [[complete-chan out] (ds/output-stream filestore id file-size)]
+    (transfer-piece! out
+                     part
+                     true)
+    (<!! complete-chan)))
 
 (def Map {s/Keyword s/Any})
+
+(defn file-size
+  [piece]
+  (let [^String fs (get-in piece [:request-headers "file-size"])]
+    (Long/valueOf fs)))
 
 (defrecord PartConsumer
     [filestore]
     yada.multipart/PartConsumer
-    (consume-part [_ state part]
+    (consume-part [this state part]
       (if (file-part? part)
-        (let [id (uuid)]
-          (flush-tiny-file! filestore id part)
+        (let [id (uuid)
+              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]
           (-> part
               (assoc :id id
                      :count 1
-                     :size-bytes (payload-size part))
+                     :size-bytes (payload-size part)
+                     :complete complete-chan-r)
               (dissoc :bytes)
               (add-part state)))
         (add-part part state)))
-    (start-partial [_ piece]
+    (start-partial [this piece]
       (let [id (uuid)
-            out (ds/output-stream filestore id)]
+            [complete-chan out] (ds/output-stream filestore id (file-size piece))]
         (transfer-piece! out piece)
-        (->StreamingPartial id out
+        (->StreamingPartial id out complete-chan
                             (dissoc piece :bytes)
-                            (payload-size piece))))
-    (part-coercion-matcher [s]
-      "Return a map between a target type and the function that coerces this type into that type"
-      {s/Str (fn [part]
-               (let [offset (or (:body-offset part) 0)]
-                 (String. ^bytes (:bytes part)
-                          ^int offset
-                          ^int (- (alength ^bytes (:bytes part)) offset))))}))
+                            (payload-size piece)
+                            1))))
 
 (defn file-create
   [metrics filestore communications schemastore]
@@ -222,7 +241,7 @@
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
                         file (:file params)
-                        declared-file-size (:size-bytes file) ;obviously broken, want to come from header                        
+                        declared-file-size (Long/valueOf (str (get-in ctx [:request :headers :file-size])))
                         transported-metadata (json/parse-string (:file-metadata params) keyword)
                         file-details {::ms/id (:id file)
                                       ::ms/size-bytes (:size-bytes file)
@@ -234,18 +253,22 @@
                                   file-details)
                         explained (spec/explain-data ::ms/file-metadata metadata)]
                     (cond
+                      (not= :done (:complete file)) (assoc (:response ctx)
+                                                           :status 500
+                                                           :error (:complete file)
+                                                           :body server-error-resp)
                       explained (return-error ctx explained)
                       (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 
-                                                                                  {::error :unknown-schema
-                                                                                   ::msg {:schema-id (::ss/id metadata)}})
+                                                                                     {::error :unknown-schema
+                                                                                      ::msg {:schema-id (::ss/id metadata)}})
                       (not (ss/authorised schemastore
                                           ::ss/use
                                           (::ss/id metadata)
                                           (ctx->user-groups ctx))) (return-unauthorised ctx)
                       (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
-                                                                              {::error :file-upload-failed
-                                                                               ::msg {:declared-size declared-file-size
-                                                                                      :recieved-size (:size-bytes file)}})
+                                                                                 {::error :file-upload-failed
+                                                                                  ::msg {:declared-size declared-file-size
+                                                                                         :received-size (:size-bytes file)}})
                       :else (let [conformed (spec/conform ::ms/file-metadata metadata)]
                               (cs/send-event! communications
                                               (assoc conformed
@@ -256,7 +279,8 @@
                                                               ::cs/file-metadata-update-type 
                                                               ::cs/file-metadata-created
                                                               ::ms/file-metadata conformed})
-                              (java.net.URI. (:uri (yada/uri-for ctx :file-entry {:route-params {:id (::ms/id metadata)}})))))))}}}))
+                              (java.net.URI.
+                               (yada/url-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))}}}))
 
 (defn file-entry
   [metrics filestore metadatastore]
@@ -313,8 +337,9 @@
                                                   ::ms/id file-id
                                                   ::seg/column-name col-name
                                                   :kixi.user/id user-id})))
-                    (java.net.URI. (:uri (yada/uri-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
-                                                                                                    :id file-id}}))))
+                    (java.net.URI.
+                     (yada/url-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
+                                                                                :id file-id}})))
                   (assoc (:response ctx) ;don't know why i'm having to do this here...
                          :status 404))))}}}))
 
@@ -376,10 +401,10 @@
                                      :status 202
                                      :headers {"Location"
                                                (java.net.URI.
-                                                (:uri (yada/uri-for
-                                                       ctx
-                                                       :schema-id-entry
-                                                       {:route-params {:id new-id}})))})))))}}}))
+                                                (yada/url-for
+                                                 ctx
+                                                 :schema-id-entry
+                                                 {:route-params {:id new-id}}))})))))}}}))
 
 (defn healthcheck
   [ctx]

@@ -10,6 +10,9 @@ test:
   pre:
     - ./test-resources/create-test-files.sh
     - docker-compose up -d
+  override:
+    - lein test
+    - SYSTEM_PROFILE=circleci lein test
 
 deployment:
   #production:

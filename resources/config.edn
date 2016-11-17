@@ -1,7 +1,8 @@
 {:service-name "kixi.datastore"
  :web-server {:port #or [#env WEB_SERVER_PORT 8080]}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
-                                             :local "localhost"}                
+                                             :local "localhost"
+                                             :circleci "localhost"}                
                              :port 8086
                                         ;                             :auth 
                              :connect-timeout 1500
@@ -21,20 +22,39 @@
                                     "service" ^:ref [:service-name]
                                     "taskid" #or [#env MESOS_TASK_ID #rand-uuid "rand"]}
                              :seconds #profile {:staging 60
-                                                :local 1}}}
+                                                :local 1
+                                                :circleci 30}}}
  :logging {:level :error ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]}
- :filestore {:local {:base-dir "/kixi-datastore"}}
- :metadatastore {:elasticsearch {:host #profile {:local "localhost"}
-                                 :port 9200}}
- :schemastore {:elasticsearch {:host #profile {:local "localhost"}
-                               :port 9200}}
+ :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
+                                        ;To use S3 locally, remove :local config and set some keys.
+                              :s3 {:bucket "kixi-data-store-file-store"
+                                   :endpoint "s3.eu-central-1.amazonaws.com"
+                                   :access-key ""
+                                   :secret-key ""}}
+                      :circleci {:s3 {:bucket "kixi-data-store-file-store"
+                                      :endpoint "s3.eu-central-1.amazonaws.com"}}
+                      :prod {:s3 {:bucket "kixi-data-store-file-store"
+                                  :endpoint "s3.eu-central-1.amazonaws.com"}}}
+ :metadatastore {:elasticsearch #profile {:local {:host "localhost"
+                                                  :port 9200}
+                                          :circleci {:host "localhost"
+                                                     :port 9200}}}
+ :schemastore {:elasticsearch #profile {:local {:host "localhost"
+                                                :port 9200}
+                                        :circleci {:host "localhost"
+                                                   :port 9200}}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host "127.0.0.1"
                                            :port 2181
                                            :group-id group-id
                                            :consumer-config {:session.timeout.ms 6000
-                                                             :auto.commit.interval.ms 1500}}}}}
+                                                             :auto.commit.interval.ms 1500}}
+                                   :circleci {:host "127.0.0.1"
+                                              :port 2181
+                                              :group-id group-id
+                                              :consumer-config {:session.timeout.ms 6000
+                                                                :auto.commit.interval.ms 1500}}}}}

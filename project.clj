@@ -8,13 +8,15 @@
   :dependencies [[aero "1.0.0"]
                  [aleph "0.4.2-alpha8"]
                  [amazonica "0.3.74" :exclusions [ch.qos.logback/logback-classic
+                                                  com.amazonaws/aws-java-sdk
                                                   com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                                   commons-logging
                                                   com.fasterxml.jackson.core/jackson-databind
                                                   com.fasterxml.jackson.core/jackson-core
                                                   org.apache.httpcomponents/httpclient
                                                   joda-time]]
-                 [bidi "2.0.9"]
+                 [com.amazonaws/aws-java-sdk "1.11.53" :exclusions [joda-time]]
+                 [bidi "2.0.12"]
                  [byte-streams "0.2.2"]
                  [clj-http "2.2.0"]
                  [clj-time "0.12.0"]
@@ -43,7 +45,9 @@
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
-                 [yada "1.1.33" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
+                 [mantree/experimental-yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+;                 [yada "1.1.43" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                 ]
 
   :exclusions [cheshire]
 

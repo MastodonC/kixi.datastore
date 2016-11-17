@@ -1,14 +1,62 @@
 (ns kixi.datastore.filestore.s3
-  (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.filestore :refer [FileStore]]))
+  (:require [amazonica.core :as aws]
+            [amazonica.aws.s3 :as s3]
+            [amazonica.aws.s3transfer :as s3t]
+            [byte-streams :as bs]
+            [clojure.core.async :as async :refer [go]]
+            [com.stuartsierra.component :as component]
+            [kixi.datastore.filestore :as fs :refer [FileStore]]
+            [taoensso.timbre :as timbre :refer [error]]))
+
+(defn ensure-bucket
+  [creds bucket]
+  (when-not (s3/does-bucket-exist creds bucket)
+    (s3/create-bucket creds bucket)))
+
+(def ^Integer buffer-size 
+  "The piped stream must have a buffer size at least as big as the S3 clients: http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/constant-values.html#com.amazonaws.RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE"
+  (inc 131073))
+
+(defn upload
+  [creds bucket id content-length]
+  (let [in-stream (new java.io.PipedInputStream buffer-size)
+        out-stream (new java.io.PipedOutputStream in-stream)]
+    [(go
+       (try
+         (s3/put-object creds
+                        bucket id in-stream 
+                        {:content-length content-length})
+         :done
+         (catch Throwable t
+           t)))
+     out-stream]))
 
 (defrecord S3
-    [region bucket key-prefix]
+    [logging region endpoint access-key secret-key bucket client-options creds]
     FileStore
-    (output-stream [this file-meta-data])
-    (retrieve [this file-meta-data])
+    (exists [this id]
+      (s3/does-object-exist creds bucket id))
+    (output-stream [this id content-length]
+      (upload creds bucket id content-length))
+    (retrieve [this id]
+      (when (s3/does-object-exist creds bucket id)
+        (:object-content
+         (s3/get-object creds bucket id))))
     component/Lifecycle
-    (start [component]
-      component)
+    (start [component]      
+      (if-not creds
+        (let [c (merge {:endpoint endpoint}
+                       (when secret-key 
+                         {:secret-key secret-key})
+                       (when access-key 
+                         {:access-key access-key}))]
+          (ensure-bucket c bucket)
+          (assoc component
+                 :creds
+                 c))
+        component))
     (stop [component]
-      component))
+      (if creds
+        (dissoc component
+                :creds)
+        component)))

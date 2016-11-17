@@ -1,26 +1,48 @@
 (ns kixi.repl
   (:require [com.stuartsierra.component :as component]
-            [kixi.datastore.system :as system]))
+            [clojure.core.async :as async :refer [go-loop >!! chan alts! timeout]]
+            [kixi.datastore.system :as system]
+            [environ.core :refer [env]]))
 
 (defonce system (atom nil))
 
 (defn start
-  []
-  (when-not @system
-    (try
-      (prn "Starting system")
-      (->> (system/new-system :local)
-           component/start-system
-           (reset! system))
-      (catch Exception e
-        (reset! system (:system (ex-data e)))
-        (throw e)))))
+  ([]
+   (start {}))
+  ([overrides]
+   (when-not @system
+     (try
+       (prn "Starting system")
+       (->> (system/new-system (keyword (env :system-profile "local")))
+            (#(merge % overrides))
+            component/start-system
+            (reset! system))
+       (catch Exception e
+         (reset! system (:system (ex-data e)))
+         (throw e))))))
+
+(def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
+(def total-wait-time (Integer/parseInt (env :total-wait-time "1200000")))
+
+(defn keep-circleci-alive
+  [kill-chan]
+  (go-loop [cnt 0]
+    (let [[_ port] (alts! [kill-chan
+                           (timeout wait-emit-msg)])]
+      (when (and
+             (< cnt (/ total-wait-time wait-emit-msg))
+             (not= kill-chan port))
+        (prn "Waiting for system shutdown")
+        (recur (inc cnt))))))
 
 (defn stop
   []
   (when @system
     (prn "Stopping system")
-    (component/stop-system @system)
+    (let [kill-chan (chan)
+          _ (keep-circleci-alive kill-chan)]
+      (component/stop-system @system)
+      (>!! kill-chan :die))
     (reset! system nil)))
 
 (defn restart

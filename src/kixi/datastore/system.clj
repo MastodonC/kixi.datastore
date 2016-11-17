@@ -44,7 +44,7 @@
    :logging [:metrics]
    :communications []
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
-   :filestore []
+   :filestore [:logging]
    :metadatastore [:communications]
    :schemastore [:communications]
                                         ;   :schema-extracter [:communications :filestore]
