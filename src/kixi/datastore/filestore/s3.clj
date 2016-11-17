@@ -5,7 +5,8 @@
             [byte-streams :as bs]
             [clojure.core.async :as async :refer [go]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.filestore :as fs :refer [FileStore]]))
+            [kixi.datastore.filestore :as fs :refer [FileStore]]
+            [taoensso.timbre :as timbre :refer [error]]))
 
 (defn ensure-bucket
   [creds bucket]
@@ -21,9 +22,13 @@
   (let [in-stream (new java.io.PipedInputStream buffer-size)
         out-stream (new java.io.PipedOutputStream in-stream)]
     [(go
-       (s3/put-object creds
-                      bucket id in-stream 
-                      {:content-length content-length}))
+       (try
+         (s3/put-object creds
+                        bucket id in-stream 
+                        {:content-length content-length})
+         :done
+         (catch Throwable t
+           t)))
      out-stream]))
 
 (defrecord S3

@@ -168,16 +168,6 @@
       (when (or close false)
         (.close output-stream)))))
 
-(defrecord ErrorPartial
-    [type exception]
-  yada.multipart/Partial
-  (continue
-    [this piece]
-    this)
-  (complete
-    [this state piece]
-    this))
-
 (defrecord StreamingPartial [id ^java.io.OutputStream output-stream complete-chan initial size-bytes pieces-count]
   yada.multipart/Partial
   (continue [this piece]
@@ -218,7 +208,7 @@
     (consume-part [this state part]
       (if (file-part? part)
         (let [id (uuid)
-              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]          
+              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]
           (-> part
               (assoc :id id
                      :count 1
@@ -265,6 +255,7 @@
                     (cond
                       (not= :done (:complete file)) (assoc (:response ctx)
                                                            :status 500
+                                                           :error (:complete file)
                                                            :body server-error-resp)
                       explained (return-error ctx explained)
                       (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 

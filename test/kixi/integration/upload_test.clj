@@ -168,7 +168,9 @@
                               "./test-resources/metadata-12MB-valid.csv"
                               @irrelevant-schema-id)))
       (finally
-        (component/stop-system system)))))
+        (component/stop-system system)
+        (Thread/sleep 5000)
+        (prn "done")))))
 
 (comment "The 12mb file gets uploaded in 210 parts, test what happens when the stream dies on the final chunk")
 (deftest upload-output-stream-failure-after-209-writes
