@@ -90,7 +90,7 @@
 
 (def apply-attempts 10)
 
-(defn version-conflict
+(defn version-conflict?
   [resp]
   (some
    #(= "version_conflict_engine_exception"
@@ -113,7 +113,7 @@
                          (merge put-opts
                                 (when (:_version curr)
                                   {:version (:_version curr)})))]
-       (if (and (version-conflict resp)
+       (if (and (version-conflict? resp)
                 (pos? tries))
          (recur (dec tries))
          resp)))))
