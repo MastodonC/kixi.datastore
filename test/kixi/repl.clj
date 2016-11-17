@@ -7,19 +7,22 @@
 (defonce system (atom nil))
 
 (defn start
-  []
-  (when-not @system
-    (try
-      (prn "Starting system")
-      (->> (system/new-system (keyword (env :system-profile "local")))
-           component/start-system
-           (reset! system))
-      (catch Exception e
-        (reset! system (:system (ex-data e)))
-        (throw e)))))
+  ([]
+   (start {}))
+  ([overrides]
+   (when-not @system
+     (try
+       (prn "Starting system")
+       (->> (system/new-system (keyword (env :system-profile "local")))
+            (#(merge % overrides))
+            component/start-system
+            (reset! system))
+       (catch Exception e
+         (reset! system (:system (ex-data e)))
+         (throw e))))))
 
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
-(def total-wait-time (Integer/parseInt (env :total-wait-time "600000")))
+(def total-wait-time (Integer/parseInt (env :total-wait-time "1200000")))
 
 (defn keep-circleci-alive
   [kill-chan]
@@ -29,7 +32,7 @@
       (when (and
              (< cnt (/ total-wait-time wait-emit-msg))
              (not= kill-chan port))
-        (print "Waiting for system shutdown")
+        (prn "Waiting for system shutdown")
         (recur (inc cnt))))))
 
 (defn stop

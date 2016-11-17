@@ -71,8 +71,24 @@
     (finally
       (repl/stop))))
 
-(defrecord OutputStreamsFailAfterX
-    [x]
+(def caller-depth
+  {"consume_part" 8
+   "start_partial" 6
+   "continue" 6
+   "complete" 6})
+
+(defn called-from?
+  [target]
+  (let [depth (get caller-depth target)]
+    (fn []
+      (let [e (new Exception)
+            st (.getStackTrace e)
+            ^StackTraceElement ele (nth st depth)]
+        (= target
+           (.getMethodName ele))))))
+
+(defrecord OutputStreamsFailWhenCalledFrom
+    [called-from]
     fs/FileStore
     (exists [this id]
       (throw (new IllegalAccessException)))
@@ -80,8 +96,7 @@
       [(go :done)
        (proxy [java.io.OutputStream] []
          (write [array start end]
-           (if (pos? @x)
-             (swap! x dec)
+           (when (called-from)
              (throw (new java.io.IOException)))))])
     (retrieve [this id]
       (throw (new IllegalAccessException)))
@@ -99,7 +114,7 @@
     (exists [this id]
       (throw (new IllegalAccessException)))
     (output-stream [this id content-length]
-      [(go (throw (new java.io.IOException)))
+      [(go (new java.io.IOException))
        (proxy [java.io.OutputStream] []
          (write [array start end]
            true))])
@@ -113,11 +128,9 @@
       component))
 
 
-(deftest upload-output-stream-immediate-failure
-  (let [system (-> (system/new-system :local)
-                   (assoc :filestore
-                          (map->OutputStreamsFailAfterX {:x (atom 0)}))
-                   component/start-system)]
+(deftest upload-small-file-with-IOException-on-consume_part
+  (let [system (repl/start {:filestore
+                            (OutputStreamsFailWhenCalledFrom. (called-from? "consume_part"))})]
     (setup-schema)
     (try
       (let [r (post-file uid
@@ -126,6 +139,14 @@
         (is (= 500
                (:status r))
             (str "Reason: " (parse-json (:body r)))))
+      (finally
+        (repl/stop)))))
+
+(deftest upload-12MB-file-with-IOException-on-start_partial
+  (let [system (repl/start {:filestore
+                            (OutputStreamsFailWhenCalledFrom. (called-from? "start_partial"))})]
+    (setup-schema)
+    (try     
       (comment "This is what should happen with a larger than 1 chunk file"
                (let [r (post-file uid
                                   "./test-resources/metadata-12MB-valid.csv"
@@ -139,22 +160,14 @@
                               "./test-resources/metadata-12MB-valid.csv"
                               @irrelevant-schema-id)))
       (finally
-        (component/stop-system system)))))
+        (repl/stop)))))
 
 
-(deftest upload-output-stream-failure-after-2-writes
-  (let [system (-> (system/new-system :local)
-                   (assoc :filestore
-                          (map->OutputStreamsFailAfterX {:x (atom 2)}))
-                   component/start-system)]
+(deftest upload-12MB-file-with-IOException-on-continue
+  (let [system (repl/start {:filestore
+                            (OutputStreamsFailWhenCalledFrom. (called-from? "continue"))})]
     (setup-schema)
-    (try
-      (let [r (post-file uid
-                         "./test-resources/metadata-one-valid.csv"
-                         @irrelevant-schema-id)]
-        (is (= 201
-               (:status r))
-            (str "Created, as the tiny file will go through in one write")))
+    (try      
       (comment "This is what should happen with a larger than 1 chunk file"
                (let [r (post-file uid
                                   "./test-resources/metadata-12MB-valid.csv"
@@ -164,20 +177,15 @@
                      (str "Reason: " (parse-json (:body r))))))
       (comment "This is what currently occurs:")
       (is (thrown? java.net.SocketException
-                   (post-file uid
-                              "./test-resources/metadata-12MB-valid.csv"
-                              @irrelevant-schema-id)))
+                   (prn (post-file uid
+                                   "./test-resources/metadata-12MB-valid.csv"
+                                   @irrelevant-schema-id))))
       (finally
-        (component/stop-system system)
-        (Thread/sleep 5000)
-        (prn "done")))))
+        (repl/stop)))))
 
-(comment "The 12mb file gets uploaded in 210 parts, test what happens when the stream dies on the final chunk")
-(deftest upload-output-stream-failure-after-209-writes
-  (let [system (-> (system/new-system :local)
-                   (assoc :filestore
-                          (map->OutputStreamsFailAfterX {:x (atom 209)}))
-                   component/start-system)]
+(deftest upload-12MB-file-with-IOException-on-complete
+  (let [system (repl/start {:filestore
+                            (OutputStreamsFailWhenCalledFrom. (called-from? "complete"))})]
     (setup-schema)
     (try
       (let [r (post-file uid
@@ -187,13 +195,11 @@
                (:status r))
             (str "Reason: " (parse-json (:body r)))))
       (finally
-        (component/stop-system system)))))
+        (repl/stop)))))
 
-(deftest upload-channel-exception
-  (let [system (-> (system/new-system :local)
-                   (assoc :filestore
-                          (map->ExceptionInChan {}))
-                   component/start-system)]
+(deftest upload-12MB-file-with-IOException-from-completion-channel
+  (let [system (repl/start {:filestore
+                            (map->ExceptionInChan {})})]
     (setup-schema)
     (try
       (let [r (post-file uid
@@ -203,4 +209,4 @@
                (:status r))
             (str "Reason: " (parse-json (:body r)))))
       (finally
-        (component/stop-system system)))))
+        (repl/stop)))))

@@ -39,12 +39,14 @@
                                       :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
- :metadatastore {:elasticsearch {:host #profile {:local "localhost"
-                                                 :circleci "localhost"}
-                                 :port 9200}}
- :schemastore {:elasticsearch {:host #profile {:local "localhost"
-                                               :circleci "localhost"}
-                               :port 9200}}
+ :metadatastore {:elasticsearch #profile {:local {:host "localhost"
+                                                  :port 9200}
+                                          :circleci {:host "search-sandpit-elasticsearch-xijn4teq3gmimkpzpy2ivbbnbm.eu-central-1.es.amazonaws.com"
+                                                     :port 80}}}
+ :schemastore {:elasticsearch #profile {:local {:host "localhost"
+                                                :port 9200}
+                                        :circleci {:host "search-sandpit-elasticsearch-xijn4teq3gmimkpzpy2ivbbnbm.eu-central-1.es.amazonaws.com"
+                                                   :port 80}}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host "127.0.0.1"
                                            :port 2181
