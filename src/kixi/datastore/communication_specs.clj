@@ -3,7 +3,8 @@
             [kixi.comms :as c]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.schemastore :as ss]))
+            [kixi.datastore.schemastore :as ss]
+            [taoensso.timbre :as timbre]))
 
 (s/def ::event #{:kixi.datastore/file-created
                  :kixi.datastore/file-metadata-updated
@@ -59,9 +60,12 @@
 
 (defn send-event!
   [comms payload-plus]
-  (c/send-event! comms
-                 (::event payload-plus) 
-                 (::version payload-plus)
-                 (dissoc payload-plus
-                         ::event
-                         ::version)))
+  (try
+    (c/send-event! comms
+                   (::event payload-plus) 
+                   (::version payload-plus)
+                   (dissoc payload-plus
+                           ::event
+                           ::version))
+    (catch Exception e
+      (timbre/error e "Exception sending event: " payload-plus))))

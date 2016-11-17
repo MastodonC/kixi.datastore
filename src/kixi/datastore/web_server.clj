@@ -3,8 +3,8 @@
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
             [cheshire.core :as json]
-            [clojure.spec :as spec]
             [clojure.core.async :as async :refer [<!!]]
+            [clojure.spec :as spec]
             [com.stuartsierra.component :as component]
             [kixi.datastore
              [communication-specs :as cs]
@@ -12,14 +12,14 @@
              [metadatastore :as ms]
              [schemastore :as ss]
              [segmentation :as seg]
+             [time :as t]
              [transport-specs :as ts]]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]])
-  (:import [java.io IOException]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]]))
 
 (defn ctx->user-id
   [ctx]
@@ -247,38 +247,42 @@
                                       ::ms/size-bytes (:size-bytes file)
                                       ::ms/provenance {::ms/source "upload"
                                                        ::ms/pieces-count (:count file)
-                                                       :kixi.user/id (ctx->user-id ctx)}}
+                                                       :kixi.user/id (ctx->user-id ctx)
+                                                       ::ms/created (t/timestamp)}}
                         metadata (ts/filemetadata-transport->internal
-                                  (dissoc transported-metadata :user-id)
+                                  transported-metadata
                                   file-details)
-                        explained (spec/explain-data ::ms/file-metadata metadata)]
+                        explained (spec/explain-data ::ms/file-metadata metadata)
+                        schema-id (get-in metadata [::ms/schema ::ss/id])]
                     (cond
                       (not= :done (:complete file)) (assoc (:response ctx)
                                                            :status 500
                                                            :error (:complete file)
                                                            :body server-error-resp)
                       explained (return-error ctx explained)
-                      (not (ss/exists schemastore (::ss/id metadata))) (return-error ctx 
-                                                                                     {::error :unknown-schema
-                                                                                      ::msg {:schema-id (::ss/id metadata)}})
-                      (not (ss/authorised schemastore
-                                          ::ss/use
-                                          (::ss/id metadata)
-                                          (ctx->user-groups ctx))) (return-unauthorised ctx)
+                      (and schema-id
+                           (not (ss/exists schemastore schema-id))) (return-error ctx 
+                                                                                  {::error :unknown-schema
+                                                                                   ::msg {:schema-id schema-id}})
+                      (and schema-id
+                           (not (ss/authorised schemastore
+                                               ::ss/use
+                                               schema-id
+                                               (ctx->user-groups ctx)))) (return-unauthorised ctx)
                       (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
                                                                                  {::error :file-upload-failed
                                                                                   ::msg {:declared-size declared-file-size
                                                                                          :received-size (:size-bytes file)}})
-                      :else (let [conformed (spec/conform ::ms/file-metadata metadata)]
+                      :else (do
                               (cs/send-event! communications
-                                              (assoc conformed
+                                              (assoc metadata
                                                      ::cs/event :kixi.datastore/file-created
                                                      ::cs/version "1.0.0"))
                               (cs/send-event! communications {::cs/event :kixi.datastore/file-metadata-updated
                                                               ::cs/version "1.0.0"
                                                               ::cs/file-metadata-update-type 
                                                               ::cs/file-metadata-created
-                                                              ::ms/file-metadata conformed})
+                                                              ::ms/file-metadata metadata})
                               (java.net.URI.
                                (yada/url-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))}}}))
 

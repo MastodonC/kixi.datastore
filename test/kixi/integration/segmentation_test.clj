@@ -89,7 +89,7 @@
             (doseq [seg-id segment-ids]
               (let [seg-meta-resp (get-metadata uid seg-id)]
                 (is-submap {:status 200
-                            :body {::ss/id @small-segmentable-file-schema-id
+                            :body {::ms/schema {::ss/id @small-segmentable-file-schema-id}
                                    ::ms/id seg-id
                                    ::ms/type (::ms/type base-file-meta)
                                    ::ms/provenance {::ms/parent-id base-file-id}

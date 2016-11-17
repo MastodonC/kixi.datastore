@@ -15,6 +15,8 @@
 (s/def ::line-count int?)
 (s/def ::header sc/bool?)
 (s/def :kixi.user/id sc/uuid)
+(s/def ::created sc/timestamp)
+(s/def ::added sc/timestamp)
 
 (s/def :kixi.user-group/id sc/uuid)
 
@@ -39,11 +41,11 @@
 
 (defmethod provenance-type "upload"
   [_]
-  (s/keys :req [::source ::pieces-count :kixi.user/id]))
+  (s/keys :req [::source ::pieces-count :kixi.user/id ::created]))
 
 (defmethod provenance-type "segmentation"
   [_]
-  (s/keys :req [::source ::parent-id :kixi.user/id]))
+  (s/keys :req [::source ::parent-id :kixi.user/id ::created]))
 
 (s/def ::provenance (s/multi-spec provenance-type ::source))
 
@@ -74,9 +76,12 @@
   (s/keys :req [::valid]
           :opt [::explain]))
 
+(s/def ::schema
+  (s/keys :req [::schemastore/id :kixi.user/id ::added]))
+
 (s/def ::file-metadata
-  (s/keys :req [::type ::id ::name ::schemastore/id ::provenance ::size-bytes ::sharing]
-          :opt [::segmentations ::segment ::structural-validation]))
+  (s/keys :req [::type ::id ::name ::provenance ::size-bytes ::sharing]
+          :opt [::schema ::segmentations ::segment ::structural-validation]))
 
 (defprotocol MetaDataStore
   (authorised
