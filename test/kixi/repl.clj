@@ -1,5 +1,6 @@
 (ns kixi.repl
   (:require [com.stuartsierra.component :as component]
+            [clojure.core.async :as async :refer [go-loop >!! chan alts! timeout]]
             [kixi.datastore.system :as system]
             [environ.core :refer [env]]))
 
@@ -17,11 +18,28 @@
         (reset! system (:system (ex-data e)))
         (throw e)))))
 
+(def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
+(def total-wait-time (Integer/parseInt (env :total-wait-time "600000")))
+
+(defn keep-circleci-alive
+  [kill-chan]
+  (go-loop [cnt 0]
+    (let [[_ port] (alts! [kill-chan
+                           (timeout wait-emit-msg)])]
+      (when (and
+             (< cnt (/ total-wait-time wait-emit-msg))
+             (not= kill-chan port))
+        (print "Waiting for system shutdown")
+        (recur (inc cnt))))))
+
 (defn stop
   []
   (when @system
     (prn "Stopping system")
-    (component/stop-system @system)
+    (let [kill-chan (chan)
+          _ (keep-circleci-alive kill-chan)]
+      (component/stop-system @system)
+      (>!! kill-chan :die))
     (reset! system nil)))
 
 (defn restart

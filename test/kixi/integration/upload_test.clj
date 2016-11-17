@@ -58,16 +58,16 @@
         (is (files-match?
              "./test-resources/metadata-12MB-valid.csv"
              (dload-file uid locat)))))
-    #_(let [r (post-file uid
-                         "./test-resources/metadata-344MB-valid.csv"
-                         @irrelevant-schema-id)]
-        (is (= 201
-               (:status r))
-            (str "Reason: " (parse-json (:body r))))
-        (when-let [locat (get-in r [:headers "Location"])]
-          (is (files-match?
-               "./test-resources/metadata-344MB-valid.csv"
-               (dload-file uid locat)))))
+    (let [r (post-file uid
+                       "./test-resources/metadata-344MB-valid.csv"
+                       @irrelevant-schema-id)]
+      (is (= 201
+             (:status r))
+          (str "Reason: " (parse-json (:body r))))
+      (when-let [locat (get-in r [:headers "Location"])]
+        (is (files-match?
+             "./test-resources/metadata-344MB-valid.csv"
+             (dload-file uid locat)))))
     (finally
       (repl/stop))))
 
@@ -168,9 +168,7 @@
                               "./test-resources/metadata-12MB-valid.csv"
                               @irrelevant-schema-id)))
       (finally
-        (component/stop-system system)
-        (Thread/sleep 5000)
-        (prn "done")))))
+        (component/stop-system system)))))
 
 (comment "The 12mb file gets uploaded in 210 parts, test what happens when the stream dies on the final chunk")
 (deftest upload-output-stream-failure-after-209-writes
