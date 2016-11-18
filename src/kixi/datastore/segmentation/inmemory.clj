@@ -107,7 +107,9 @@
                                              ::seg/line-count (:lines segment-data)
                                              ::seg/value (:value segment-data)})
                        (assoc-in [::ms/schema ::ms/added]
-                                 (t/timestamp)))]
+                                 (t/timestamp))
+                       (assoc-in [::ms/schema :kixi.user/id]
+                                 (:kixi.user/id request)))]
       (cs/send-event! communications
                       (assoc metadata
                              ::cs/event :kixi.datastore/file-created

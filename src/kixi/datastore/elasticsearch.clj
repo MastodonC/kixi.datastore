@@ -3,7 +3,8 @@
             [clojurewerkz.elastisch.rest
              [document :as esd]
              [index :as esi]]
-            [taoensso.timbre :as timbre :refer [error]]))
+            [taoensso.timbre :as timbre :refer [error]]
+            [kixi.datastore.time :as t]))
 
 (def put-opts {:consistency "default"})
 
@@ -17,10 +18,14 @@
    :store "yes"})
 
 (def timestamp
-  {:type "string"})
+  {:type "date"
+   :format t/es-format})
 
-(def number
-  {:type "string"})
+(def long
+  {:type "long"})
+
+(def double
+  {:type "double"})
 
 (defn kw->es-format
   [kw]

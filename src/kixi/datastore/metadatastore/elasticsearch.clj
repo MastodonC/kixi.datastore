@@ -5,7 +5,7 @@
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
-             [elasticsearch :as es :refer [ensure-index string-stored-not_analyzed]]
+             [elasticsearch :as es :refer [ensure-index string-stored-not_analyzed string-analyzed]]
              [metadatastore :as ms :refer [MetaDataStore]]
              [schemastore :as ss]
              [segmentation :as seg]]
@@ -17,17 +17,18 @@
 (def doc-def
   {::ms/id string-stored-not_analyzed
    ::ms/type string-stored-not_analyzed
-   ::ms/name {:type "string"
-              :store "yes"}
-   ::ss/id string-stored-not_analyzed
+   ::ms/name string-analyzed
+   ::ms/schame {:type "nested"
+                :properties {::ss/id string-stored-not_analyzed
+                             ::ms/added es/timestamp}}
    ::ms/provenance {:type "nested"
                     :properties {::ms/source string-stored-not_analyzed
                                  :kixi.user/id string-stored-not_analyzed
-                                 ::ms/pieces-count {:type "integer"}
-                                 ::ms/parent-id string-stored-not_analyzed}}
+                                 ::ms/parent-id string-stored-not_analyzed
+                                 ::ms/created es/timestamp}}
    ::ms/segmentation {:type "nested"
                       :properties {::seg/type string-stored-not_analyzed
-                                   ::seg/line-count {:type "integer"}
+                                   ::seg/line-count es/long
                                    ::seg/value string-stored-not_analyzed}}
    ::ms/sharing {:type "nested"
                  :properties (zipmap ms/activities
