@@ -208,18 +208,12 @@
   ([uid file-name schema-id]
    (post-file uid uid file-name schema-id))
   ([uid ugroup file-name schema-id]
-   (if schema-id
-     (post-file-and-wait :file-name file-name 
-                         :schema-id schema-id 
-                         :user-id uid
-                         :user-groups ugroup
-                         :sharing {:file-read [ugroup]
-                                   :meta-read [ugroup]})
-     (post-file-and-wait :file-name file-name
-                         :user-id uid
-                         :user-groups ugroup
-                         :sharing {:file-read [ugroup]
-                                   :meta-read [ugroup]}))))
+   (post-file-and-wait :file-name file-name 
+                       :schema-id schema-id 
+                       :user-id uid
+                       :user-groups ugroup
+                       :sharing {:file-read [ugroup]
+                                 :meta-read [ugroup]})))
 
 (defn post-segmentation
   [url seg]
