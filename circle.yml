@@ -27,7 +27,7 @@ deployment:
   #    - docker push mastodonc/witan.workspace-peer
   #    - ./deploy.sh $DEPLOY_IP production
   staging:
-    branch: metrics
+    branch: master
     commands:
       - lein clean
       - lein uberjar
