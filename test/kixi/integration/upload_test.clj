@@ -19,28 +19,11 @@
 
 (def uid (uuid))
 
-(def irrelevant-schema-id (atom nil))
-(def irrelevant-schema {:name ::irrelevant-schema
-                        :schema {:type "list"
-                                 :definition [:cola {:type "integer"}
-                                              :colb {:type "integer"}]
-                                 :sharing {:read [uid]
-                                           :use [uid]}}})
-
-(defn setup-schema
-  []
-  (let [r (post-spec-and-wait uid irrelevant-schema)]
-    (if (= 202 (:status r))
-      (reset! irrelevant-schema-id (extract-id r))
-      (throw (Exception. "Couldn't post irrelevant-schema")))))
-
 (deftest round-trip-files
   (try 
     (repl/start)
-    (setup-schema)
     (let [r (post-file uid
-                       "./test-resources/metadata-one-valid.csv"
-                       @irrelevant-schema-id)]
+                       "./test-resources/metadata-one-valid.csv")]
       (is (= 201
              (:status r))
           (str "Reason: " (parse-json (:body r))))
@@ -49,8 +32,7 @@
              "./test-resources/metadata-one-valid.csv"
              (dload-file uid locat)))))
     (let [r (post-file uid
-                       "./test-resources/metadata-12MB-valid.csv"
-                       @irrelevant-schema-id)]
+                       "./test-resources/metadata-12MB-valid.csv")]
       (is (= 201
              (:status r))
           (str "Reason: " (parse-json (:body r))))
@@ -59,8 +41,7 @@
              "./test-resources/metadata-12MB-valid.csv"
              (dload-file uid locat)))))
     (let [r (post-file uid
-                       "./test-resources/metadata-344MB-valid.csv"
-                       @irrelevant-schema-id)]
+                       "./test-resources/metadata-344MB-valid.csv")]
       (is (= 201
              (:status r))
           (str "Reason: " (parse-json (:body r))))
@@ -131,11 +112,9 @@
 (deftest upload-small-file-with-IOException-on-consume_part
   (let [system (repl/start {:filestore
                             (OutputStreamsFailWhenCalledFrom. (called-from? "consume_part"))})]
-    (setup-schema)
     (try
       (let [r (post-file uid
-                         "./test-resources/metadata-one-valid.csv"
-                         @irrelevant-schema-id)]
+                         "./test-resources/metadata-one-valid.csv")]
         (is (= 500
                (:status r))
             (str "Reason: " (parse-json (:body r)))))
@@ -145,20 +124,17 @@
 (deftest upload-12MB-file-with-IOException-on-start_partial
   (let [system (repl/start {:filestore
                             (OutputStreamsFailWhenCalledFrom. (called-from? "start_partial"))})]
-    (setup-schema)
     (try     
       (comment "This is what should happen with a larger than 1 chunk file"
                (let [r (post-file uid
-                                  "./test-resources/metadata-12MB-valid.csv"
-                                  @irrelevant-schema-id)]
+                                  "./test-resources/metadata-12MB-valid.csv")]
                  (is (= 500
                         (:status r))
                      (str "Reason: " (parse-json (:body r))))))
       (comment "This is what currently occurs:")
       (is (thrown? java.net.SocketException
                    (post-file uid
-                              "./test-resources/metadata-12MB-valid.csv"
-                              @irrelevant-schema-id)))
+                              "./test-resources/metadata-12MB-valid.csv")))
       (finally
         (repl/stop)))))
 
@@ -166,31 +142,26 @@
 (deftest upload-12MB-file-with-IOException-on-continue
   (let [system (repl/start {:filestore
                             (OutputStreamsFailWhenCalledFrom. (called-from? "continue"))})]
-    (setup-schema)
     (try      
       (comment "This is what should happen with a larger than 1 chunk file"
                (let [r (post-file uid
-                                  "./test-resources/metadata-12MB-valid.csv"
-                                  @irrelevant-schema-id)]
+                                  "./test-resources/metadata-12MB-valid.csv")]
                  (is (= 500
                         (:status r))
                      (str "Reason: " (parse-json (:body r))))))
       (comment "This is what currently occurs:")
       (is (thrown? java.net.SocketException
                    (prn (post-file uid
-                                   "./test-resources/metadata-12MB-valid.csv"
-                                   @irrelevant-schema-id))))
+                                   "./test-resources/metadata-12MB-valid.csv"))))
       (finally
         (repl/stop)))))
 
 (deftest upload-12MB-file-with-IOException-on-complete
   (let [system (repl/start {:filestore
                             (OutputStreamsFailWhenCalledFrom. (called-from? "complete"))})]
-    (setup-schema)
     (try
       (let [r (post-file uid
-                         "./test-resources/metadata-12MB-valid.csv"
-                         @irrelevant-schema-id)]
+                         "./test-resources/metadata-12MB-valid.csv")]
         (is (= 500
                (:status r))
             (str "Reason: " (parse-json (:body r)))))
@@ -200,11 +171,9 @@
 (deftest upload-12MB-file-with-IOException-from-completion-channel
   (let [system (repl/start {:filestore
                             (map->ExceptionInChan {})})]
-    (setup-schema)
     (try
       (let [r (post-file uid
-                         "./test-resources/metadata-12MB-valid.csv"
-                         @irrelevant-schema-id)]
+                         "./test-resources/metadata-12MB-valid.csv")]
         (is (= 500
                (:status r))
             (str "Reason: " (parse-json (:body r)))))

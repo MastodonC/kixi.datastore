@@ -167,17 +167,21 @@
     (vector x)))
 
 (defn post-file-flex
-  [& {:keys [^String file-name schema-id user-id user-groups sharing]}]
+  [& {:keys [^String file-name schema-id user-id user-groups sharing header]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file"
                                      :content (io/file file-name)}
                                     {:name "file-metadata" 
                                      :content (encode-json (merge {:name "foo"
-                                                                   :header true
-                                                                   :schema-id schema-id}
+                                                                   :header true}
+                                                                  (if-not (nil? header)
+                                                                    {:header header}
+                                                                    {:header true})
                                                                   (when sharing
-                                                                    {:sharing sharing})))}]
+                                                                    {:sharing sharing})
+                                                                  (when schema-id
+                                                                    {:schema-id schema-id})))}]
                         :headers {"user-id" user-id
                                   "user-groups" (vec-if-not user-groups)
                                   "file-size" (str (.length (io/file file-name)))}
@@ -199,6 +203,8 @@
     pfr))
 
 (defn post-file
+  ([uid file-name]
+   (post-file uid uid file-name nil))
   ([uid file-name schema-id]
    (post-file uid uid file-name schema-id))
   ([uid ugroup file-name schema-id]

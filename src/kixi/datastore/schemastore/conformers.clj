@@ -3,7 +3,8 @@
             [clojure.spec :as s]
             [clojure.spec.gen :as gen]
             [clj-time.core :as t]
-            [clj-time.format :as tf]))
+            [clj-time.format :as tf]
+            [kixi.datastore.time :as time]))
 
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"
@@ -160,7 +161,7 @@
     :else (str x)))
 
 (def time-parser   
-  (partial tf/parse (tf/formatters :basic-date-time)))
+  (partial tf/parse time/formatter))
 
 (defn timestamp?
   [x]

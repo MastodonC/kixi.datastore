@@ -46,12 +46,55 @@
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)
-                 ::ss/id @metadata-file-schema-id
+                 ::ms/schema {::ss/id @metadata-file-schema-id
+                              :kixi.user/id uid}
                  ::ms/type "csv"
                  ::ms/name "foo"
                  ::ms/header true
                  ::ms/size-bytes 14
-                 ::ms/provenance {::ms/source "upload"
+                 ::ms/provenance {:kixi.user/id uid
+                                  ::ms/source "upload"
+                                  ::ms/pieces-count 1}
+                 ::ms/structural-validation {::ms/valid true}}}
+         metadata-response)))))
+
+(deftest small-file-no-schema
+  (let [pfr (post-file "./test-resources/metadata-one-valid.csv")]
+    (when-created pfr 
+      (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/id)]
+        (is-submap
+         {:status 200
+          :body {::ms/id (extract-id pfr)
+                 ::ms/type "csv"
+                 ::ms/name "foo"
+                 ::ms/header true
+                 ::ms/size-bytes 14
+                 ::ms/provenance {:kixi.user/id uid
+                                  ::ms/source "upload"
+                                  ::ms/pieces-count 1}}}
+         metadata-response)        
+        (is (nil? (::ms/schema metadata-response)))
+        (is (nil? (::ms/structural-validation metadata-response)))))))
+
+(deftest small-file-no-header
+  (let [pfr (post-file-and-wait :file-name "./test-resources/metadata-one-valid-no-header.csv"
+                                :user-id uid
+                                :user-groups uid
+                                :schema-id @metadata-file-schema-id
+                                :sharing {:file-read [uid]
+                                          :meta-read [uid]}
+                                :header false)]
+    (when-created pfr 
+      (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
+        (is-submap
+         {:status 200
+          :body {::ms/id (extract-id pfr)
+                 ::ms/type "csv"
+                 ::ms/name "foo"
+                 ::ms/header false
+                 ::ms/size-bytes 4
+                 ::ms/provenance {:kixi.user/id uid
+                                  ::ms/source "upload"
                                   ::ms/pieces-count 1}
                  ::ms/structural-validation {::ms/valid true}}}
          metadata-response)))))
@@ -73,11 +116,13 @@
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)
-                 ::ss/id @metadata-file-schema-id
+                 ::ms/schema {:kixi.user/id uid
+                              ::ss/id @metadata-file-schema-id}
                  ::ms/type "csv",
                  ::ms/name "foo",
                  ::ms/size-bytes 14,
-                 ::ms/provenance {::ms/source "upload"
+                 ::ms/provenance {:kixi.user/id uid
+                                  ::ms/source "upload"
                                   ::ms/pieces-count 1}
                  ::ms/structural-validation {::ms/valid false}}}
          metadata-response)))))

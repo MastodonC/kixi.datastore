@@ -1,16 +1,19 @@
 (ns kixi.datastore.transport-specs
-  (:require [clojure.spec :as s]
-            [clojure.walk :as walk]
-            [kixi.datastore.schemastore :as ss]
-            [kixi.datastore.metadatastore :as ms]
+  (:require [clojure
+             [spec :as s]
+             [walk :as walk]]
+            [kixi.datastore
+             [metadatastore :as ms]
+             [schemastore :as ss]
+             [time :as t]]
             [kixi.datastore.schemastore.conformers :refer [uuid]]))
 
 (s/def ::schema-id uuid)
 
 (s/def ::filemetadata-transport
-  (s/keys :req-un [::schema-id
-                   ::ms/name]
-          :opt-un [::ms/type
+  (s/keys :req-un [::ms/name]
+          :opt-un [::schema-id
+                   ::ms/type
                    ::ms/header
                    ::ms/sharing]))
 
@@ -36,7 +39,7 @@
                     (= (::ms/provenance details)
                        (::ms/provenance file-metadata))
                     (= (:schema-id meta)
-                       (::ss/id file-metadata))
+                       (get-in file-metadata [::ms/schema ::ss/id]))
                     (= (:name meta)
                        (::ms/name file-metadata))
                     (or (= (:sharing meta)
@@ -59,16 +62,29 @@
    :schema-id ::ss/id
    :sharing ::ms/sharing})
 
+(defn raise-schema
+  [md user-id]
+  (if (::ss/id md)
+    (-> md
+        (assoc ::ms/schema
+               {::ss/id (::ss/id md)
+                :kixi.user/id user-id
+                ::ms/added (t/timestamp)})
+        (dissoc ::ss/id))
+    md))
+
 (defn filemetadata-transport->internal
   [transport file-details]
   (let [mapped (zipmap (map key-mapping (keys transport))
-                       (vals transport))
+                       (vals transport))        
         with-primaries (merge default-primary-metadata
                               mapped)
         with-file-type (merge (get file-type->default-metadata
                                    (::ms/type with-primaries))
-                              with-primaries)]
-    (merge with-file-type
+                              with-primaries)
+        with-schema (raise-schema with-file-type 
+                                  (get-in file-details [::ms/provenance :kixi.user/id]))]
+    (merge with-schema
            file-details)))
 
 (defn add-ns-to-keys

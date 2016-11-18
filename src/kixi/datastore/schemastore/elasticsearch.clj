@@ -21,15 +21,15 @@
                 :properties {::ss/tag string-stored-not_analyzed
                              ::ss/type string-stored-not_analyzed
                              ::ss/id string-stored-not_analyzed
-                             ::ss/min es/number
-                             ::ss/max es/number
+                             ::ss/min es/double
+                             ::ss/max es/double
                              ::ss/pattern string-stored-not_analyzed
                              ::ss/elements string-stored-not_analyzed
                              ::ss/definition {:type "nested"
                                               :properties {::ss/type string-stored-not_analyzed
                                                            ::ss/id string-stored-not_analyzed
-                                                           ::ss/min es/number
-                                                           ::ss/max es/number
+                                                           ::ss/min es/double
+                                                           ::ss/max es/double
                                                            ::ss/pattern string-stored-not_analyzed
                                                            ::ss/elements string-stored-not_analyzed}}}}})
 

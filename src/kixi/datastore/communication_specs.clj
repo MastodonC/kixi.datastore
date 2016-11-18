@@ -1,9 +1,10 @@
 (ns kixi.datastore.communication-specs
   (:require [clojure.spec :as s]
             [kixi.comms :as c]
-            [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.schemastore :as ss]))
+            [kixi.datastore
+             [metadatastore :as ms]
+             [schemastore :as ss]
+             [segmentation :as seg]]))
 
 (s/def ::event #{:kixi.datastore/file-created
                  :kixi.datastore/file-metadata-updated

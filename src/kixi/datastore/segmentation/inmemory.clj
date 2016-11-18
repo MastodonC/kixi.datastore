@@ -1,19 +1,19 @@
 (ns kixi.datastore.segmentation.inmemory
   (:require [byte-streams :as bs]
-            [com.stuartsierra.component :as component]
-            [clj-time.core :refer [now]]
+            [clojure-csv.core :as csv :refer [parse-csv write-csv]]
             [clojure.java.io :as io]
             [clojure.spec :as s]
-            [clojure-csv.core :as csv :refer [parse-csv write-csv]]
-            [kixi.datastore.segmentation :as seg :refer [Segmentation]]
-            [kixi.comms :refer [Communications attach-event-handler!] :as comms]
-            [kixi.datastore.communication-specs :as cs]
-            [kixi.datastore.filestore :as kdfs]
-            [kixi.datastore.schemastore :as ss]
-            [kixi.datastore.metadatastore :as ms]
-            [taoensso.timbre :as timbre :refer [error info infof]]
-            [kixi.datastore.communications :as c]
-            [kixi.datastore.file :refer [temp-file close]]))
+            [com.stuartsierra.component :as component]
+            [kixi.comms :as comms :refer [attach-event-handler!]]
+            [kixi.datastore
+             [communication-specs :as cs]
+             [file :refer [close temp-file]]
+             [filestore :as kdfs]
+             [metadatastore :as ms]
+             [schemastore :as ss]
+             [segmentation :as seg :refer [Segmentation]]
+             [time :as t]]
+            [taoensso.timbre :as timbre :refer [info]]))
 
 (defn uuid
   []
@@ -91,20 +91,25 @@
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
                  (second (kdfs/output-stream filestore (:id segment-data) (:size-bytes segment-data))))
-    (let [metadata (assoc (select-keys basemetadata
-                                       [::ms/type
-                                        ::ms/name
-                                        ::ss/id
-                                        ::ms/header
-                                        ::ms/sharing])
-                          ::ms/id (:id segment-data)
-                          ::ms/size-bytes (:size-bytes segment-data)
-                          ::ms/provenance {::ms/source "segmentation"
-                                           ::ms/parent-id (::ms/id basemetadata)
-                                           :kixi.user/id (:kixi.user/id request)}
-                          ::seg/segment {::seg/request request
-                                         ::seg/line-count (:lines segment-data)
-                                         ::seg/value (:value segment-data)})]
+    (let [metadata (-> (assoc (select-keys basemetadata
+                                           [::ms/type
+                                            ::ms/name
+                                            ::ms/schema
+                                            ::ms/header
+                                            ::ms/sharing])
+                              ::ms/id (:id segment-data)
+                              ::ms/size-bytes (:size-bytes segment-data)
+                              ::ms/provenance {::ms/source "segmentation"
+                                               ::ms/parent-id (::ms/id basemetadata)
+                                               :kixi.user/id (:kixi.user/id request)
+                                               ::ms/created (t/timestamp)}
+                              ::seg/segment {::seg/request request
+                                             ::seg/line-count (:lines segment-data)
+                                             ::seg/value (:value segment-data)})
+                       (assoc-in [::ms/schema ::ms/added]
+                                 (t/timestamp))
+                       (assoc-in [::ms/schema :kixi.user/id]
+                                 (:kixi.user/id request)))]
       (cs/send-event! communications
                       (assoc metadata
                              ::cs/event :kixi.datastore/file-created
