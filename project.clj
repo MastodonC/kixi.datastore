@@ -45,9 +45,8 @@
                  [org.slf4j/log4j-over-slf4j ~slf4j-version]
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
-                 [mantree/experimental-yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]
-;                 [yada "1.1.43" :exclusions [com.fasterxml.jackson.core/jackson-core]]
-                 ]
+                 [org.clojure/test.check "0.9.0"]
+                 [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
 
   :exclusions [cheshire]
 
@@ -57,8 +56,7 @@
   :global-vars {*warn-on-reflection* true
                 *assert* false}
 
-  :profiles {:dev {:dependencies [[org.clojure/test.check "0.9.0"]
-                                  [org.clojure/math.combinatorics "0.1.3"]
+  :profiles {:dev {:dependencies [[org.clojure/math.combinatorics "0.1.3"]
                                   [com.gfredericks/test.chuck "0.2.7"]
                                   [criterium "0.4.4"]]}
              :uberjar {:aot [kixi.datastore.bootstrap]
