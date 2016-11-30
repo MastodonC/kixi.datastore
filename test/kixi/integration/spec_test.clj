@@ -4,7 +4,7 @@
              [schemastore :as ss]
              [transport-specs :refer [add-ns-to-keys]]]
             [kixi.integration.base :as base :refer [bad-request success when-accepted not-found cycle-system-fixture
-                                                    extract-id extract-schema is-submap not-found get-spec-direct
+                                                    extract-id extract-schema is-submap not-found
                                                     accepted]]))
 
 (def uuid-regex
@@ -13,7 +13,7 @@
 (def uid (base/uuid))
 
 (def post-spec (partial base/post-spec uid))
-(def post-spec-and-wait (partial base/post-spec-and-wait uid))
+(def post-spec-no-wait (partial base/post-spec-no-wait uid))
 (def get-spec (partial base/get-spec uid))
 
 (def location-regex
@@ -40,7 +40,7 @@
                    (extract-schema r2))))))
 
 (deftest unknown-spec-404
-  (let [r-g (get-spec-direct uid "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
+  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (not-found r-g)))
 
 (deftest good-spec-202
@@ -74,7 +74,7 @@
                          :max 10}
                 :sharing {:read [uid]
                           :use [uid]}}
-        r1       (post-spec-and-wait schema)]
+        r1       (post-spec schema)]
     (when-accepted r1      
       (let [location (get-in r1 [:headers "Location"])
             id       (extract-id r1)]

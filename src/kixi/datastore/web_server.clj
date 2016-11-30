@@ -14,6 +14,7 @@
              [segmentation :as seg]
              [time :as t]
              [transport-specs :as ts]]
+            [kixi.datastore.schemastore.conformers :as conformers]
             [schema.core :as s]
             [taoensso.timbre :as timbre :refer [error info infof]]
             [yada
@@ -43,9 +44,15 @@
 (defn yada-timbre-logger
   [ctx]
   (when (= 500 (get-in ctx [:response :status]))
-    (if (:error ctx)
-      (error (:error ctx) "Server error")
-      (error "Server error, no exception available")))
+    (if-let [err (or (get-in ctx [:response :error])
+                     (:error ctx))]
+      (if (instance? Exception err)
+        (error err "Server error")
+        (error (str "Server error: " err))) ;this is unlikely to be used, but straw grasping right now
+      (if (or ((set (keys (get-in ctx [:response]))) :error)
+              ((set (keys ctx)) :error))
+        (error "Server error, error key available, but set to nil")
+        (error "Server error, no exception available"))))
   ctx)
 
 (defn append-error-interceptor
@@ -226,17 +233,26 @@
                             (payload-size piece)
                             1))))
 
+(defn rethrow
+  [e]
+  (if (instance? Exception e)
+    (throw e)
+    (throw (ex-info "Complete chan must either return exception or :done." {:actual e}))))
+
 (defn file-create
   [metrics filestore communications schemastore]
   (resource
    metrics
    {:id :file-create
+    :parameters {:header {(s/required-key "file-size") s/Str
+                          (s/required-key "user-id") (s/pred conformers/uuid?)
+                          (s/required-key "user-groups") s/Str}}
     :methods
     {:post
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
-                          :file-metadata s/Str}}
+                          :file-metadata s/Str}}      
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
@@ -255,24 +271,21 @@
                         explained (spec/explain-data ::ms/file-metadata metadata)
                         schema-id (get-in metadata [::ms/schema ::ss/id])]
                     (cond
-                      (not= :done (:complete file)) (assoc (:response ctx)
-                                                           :status 500
-                                                           :error (:complete file)
-                                                           :body server-error-resp)
+                      (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
+                                                                                 {::error :file-upload-failed
+                                                                                  ::msg {:declared-size declared-file-size
+                                                                                         :received-size (:size-bytes file)}})
+                      (not= :done (:complete file)) (rethrow (:complete file))
                       explained (return-error ctx explained)
                       (and schema-id
                            (not (ss/exists schemastore schema-id))) (return-error ctx 
-                                                                                  {::error :unknown-schema
-                                                                                   ::msg {:schema-id schema-id}})
+                           {::error :unknown-schema
+                            ::msg {:schema-id schema-id}})
                       (and schema-id
                            (not (ss/authorised schemastore
                                                ::ss/use
                                                schema-id
                                                (ctx->user-groups ctx)))) (return-unauthorised ctx)
-                      (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
-                                                                                 {::error :file-upload-failed
-                                                                                  ::msg {:declared-size declared-file-size
-                                                                                         :received-size (:size-bytes file)}})
                       :else (do
                               (cs/send-event! communications
                                               (assoc metadata
@@ -413,7 +426,9 @@
 (defn healthcheck
   [ctx]
                                         ;Return truthy for now, but later check dependancies
-  "All is well")
+  (assoc (:response ctx)
+         :status 200
+         :body "All is well"))
 
 (defn service-routes
   [metrics filestore metadatastore communications schemastore]
@@ -461,15 +476,15 @@
     [true (yada/handler nil)]]])
 
 (defrecord WebServer
-    [port listener log-config metrics filestore metadatastore communications schemastore]
+    [port vhost listener log-config metrics filestore metadatastore communications schemastore]
     component/Lifecycle
     (start [component]
       (if listener
-        component                       ; idempotence
-        (let [vhosts-model
-              (vhosts-model
-               [{:scheme :http :host (format "localhost:%d" port)}
-                (routes metrics filestore metadatastore communications schemastore)])
+        component
+        (let [vhosts-model (vhosts-model
+                            [{:scheme :http 
+                              :host (str vhost ":" port)}
+                             (routes metrics filestore metadatastore communications schemastore)])
               listener (yada/listener vhosts-model {:port port})]
           (infof "Started web-server on port %s" port)
           (assoc component :listener listener))))

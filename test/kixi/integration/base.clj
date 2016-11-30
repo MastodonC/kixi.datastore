@@ -166,25 +166,32 @@
     x
     (vector x)))
 
-(defn post-file-flex
-  [& {:keys [^String file-name schema-id user-id user-groups sharing header]}]
+(defn file-size
+  [^String file-name]
+  (str (.length (io/file file-name))))
+
+(defn post-file-no-wait
+  [{:keys [^String file-name schema-id user-id user-groups sharing header file-size]}]
   (check-file file-name)
   (let [r (client/post file-url
                        {:multipart [{:name "file"
                                      :content (io/file file-name)}
                                     {:name "file-metadata" 
-                                     :content (encode-json (merge {:name "foo"
-                                                                   :header true}
+                                     :content (encode-json (merge (when file-name
+                                                                    {:name file-name})
                                                                   (if-not (nil? header)
-                                                                    {:header header}
-                                                                    {:header true})
+                                                                    {:header header})
                                                                   (when sharing
                                                                     {:sharing sharing})
                                                                   (when schema-id
                                                                     {:schema-id schema-id})))}]
-                        :headers {"user-id" user-id
-                                  "user-groups" (vec-if-not user-groups)
-                                  "file-size" (str (.length (io/file file-name)))}
+                        :headers (merge {}
+                                  (when user-id
+                                    {"user-id" user-id})
+                                  (when user-groups
+                                    {"user-groups" (vec-if-not user-groups)})
+                                  (when file-size
+                                    {"file-size" file-size}))
                         :throw-exceptions false
                         :accept :json})]
     (if-not (= 500 (:status r)) 
@@ -193,27 +200,28 @@
         (clojure.pprint/pprint r)
         r))))
 
-(defn post-file-and-wait
-  [& {:as args}]
-  (let [pfr (apply post-file-flex (mapcat identity (seq args)))]
-    (when (accept-status (:status pfr))
-      (wait-for-metadata-key (:user-groups args) 
-                             (extract-id pfr)
-                             ::ms/id))
-    pfr))
-
 (defn post-file
   ([uid file-name]
    (post-file uid uid file-name nil))
   ([uid file-name schema-id]
    (post-file uid uid file-name schema-id))
   ([uid ugroup file-name schema-id]
-   (post-file-and-wait :file-name file-name 
-                       :schema-id schema-id 
-                       :user-id uid
-                       :user-groups ugroup
-                       :sharing {:file-read [ugroup]
-                                 :meta-read [ugroup]})))
+   (post-file {:file-name file-name 
+               :schema-id schema-id 
+               :user-id uid
+               :user-groups ugroup
+               :sharing {:file-read [ugroup]
+                         :meta-read [ugroup]}
+               :file-size (file-size file-name)
+               :header true}))
+  ([{:keys [file-name schema-id user-id user-groups sharing header file-size]
+     :as args}]
+   (let [pfr (post-file-no-wait args)]
+     (when (accept-status (:status pfr))
+       (wait-for-metadata-key (:user-groups args) 
+                              (extract-id pfr)
+                              ::ms/id))
+     pfr)))
 
 (defn post-segmentation
   [url seg]
@@ -224,11 +232,18 @@
                 :throw-exceptions false
                 :as :json}))
 
-(defn post-spec  
+(defn get-spec
+  [ugroup id]
+  (client/get (str schema-url id)
+              {:accept :json
+               :headers {"user-groups" ugroup}
+               :throw-exceptions false}))
+
+(defn post-spec-no-wait 
   ([uid s]
-   (post-spec uid uid s))
+   (post-spec-no-wait uid uid s))
   ([uid ugroup s]
-   (post-spec uid ugroup s {:sharing {:read [ugroup]
+   (post-spec-no-wait uid ugroup s {:sharing {:read [ugroup]
                                       :use [ugroup]}}))
   ([uid ugroup s sharing]
    (client/post schema-url
@@ -240,29 +255,18 @@
                  :accept :json
                  :throw-exceptions false})))
 
-(defn get-spec
-  [uid id]
-  (wait-for-url uid (str schema-url id)))
-
-(defn post-spec-and-wait
+(defn post-spec
   ([uid s]
-   (post-spec-and-wait uid uid s))
+   (post-spec uid uid s))
   ([uid ugroup s]
-   (post-spec-and-wait uid ugroup s
+   (post-spec uid ugroup s
                        {:sharing {:read [ugroup]
                                   :use [ugroup]}}))
   ([uid ugroup s sharing]
-   (let [psr (post-spec uid ugroup s sharing)]
+   (let [psr (post-spec-no-wait uid ugroup s sharing)]
      (when (accept-status (:status psr))
        (wait-for-url ugroup (get-in psr [:headers "Location"])))
      psr)))
-
-(defn get-spec-direct
-  [ugroup id]
-  (client/get (str schema-url id)
-              {:accept :json
-               :headers {"user-groups" ugroup}
-               :throw-exceptions false}))
 
 (defn extract-schema
   [r-g]

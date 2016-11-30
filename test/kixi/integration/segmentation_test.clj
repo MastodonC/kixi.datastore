@@ -26,7 +26,7 @@
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec-and-wait uid small-segmentable-file-schema)]
+  (let [r (post-spec uid small-segmentable-file-schema)]
     (if (= 202 (:status r))
       (reset! small-segmentable-file-schema-id (extract-id r))
       (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
