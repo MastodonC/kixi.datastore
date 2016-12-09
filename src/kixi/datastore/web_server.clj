@@ -2,6 +2,7 @@
   (:require [bidi
              [bidi :refer [tag]]
              [vhosts :refer [vhosts-model]]]
+            [byte-streams :as bs]
             [cheshire.core :as json]
             [clojure.core.async :as async :refer [<!!]]
             [clojure.spec :as spec]
@@ -299,6 +300,29 @@
                               (java.net.URI.
                                (yada/url-for ctx :file-entry {:route-params {:id (::ms/id metadata)}}))))))}}}))
 
+(defn file-shunt
+  "Experimental non-multipart file upload resource"
+  [metrics filestore communications schemastore]
+  (resource
+   metrics
+   {:id :file-shunt   
+    :parameters {:header {(s/required-key "file-size") s/Str}}
+    :methods
+    {:post
+     {:consumes "application/x-www-form-urlencoded"
+      :produces "application/json"
+      :consumer (fn [ctx _ body-stream]
+                  (let [id (uuid)
+                        file-size (let [^String fs (get-in ctx [:request :headers "file-size"])]
+                                    (Long/valueOf fs))
+                        [complete-chan out] (ds/output-stream filestore id file-size)]
+                    (bs/transfer body-stream
+                                 out)
+                    (<!! complete-chan)
+                    ctx))
+      :response (fn [ctx]
+                  "Thanks")}}}))
+
 (defn file-entry
   [metrics filestore metadatastore]
   (resource
@@ -434,6 +458,8 @@
   [metrics filestore metadatastore communications schemastore]
   [""
    [["/file" [["" (file-create metrics filestore communications schemastore)]
+              ["/shunt"
+               (file-shunt metrics filestore communications schemastore)]
               [["/" :id] (file-entry metrics filestore metadatastore)]
               [["/" :id "/meta"] (file-meta metrics metadatastore)]
               [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]
