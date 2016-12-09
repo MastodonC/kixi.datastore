@@ -49,7 +49,7 @@
                      (:error ctx))]
       (if (instance? Exception err)
         (error err "Server error")
-        (error (str "Server error: " err))) ;this is unlikely to be used, but straw grasping right now
+        (error (str "Server error: " err)))
       (if (or ((set (keys (get-in ctx [:response]))) :error)
               ((set (keys ctx)) :error))
         (error "Server error, error key available, but set to nil")
