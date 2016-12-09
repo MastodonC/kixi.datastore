@@ -1,5 +1,10 @@
 {:service-name "kixi.datastore"
- :web-server {:port #or [#env WEB_SERVER_PORT 8080]}
+ :web-server #profile {:local {:vhost "localhost"
+                               :port 8080}
+                       :circleci {:vhost "localhost"
+                                  :port 8080}
+                       :staging {:vhost "kixi.datastore.marathon.mesos"
+                                 :port 18080}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
                                              :local "localhost"
                                              :circleci "localhost"}                
@@ -37,24 +42,33 @@
                                    :secret-key ""}}
                       :circleci {:s3 {:bucket "kixi-data-store-file-store"
                                       :endpoint "s3.eu-central-1.amazonaws.com"}}
+                      :staging {:s3 {:bucket "kixi-data-store-file-store"
+                                     :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch #profile {:local {:host "localhost"
                                                   :port 9200}
                                           :circleci {:host "localhost"
-                                                     :port 9200}}}
+                                                     :port 9200}
+                                          :staging {:host "elasticsearch.marathon.mesos"
+                                                    :port 1026}}}
  :schemastore {:elasticsearch #profile {:local {:host "localhost"
                                                 :port 9200}
                                         :circleci {:host "localhost"
-                                                   :port 9200}}}
+                                                   :port 9200}
+                                        :staging {:host "elasticsearch.marathon.mesos"
+                                                  :port 1026}}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host "127.0.0.1"
                                            :port 2181
-                                           :group-id group-id
                                            :consumer-config {:session.timeout.ms 6000
                                                              :auto.commit.interval.ms 1500}}
                                    :circleci {:host "127.0.0.1"
                                               :port 2181
-                                              :group-id group-id
                                               :consumer-config {:session.timeout.ms 6000
-                                                                :auto.commit.interval.ms 1500}}}}}
+                                                                :auto.commit.interval.ms 1500}}
+                                   :staging {:host "master.mesos"
+                                             :zk-path "/dcos-service-kafka/"
+                                             :port 2181
+                                             :consumer-config {:session.timeout.ms 6000
+                                                               :auto.commit.interval.ms 1500}}}}}

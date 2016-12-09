@@ -125,7 +125,7 @@
   (let [system (repl/start {:filestore
                             (OutputStreamsFailWhenCalledFrom. (called-from? "start_partial"))})]
     (try     
-      (comment "This is what should happen with a larger than 1 chunk file"
+      (comment "This is what should happen with a larger than 1 chunk file, but the http clients don't react correctly to mid multipart responses"
                (let [r (post-file uid
                                   "./test-resources/metadata-12MB-valid.csv")]
                  (is (= 500
@@ -179,3 +179,40 @@
             (str "Reason: " (parse-json (:body r)))))
       (finally
         (repl/stop)))))
+
+(deftest upload-small-file-no-file-size-400
+  (let [system (repl/start)]
+    (try
+      (let [r (post-file
+               {:file-name "./test-resources/metadata-one-valid.csv"
+                :user-id uid
+                :user-groups uid})]
+        (is (= 400
+               (:status r))
+            (str "Reason: " (parse-json (:body r)))))
+      (finally
+        (repl/stop)))))
+
+(comment
+  (deftest upload-large-file-no-file-size-400
+    (let [system (repl/start)]
+      (try
+        (let [r (http-kit/post file-url
+                               {:multipart [{:name "file"
+                                             :content (io/file "./test-resources/metadata-12MB-valid.csv")}
+                                            {:name "file-metadata" 
+                                             :content (encode-json {:name "foo"
+                                                                    :header true})}]
+                                :timeout 500
+                                :headers {"user-id" uid
+                                          "user-groups" uid
+                                        ;"file-size" 14
+                                          }
+                                :throw-exceptions false
+                                :accept :json})]
+          (prn "XXX: " @r)
+          (is (= 400
+                 (:status @r))
+              (str "Reason: " (parse-json (:body r)))))
+        (finally
+          (repl/stop))))))

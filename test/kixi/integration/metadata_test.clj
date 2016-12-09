@@ -26,7 +26,7 @@
 
 (defn setup-schema
   [all-tests]
-  (let [r (post-spec-and-wait uid metadata-file-schema)]
+  (let [r (post-spec uid metadata-file-schema)]
     (if (= 202 (:status r))
       (reset! metadata-file-schema-id (extract-id r))
       (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r)))))
@@ -49,7 +49,7 @@
                  ::ms/schema {::ss/id @metadata-file-schema-id
                               :kixi.user/id uid}
                  ::ms/type "csv"
-                 ::ms/name "foo"
+                 ::ms/name "./test-resources/metadata-one-valid.csv"
                  ::ms/header true
                  ::ms/size-bytes 14
                  ::ms/provenance {:kixi.user/id uid
@@ -66,7 +66,7 @@
          {:status 200
           :body {::ms/id (extract-id pfr)
                  ::ms/type "csv"
-                 ::ms/name "foo"
+                 ::ms/name "./test-resources/metadata-one-valid.csv"
                  ::ms/header true
                  ::ms/size-bytes 14
                  ::ms/provenance {:kixi.user/id uid
@@ -77,20 +77,21 @@
         (is (nil? (::ms/structural-validation metadata-response)))))))
 
 (deftest small-file-no-header
-  (let [pfr (post-file-and-wait :file-name "./test-resources/metadata-one-valid-no-header.csv"
-                                :user-id uid
-                                :user-groups uid
-                                :schema-id @metadata-file-schema-id
-                                :sharing {:file-read [uid]
-                                          :meta-read [uid]}
-                                :header false)]
+  (let [pfr (base/post-file {:file-name "./test-resources/metadata-one-valid-no-header.csv"
+                             :user-id uid
+                             :user-groups uid
+                             :schema-id @metadata-file-schema-id
+                             :file-size (base/file-size "./test-resources/metadata-one-valid-no-header.csv")
+                             :sharing {:file-read [uid]
+                                       :meta-read [uid]}
+                             :header false})]
     (when-created pfr 
       (let [metadata-response (wait-for-metadata-key (extract-id pfr) ::ms/structural-validation)]
         (is-submap
          {:status 200
           :body {::ms/id (extract-id pfr)
                  ::ms/type "csv"
-                 ::ms/name "foo"
+                 ::ms/name "./test-resources/metadata-one-valid-no-header.csv"
                  ::ms/header false
                  ::ms/size-bytes 4
                  ::ms/provenance {:kixi.user/id uid
@@ -119,7 +120,7 @@
                  ::ms/schema {:kixi.user/id uid
                               ::ss/id @metadata-file-schema-id}
                  ::ms/type "csv",
-                 ::ms/name "foo",
+                 ::ms/name "./test-resources/metadata-one-invalid.csv"
                  ::ms/size-bytes 14,
                  ::ms/provenance {:kixi.user/id uid
                                   ::ms/source "upload"

@@ -31,17 +31,14 @@
 
 (defn get-spec
   [schema-id file-id uid ugroups]
-  (base/get-spec-direct ugroups schema-id))
+  (base/get-spec ugroups schema-id))
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
-  (base/post-file-and-wait 
-   :file-name "./test-resources/metadata-one-valid.csv"
-   :schema-id schema-id
-   :user-id uid
-   :user-groups ugroups
-   :sharing {:file-read [ugroups]
-             :meta-read [ugroups]}))
+  (base/post-file uid
+                  ugroups
+                  "./test-resources/metadata-one-valid.csv"
+                  schema-id))
 
 (def shares->authorised-actions
   {[[:file :sharing :file-read]] [get-file]
@@ -87,22 +84,23 @@
 
 (defn post-file
   [schema-id file-id upload-uid upload-ugroup use-ugroup shares]
-  (base/post-file-and-wait
-   :file-name "./test-resources/metadata-one-valid.csv"
-   :schema-id schema-id
-   :user-id upload-uid
-   :user-groups upload-ugroup
-   :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)))
+  (base/post-file 
+   {:file-name "./test-resources/metadata-one-valid.csv"
+    :schema-id schema-id
+    :user-id upload-uid
+    :user-groups upload-ugroup
+    :file-size (base/file-size "./test-resources/metadata-one-valid.csv")
+    :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)}))
 
 (defn post-spec 
   [shares upload-uid upload-ugroup use-ugroup]
-  (base/post-spec-and-wait upload-uid
-                           upload-ugroup
-                           metadata-file-schema
-                           {:sharing (shares->schema-sharing-map
-                                      shares
-                                      upload-ugroup
-                                      use-ugroup)}))
+  (base/post-spec upload-uid
+                  upload-ugroup
+                  metadata-file-schema
+                  {:sharing (shares->schema-sharing-map
+                             shares
+                             upload-ugroup
+                             use-ugroup)}))
 
 (deftest explore-sharing-level->actions
   (doseq [shares (subsets all-shares)]
