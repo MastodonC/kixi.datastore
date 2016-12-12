@@ -90,7 +90,7 @@
   [filestore communications]
   (fn [basemetadata request segment-data]
     (bs/transfer (:file segment-data)
-                 (second (kdfs/output-stream filestore (:id segment-data) (:size-bytes segment-data))))
+                 (second nil #_(kdfs/output-stream filestore (:id segment-data) (:size-bytes segment-data))))
     (let [metadata (-> (assoc (select-keys basemetadata
                                            [::ms/type
                                             ::ms/name

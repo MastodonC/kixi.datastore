@@ -184,7 +184,7 @@
         (update :pieces-count (fnil inc 0))
         (update :size-bytes (partial + (payload-size piece)))))
   (complete [this state piece]
-    (transfer-piece! output-stream piece true)    
+    (transfer-piece! output-stream piece true)
     (-> initial
         (assoc :type :part
                :count ((fnil inc 1) (:pieces-count this))
@@ -196,12 +196,7 @@
 
 (defn flush-tiny-file!
   "Files smaller than the buffer size (?) come through as complete parts"
-  [filestore id part file-size]
-  (let [[complete-chan out] (ds/output-stream filestore id file-size)]
-    (transfer-piece! out
-                     part
-                     true)
-    (<!! complete-chan)))
+  [filestore id part file-size])
 
 (def Map {s/Keyword s/Any})
 
@@ -212,27 +207,27 @@
 
 (defrecord PartConsumer
     [filestore]
-    yada.multipart/PartConsumer
-    (consume-part [this state part]
-      (if (file-part? part)
-        (let [id (uuid)
-              complete-chan-r (flush-tiny-file! filestore id part (file-size part))]
-          (-> part
-              (assoc :id id
-                     :count 1
-                     :size-bytes (payload-size part)
-                     :complete complete-chan-r)
-              (dissoc :bytes)
-              (add-part state)))
-        (add-part part state)))
-    (start-partial [this piece]
+  yada.multipart/PartConsumer
+  (consume-part [this state part]
+    (if (file-part? part)
       (let [id (uuid)
-            [complete-chan out] (ds/output-stream filestore id (file-size piece))]
-        (transfer-piece! out piece)
-        (->StreamingPartial id out complete-chan
-                            (dissoc piece :bytes)
-                            (payload-size piece)
-                            1))))
+            complete-chan-r (flush-tiny-file! filestore id part (file-size part))]
+        (-> part
+            (assoc :id id
+                   :count 1
+                   :size-bytes (payload-size part)
+                   :complete complete-chan-r)
+            (dissoc :bytes)
+            (add-part state)))
+      (add-part part state)))
+  (start-partial [this piece]
+    (let [id (uuid)
+          [complete-chan out] [1 2]]
+      (transfer-piece! out piece)
+      (->StreamingPartial id out complete-chan
+                          (dissoc piece :bytes)
+                          (payload-size piece)
+                          1))))
 
 (defn rethrow
   [e]
@@ -253,7 +248,7 @@
      {:consumes "multipart/form-data"
       :produces "application/json"
       :parameters {:body {:file Map
-                          :file-metadata s/Str}}      
+                          :file-metadata s/Str}}
       :part-consumer (map->PartConsumer {:filestore filestore})
       :response (fn [ctx]
                   (let [params (get-in ctx [:parameters :body])
@@ -272,16 +267,16 @@
                         explained (spec/explain-data ::ms/file-metadata metadata)
                         schema-id (get-in metadata [::ms/schema ::ss/id])]
                     (cond
-                      (not= declared-file-size (:size-bytes file)) (return-error ctx                                               
+                      (not= declared-file-size (:size-bytes file)) (return-error ctx
                                                                                  {::error :file-upload-failed
                                                                                   ::msg {:declared-size declared-file-size
                                                                                          :received-size (:size-bytes file)}})
                       (not= :done (:complete file)) (rethrow (:complete file))
                       explained (return-error ctx explained)
                       (and schema-id
-                           (not (ss/exists schemastore schema-id))) (return-error ctx 
-                           {::error :unknown-schema
-                            ::msg {:schema-id schema-id}})
+                           (not (ss/exists schemastore schema-id))) (return-error ctx
+                                                                                  {::error :unknown-schema
+                                                                                   ::msg {:schema-id schema-id}})
                       (and schema-id
                            (not (ss/authorised schemastore
                                                ::ss/use
@@ -294,7 +289,7 @@
                                                      ::cs/version "1.0.0"))
                               (cs/send-event! communications {::cs/event :kixi.datastore/file-metadata-updated
                                                               ::cs/version "1.0.0"
-                                                              ::cs/file-metadata-update-type 
+                                                              ::cs/file-metadata-update-type
                                                               ::cs/file-metadata-created
                                                               ::ms/file-metadata metadata})
                               (java.net.URI.
@@ -305,7 +300,7 @@
   [metrics filestore communications schemastore]
   (resource
    metrics
-   {:id :file-shunt   
+   {:id :file-shunt
     :parameters {:header {(s/required-key "file-size") s/Str}}
     :methods
     {:post
@@ -315,7 +310,7 @@
                   (let [id (uuid)
                         file-size (let [^String fs (get-in ctx [:request :headers "file-size"])]
                                     (Long/valueOf fs))
-                        [complete-chan out] (ds/output-stream filestore id file-size)]
+                        [complete-chan out] [1 2]]
                     (bs/transfer body-stream
                                  out)
                     (<!! complete-chan)
@@ -333,7 +328,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (ms/authorised metadatastore :file-read id (ctx->user-groups ctx))
+               (if (ms/authorised metadatastore ::ms/file-read id (ctx->user-groups ctx))
                  (ds/retrieve filestore
                               id)
                  (return-unauthorised ctx))))}}}))
@@ -348,7 +343,7 @@
            :response
            (fn [ctx]
              (let [id (get-in ctx [:parameters :path :id])]
-               (if (ms/authorised metadatastore :meta-read id (ctx->user-groups ctx))
+               (if (ms/authorised metadatastore ::ms/meta-read id (ctx->user-groups ctx))
                  (ms/retrieve metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
@@ -370,7 +365,7 @@
                   (do
                     (case type
                       "column" (let [col-name (:column-name body)]
-                                 (cs/send-event! communications 
+                                 (cs/send-event! communications
                                                  {::cs/event :kixi.datastore/file-segmentation-created
                                                   ::cs/version"1.0.0"
                                                   :kixi.datastore.request/type ::seg/group-rows-by-column
@@ -434,7 +429,7 @@
                                           (spec/explain-data ::ss/create-schema-request
                                                              internal-sr))
                             (do
-                              (cs/send-event! communications 
+                              (cs/send-event! communications
                                               (merge {::cs/event :kixi.datastore/schema-created
                                                       ::cs/version "1.0.0"}
                                                      internal-sr))
@@ -503,22 +498,22 @@
 
 (defrecord WebServer
     [port vhost listener log-config metrics filestore metadatastore communications schemastore]
-    component/Lifecycle
-    (start [component]
-      (if listener
-        component
-        (let [vhosts-model (vhosts-model
-                            [{:scheme :http 
-                              :host (str vhost ":" port)}
-                             (routes metrics filestore metadatastore communications schemastore)])
-              listener (yada/listener vhosts-model {:port port})]
-          (infof "Started web-server on port %s" port)
-          (assoc component :listener listener))))
-    (stop [component]
-      (when-let [close (get-in component [:listener :close])]
-        (infof "Stopping web-server on port %s" port)
-        (close))
-      (assoc component :listener nil)))
+  component/Lifecycle
+  (start [component]
+    (if listener
+      component
+      (let [vhosts-model (vhosts-model
+                          [{:scheme :http
+                            :host (str vhost ":" port)}
+                           (routes metrics filestore metadatastore communications schemastore)])
+            listener (yada/listener vhosts-model {:port port})]
+        (infof "Started web-server on port %s" port)
+        (assoc component :listener listener))))
+  (stop [component]
+    (when-let [close (get-in component [:listener :close])]
+      (infof "Stopping web-server on port %s" port)
+      (close))
+    (assoc component :listener nil)))
 
 (defn new-web-server [config]
   (map->WebServer (:web-server config)))

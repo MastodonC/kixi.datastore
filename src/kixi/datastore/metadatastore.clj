@@ -3,9 +3,11 @@
             [kixi.datastore.schemastore :as schemastore]
             [kixi.datastore.segmentation :as seg]
             [kixi.datastore.schemastore.conformers :as sc]
-            [clojure.spec.gen :as gen]))
+            [clojure.spec.gen :as gen]
+            [kixi.datastore.metadatastore :as ms]))
 
-(s/def ::type #{"csv"})
+(s/def ::type #{"stored"})
+(s/def ::file-type #{"csv"})
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
@@ -21,7 +23,7 @@
 (s/def :kixi.user-group/id sc/uuid)
 
 (def activities
-  [:file-read :meta-visible :meta-read :meta-update])
+  [::ms/file-read ::ms/meta-visible ::ms/meta-read ::ms/meta-update])
 
 (s/def ::sharing
   (s/map-of (set activities)
@@ -41,7 +43,7 @@
 
 (defmethod provenance-type "upload"
   [_]
-  (s/keys :req [::source ::pieces-count :kixi.user/id ::created]))
+  (s/keys :req [::source :kixi.user/id ::created]))
 
 (defmethod provenance-type "segmentation"
   [_]
@@ -79,9 +81,15 @@
 (s/def ::schema
   (s/keys :req [::schemastore/id :kixi.user/id ::added]))
 
-(s/def ::file-metadata
-  (s/keys :req [::type ::id ::name ::provenance ::size-bytes ::sharing]
+(defmulti file-metadata ::type)
+
+(defmethod file-metadata "stored"
+  [_]
+  (s/keys :req [::type ::file-type ::id ::name ::provenance ::size-bytes ::sharing]
           :opt [::schema ::segmentations ::segment ::structural-validation]))
+
+(s/def ::file-metadata (s/multi-spec file-metadata ::type))
+
 
 (defprotocol MetaDataStore
   (authorised

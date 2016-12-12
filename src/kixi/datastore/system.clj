@@ -11,7 +11,7 @@
              [metrics :as metrics]
              [web-server :as web-server]
              [schemaextracter :as se]
-             [structural-validation :as sv]]            
+             [structural-validation :as sv]]
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
@@ -40,11 +40,11 @@
   (aero/read-config (io/resource "config.edn") {:profile profile}))
 
 (def component-dependencies
-  {:metrics [] 
+  {:metrics []
    :logging [:metrics]
    :communications []
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
-   :filestore [:logging]
+   :filestore [:logging :communications]
    :metadatastore [:communications]
    :schemastore [:communications]
                                         ;   :schema-extracter [:communications :filestore]
@@ -98,7 +98,7 @@
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])}]
     (log/merge-config! level-config)
-    (log/handle-uncaught-jvm-exceptions! 
+    (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
        (log/error throwable (str "Unhandled exception on " (.getName thread)))))))
 

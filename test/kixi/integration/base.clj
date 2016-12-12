@@ -23,7 +23,7 @@
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
-(defn uuid 
+(defn uuid
   []
   (str (java.util.UUID/randomUUID)))
 
@@ -95,11 +95,15 @@
   [m]
   (json/encode m))
 
-(def file-url (str "http://" (service-url) "/file"))
+(defn file-url 
+  ([] 
+   (str "http://" (service-url) "/file"))
+  ([id]
+   (str (file-url) "/" id)))
 
 (defn metadata-url
   [id]
-  (str file-url "/" id "/meta"))
+  (str (file-url) "/" id "/meta"))
 
 (defn check-file
   [file-name]
@@ -137,7 +141,7 @@
 
 (defn get-metadata
   [ugroup id]
-  (update (client/get (metadata-url id) 
+  (update (client/get (metadata-url id)
                       {:as :json
                        :accept :json
                        :throw-exceptions false
@@ -168,7 +172,7 @@
 
 (defn file-size
   [^String file-name]
-  (str (.length (io/file file-name))))
+  (.length (io/file file-name)))
 
 (defn post-file-no-wait
   [{:keys [^String file-name schema-id user-id user-groups sharing header file-size]}]
@@ -176,7 +180,7 @@
   (let [r (client/post file-url
                        {:multipart [{:name "file"
                                      :content (io/file file-name)}
-                                    {:name "file-metadata" 
+                                    {:name "file-metadata"
                                      :content (encode-json (merge (when file-name
                                                                     {:name file-name})
                                                                   (if-not (nil? header)
@@ -186,17 +190,17 @@
                                                                   (when schema-id
                                                                     {:schema-id schema-id})))}]
                         :headers (merge {}
-                                  (when user-id
-                                    {"user-id" user-id})
-                                  (when user-groups
-                                    {"user-groups" (vec-if-not user-groups)})
-                                  (when file-size
-                                    {"file-size" file-size}))
+                                        (when user-id
+                                          {"user-id" user-id})
+                                        (when user-groups
+                                          {"user-groups" (vec-if-not user-groups)})
+                                        (when file-size
+                                          {"file-size" file-size}))
                         :throw-exceptions false
                         :accept :json})]
-    (if-not (= 500 (:status r)) 
+    (if-not (= 500 (:status r))
       (update r :body parse-json)
-      (do 
+      (do
         (clojure.pprint/pprint r)
         r))))
 
@@ -206,8 +210,8 @@
   ([uid file-name schema-id]
    (post-file uid uid file-name schema-id))
   ([uid ugroup file-name schema-id]
-   (post-file {:file-name file-name 
-               :schema-id schema-id 
+   (post-file {:file-name file-name
+               :schema-id schema-id
                :user-id uid
                :user-groups ugroup
                :sharing {:file-read [ugroup]
@@ -218,7 +222,7 @@
      :as args}]
    (let [pfr (post-file-no-wait args)]
      (when (accept-status (:status pfr))
-       (wait-for-metadata-key (:user-groups args) 
+       (wait-for-metadata-key (:user-groups args)
                               (extract-id pfr)
                               ::ms/id))
      pfr)))
@@ -239,12 +243,12 @@
                :headers {"user-groups" ugroup}
                :throw-exceptions false}))
 
-(defn post-spec-no-wait 
+(defn post-spec-no-wait
   ([uid s]
    (post-spec-no-wait uid uid s))
   ([uid ugroup s]
    (post-spec-no-wait uid ugroup s {:sharing {:read [ugroup]
-                                      :use [ugroup]}}))
+                                              :use [ugroup]}}))
   ([uid ugroup s sharing]
    (client/post schema-url
                 {:form-params (merge s
@@ -277,7 +281,7 @@
 
 (defn get-file
   [uid ugroups id]
-  (client/get (str file-url "/" id) 
+  (client/get (str file-url "/" id)
               {:headers (apply merge {"user-id" uid}
                                (map #(hash-map "user-groups" %) (vec-if-not ugroups)))
                :throw-exceptions false}))
@@ -349,3 +353,18 @@
 (defmacro when-created
   [resp & rest]
   `(when-status 201 ~resp ~rest))
+
+(defmacro when-success
+  [resp & rest]
+  `(when-status 200 ~resp ~rest))
+
+(defn wait-for-pred
+  ([p]
+   (wait-for-pred p wait-tries))
+  ([p tries]
+   (wait-for-pred p tries wait-per-try))
+  ([p tries ms]
+   (loop [try tries]
+     (when (and (pos? try) (not (p)))
+       (Thread/sleep ms)
+       (recur (dec try))))))

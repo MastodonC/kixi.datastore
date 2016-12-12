@@ -7,19 +7,19 @@
                                  :port 18080}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
                                              :local "localhost"
-                                             :circleci "localhost"}                
+                                             :circleci "localhost"}
                              :port 8086
-                                        ;                             :auth 
+                                        ;                             :auth
                              :connect-timeout 1500
                              :read-timeout 1500
                              :group-gauges true
-                                        ;                             :duration-unit 
+                                        ;                             :duration-unit
                              :measurement-mappings {"jvm_threads" "jvm\\.thread.*"
                                                     "jvm_gc" "jvm\\.gc\\..*"
                                                     "jvm_memory" "jvm\\.memory\\..*"
                                                     "resources" "resources\\..*"
                                                     "log" "log\\..*"}
-                                        ;                             :excludes 
+                                        ;                             :excludes
                              :prefix ^:ref [:service-name]
                              :db-name "metrics"
                              :fields {"meters" #{"m1_rate" "m5_rate" "m15_rate"}}
