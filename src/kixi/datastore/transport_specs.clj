@@ -80,6 +80,7 @@
                               with-primaries)
         with-schema (raise-schema with-file-type 
                                   (get-in transport [::ms/provenance :kixi.user/id]))]
+    (prn "WS: " with-schema)
     with-schema))
 
 (defn add-ns-to-keys

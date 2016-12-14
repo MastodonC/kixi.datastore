@@ -61,7 +61,7 @@
       (when-let [^File file (metadata->file filestore metadata)]
         (try
           (let [schema (sv/schema-id->schema schemastore (get-in metadata [::ms/schema ::ss/id]))
-                result (case (::ms/type metadata)
+                result (case (::ms/file-type metadata)
                          "csv" (csv-schema-test schema file (::ms/header metadata)))]
             {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
              :kixi.comms.event/version "1.0.0"

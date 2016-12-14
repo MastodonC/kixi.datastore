@@ -82,8 +82,12 @@
 (def schema-url (str "http://" (service-url) "/schema/"))
 
 (defn extract-id
-  [file-response]
-  (when-let [locat (get-in file-response [:headers "Location"])]
+  [metadata-response]
+  (get-in metadata-response [:body ::ms/id]))
+
+(defn extract-id-location
+  [resp]
+  (when-let [locat (get-in resp [:headers "Location"])]
     (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
 (defn parse-json
@@ -271,7 +275,8 @@
      :provenance {::ms/source "upload"
                   :kixi.user/id uid}
      :size-bytes (file-size file-name)
-     ::header true}))
+     :schema-id schema-id
+     :header true}))
   ([{:keys [^String file-name schema-id user-groups sharing header size-bytes provenance]}]
    (merge {}
           (when type

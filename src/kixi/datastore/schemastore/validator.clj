@@ -82,7 +82,8 @@
 
 (defn schema-id->schema
   [schemastore schema-id]
-  (resolve-schema (ss/retrieve schemastore schema-id) schemastore))
+  (when-let [s (ss/retrieve schemastore schema-id)]
+    (resolve-schema s schemastore)))
 
 (defn explain-data
   ([schemastore schema-id data]

@@ -45,11 +45,14 @@
       (cond
         (not (file-checker (::ms/id metadata))) (reject metadata :file-not-exist)
         (not (file-size-checker (::ms/id metadata) (::ms/size-bytes metadata))) (reject metadata :file-size-incorrect)
-        :default {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
-                  :kixi.comms.event/version "1.0.0"
-                  :kixi.comms.event/payload {::ms/file-metadata metadata
-                                             ::cs/file-metadata-update-type
-                                             ::cs/file-metadata-created}}))))
+        :default [{:kixi.comms.event/key :kixi.datastore/file-created
+                   :kixi.comms.event/version "1.0.0"
+                   :kixi.comms.event/payload metadata}
+                  {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+                   :kixi.comms.event/version "1.0.0"
+                   :kixi.comms.event/payload {::ms/file-metadata metadata
+                                              ::cs/file-metadata-update-type
+                                              ::cs/file-metadata-created}}]))))
 
 (defn attach-command-handlers
   [comms {:keys [link-creator
@@ -65,4 +68,3 @@
    :kixi.datastore/filestore-create-metadata
    :kixi.datastore.filestore/create-file-metadata
    "1.0.0" (create-metadata-handler file-checker file-size-checker)))
-
