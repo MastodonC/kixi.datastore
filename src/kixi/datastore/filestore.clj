@@ -28,26 +28,33 @@
        :kixi.comms.event/payload {::upload-link (link-fn id)
                                   ::id id}})))
 
+(defn reject
+  [metadata reason] 
+  {:kixi.comms.event/key :kixi.datastore.filestore/file-metadata-rejected
+   :kixi.comms.event/version "1.0.0"
+   :kixi.comms.event/payload {::rejection-reason reason
+                              ::ms/file-metadata metadata}})
+
 (defn create-metadata-handler
-  [file-checker]
+  [file-checker file-size-checker]
   (fn [{:keys [kixi.comms.command/payload] :as cmd}]
     (let [metadata (ts/filemetadata-transport->internal
                     (assoc-in payload 
                               [::ms/provenance ::ms/created]
                               (t/timestamp)))]
-      (if (file-checker (::ms/id metadata) (::ms/size-bytes metadata))
-        {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
-         :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload {::ms/file-metadata metadata
-                                    ::cs/file-metadata-update-type
-                                    ::cs/file-metadata-created}}
-        {:kixi.comms.event/key :kixi.datastore.filestore/file-metadata-rejected
-         :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload metadata}))))
+      (cond
+        (not (file-checker (::ms/id metadata))) (reject metadata :file-not-exist)
+        (not (file-size-checker (::ms/id metadata) (::ms/size-bytes metadata))) (reject metadata :file-size-incorrect)
+        :default {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+                  :kixi.comms.event/version "1.0.0"
+                  :kixi.comms.event/payload {::ms/file-metadata metadata
+                                             ::cs/file-metadata-update-type
+                                             ::cs/file-metadata-created}}))))
 
 (defn attach-command-handlers
   [comms {:keys [link-creator
-                 file-checker]}]
+                 file-checker
+                 file-size-checker]}]
   (c/attach-command-handler!
    comms
    :kixi.datastore/filestore
@@ -57,5 +64,5 @@
    comms
    :kixi.datastore/filestore-create-metadata
    :kixi.datastore.filestore/create-file-metadata
-   "1.0.0" (create-metadata-handler file-checker)))
+   "1.0.0" (create-metadata-handler file-checker file-size-checker)))
 

@@ -47,9 +47,8 @@
           (.mkdirs dir)
           (fs/attach-command-handlers communications
                                       {:link-creator (create-link dir)
-                                       :file-checker (fn [id size]
-                                                       (and ((file-exists dir) id)
-                                                            ((file-is-size dir) id size)))})
+                                       :file-checker (file-exists dir) 
+                                       :file-size-checker (file-is-size dir)})
           (assoc component :dir dir))
         component))
     (stop [component]

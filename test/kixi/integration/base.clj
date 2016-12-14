@@ -5,6 +5,7 @@
             [clojure.spec.test :as stest]
             [cheshire.core :as json]
             [environ.core :refer [env]]
+            [kixi.comms :as c]
             [kixi.repl :as repl]
             [kixi.datastore.transit :as t]
             [clj-http.client :as client]
@@ -164,68 +165,148 @@
          md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
-(defn vec-if-not
-  [x]
-  (if (vector? x)
-    x
-    (vector x)))
+(defn wait-for-pred
+  ([p]
+   (wait-for-pred p wait-tries))
+  ([p tries]
+   (wait-for-pred p tries wait-per-try))
+  ([p tries ms]
+   (loop [try tries]
+     (when (and (pos? try) (not (p)))
+       (Thread/sleep ms)
+       (recur (dec try))))))
 
 (defn file-size
   [^String file-name]
   (.length (io/file file-name)))
 
-(defn post-file-no-wait
-  [{:keys [^String file-name schema-id user-id user-groups sharing header file-size]}]
-  (check-file file-name)
-  (let [r (client/post file-url
-                       {:multipart [{:name "file"
-                                     :content (io/file file-name)}
-                                    {:name "file-metadata"
-                                     :content (encode-json (merge (when file-name
-                                                                    {:name file-name})
-                                                                  (if-not (nil? header)
-                                                                    {:header header})
-                                                                  (when sharing
-                                                                    {:sharing sharing})
-                                                                  (when schema-id
-                                                                    {:schema-id schema-id})))}]
-                        :headers (merge {}
-                                        (when user-id
-                                          {"user-id" user-id})
-                                        (when user-groups
-                                          {"user-groups" (vec-if-not user-groups)})
-                                        (when file-size
-                                          {"file-size" file-size}))
-                        :throw-exceptions false
-                        :accept :json})]
-    (if-not (= 500 (:status r))
-      (update r :body parse-json)
-      (do
-        (clojure.pprint/pprint r)
-        r))))
+(def comms (atom nil))
 
-(defn post-file
+(defn extract-comms
+  [all-tests]
+  (reset! comms (:communications @repl/system))
+  (all-tests)
+  (reset! comms nil))
+
+(defn attach-event-handler!
+  [group-id event handler]
+  (c/attach-event-handler!
+   @comms
+   group-id
+   event
+   "1.0.0"
+   handler))
+
+(defn attach-create-upload-link
+  [receiver]
+  (attach-event-handler!
+   :get-upload-link
+   :kixi.datastore.filestore/upload-link-created
+   #(do (reset! receiver %)
+        nil)))
+
+(defn detach-handler
+  [handler]
+  (c/detach-handler!
+   @comms
+   handler))
+
+(defn send-upload-link-cmd
+  []
+  (c/send-command!
+   @comms
+   :kixi.datastore.filestore/create-upload-link
+   "1.0.0" {}))
+
+(defn send-metadata-cmd
+  [metadata]
+  (c/send-command!
+   @comms
+   :kixi.datastore.filestore/create-file-metadata
+   "1.0.0" metadata))
+
+(defn get-upload-link-event
+  []
+  (let [result (atom nil)
+        handler (attach-create-upload-link
+                  result)]    
+    (send-upload-link-cmd)
+    (wait-for-pred #(deref result))
+    (detach-handler handler)
+    @result))
+
+(defn get-upload-link
+  []
+  (let [link-event (get-upload-link-event)]
+    [(get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/upload-link])
+     (get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/id])]))
+
+(defmulti upload-file  
+  (fn [^String target file-name]
+    (subs target 0
+          (.indexOf target
+                    ":"))))
+
+(defn strip-protocol
+  [^String path]
+  (subs path
+        (+ 3 (.indexOf path
+                       ":"))))
+
+(defmethod upload-file "file"
+  [target file-name]
+  (io/copy (io/file file-name)
+           (doto (io/file (strip-protocol target))
+             (.createNewFile))))
+
+(defn create-metadata
   ([uid file-name]
-   (post-file uid uid file-name nil))
+   (create-metadata uid file-name nil))  
   ([uid file-name schema-id]
-   (post-file uid uid file-name schema-id))
-  ([uid ugroup file-name schema-id]
-   (post-file {:file-name file-name
-               :schema-id schema-id
-               :user-id uid
-               :user-groups ugroup
-               :sharing {:file-read [ugroup]
-                         :meta-read [ugroup]}
-               :file-size (file-size file-name)
-               :header true}))
-  ([{:keys [file-name schema-id user-id user-groups sharing header file-size]
-     :as args}]
-   (let [pfr (post-file-no-wait args)]
-     (when (accept-status (:status pfr))
-       (wait-for-metadata-key (:user-groups args)
-                              (extract-id pfr)
-                              ::ms/id))
-     pfr)))
+   (create-metadata
+    {:file-name file-name
+     :type "stored"
+     :sharing {::ms/file-read [uid]
+               ::ms/meta-read [uid]}
+     :provenance {::ms/source "upload"
+                  :kixi.user/id uid}
+     :size-bytes (file-size file-name)
+     ::header true}))
+  ([{:keys [^String file-name schema-id user-groups sharing header size-bytes provenance]}]
+   (merge {}
+          (when type
+            {::ms/type "stored"})
+          (when file-name
+            {::ms/name file-name})
+          (when-not (nil? header)
+            {::ms/header header})
+          (when sharing
+            {::ms/sharing sharing})
+          (when schema-id
+            {::ss/id schema-id})
+          (when provenance
+            {::ms/provenance provenance})
+          (when size-bytes
+            {::ms/size-bytes size-bytes}))))
+
+(defn deliver-file-and-metadata-no-wait
+  [metadata]
+  (let [[link id] (get-upload-link)]
+    (is link)
+    (is id)
+    (let [md-with-id (assoc metadata ::ms/id id)]
+      (when link
+        (upload-file link
+                     (::ms/name md-with-id))
+        (send-metadata-cmd md-with-id))
+      md-with-id)))
+
+(defn deliver-file-and-metadata
+  [metadata]
+  (let [md-with-id (deliver-file-and-metadata-no-wait metadata)]
+    (wait-for-metadata-key (get-in md-with-id [::ms/provenance :kixi.user/id])
+                           (::ms/id md-with-id)
+                           ::ms/id)))
 
 (defn post-segmentation
   [url seg]
@@ -242,6 +323,12 @@
               {:accept :json
                :headers {"user-groups" ugroup}
                :throw-exceptions false}))
+
+(defn vec-if-not
+  [x]
+  (if (vector? x)
+    x
+    (vector x)))
 
 (defn post-spec-no-wait
   ([uid s]
@@ -358,13 +445,22 @@
   [resp & rest]
   `(when-status 200 ~resp ~rest))
 
-(defn wait-for-pred
-  ([p]
-   (wait-for-pred p wait-tries))
-  ([p tries]
-   (wait-for-pred p tries wait-per-try))
-  ([p tries ms]
-   (loop [try tries]
-     (when (and (pos? try) (not (p)))
-       (Thread/sleep ms)
-       (recur (dec try))))))
+
+(defmacro is-file-metadata-rejected
+  [deliverer rejection-submap]
+  `(let [receiver# (atom nil)
+         rejection-handler# (attach-event-handler!
+                            :file-metadata-rejections
+                            :kixi.datastore.filestore/file-metadata-rejected
+                            #(do (reset! receiver# %)
+                                 nil))]
+     (try
+       (~deliverer)
+       (wait-for-pred #(deref receiver#))
+       (is @receiver#
+           "Rejection message not received")
+       (when @receiver#
+         (is-submap ~rejection-submap
+                    (:kixi.comms.event/payload @receiver#)))
+       (finally
+         (detach-handler rejection-handler#)))))
