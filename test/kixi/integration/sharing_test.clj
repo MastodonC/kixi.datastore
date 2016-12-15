@@ -2,40 +2,31 @@
   (:require [clojure.test :refer :all]
             [clojure.math.combinatorics :as combo :refer [subsets]]
             [environ.core :refer [env]]
-            [kixi.integration.base :refer [uuid extract-id when-accepted when-created] :as base]))
+            [kixi.datastore.schemastore :as ss]
+            [kixi.datastore.metadatastore :as ms]
+            [kixi.integration.base :refer [uuid extract-id
+                                           when-accepted when-created
+                                           when-success] :as base]))
 
 (def metadata-file-schema {:name ::metadata-file-schema
                            :schema {:type "list"
                                     :definition [:cola {:type "integer"}
                                                  :colb {:type "integer"}]}})
 
-(use-fixtures :once base/cycle-system-fixture)
+(use-fixtures :once base/cycle-system-fixture base/extract-comms)
 
 (defn authorised
   [resp]
-  (#{200 201}
-   (:status resp)))
+  (= 200
+     (:status resp)))
 
-(defmacro unauthorised 
-  [activation]
-  `(let [receiver# (atom nil)
-         rejection-handler# (attach-event-handler!
-                             :file-metadata-rejections
-                             :kixi.datastore.filestore/file-metadata-rejected
-                             #(do (reset! receiver# %)
-                                  nil))]
-     (try
-       (let [resp# ~@activation]
-         (#{200 401} ;40
-          (:status resp))
-         (wait-for-pred #(deref receiver#))
-         (is @receiver#
-             "Rejection message not received")
-         (when @receiver#
-           (is ((set (keys (:kixi.comms.event/payload @receiver#)))
-                :rejection))))
-       (finally
-         (detach-handler rejection-handler#)))))
+(defn unauthorised
+  [event]
+  (if (contains? event :kixi.comms.event/key)
+    (and
+     (= "rejected" (name (:kixi.comms.event/key event)))
+     (= :unauthorised (get-in event [:kixi.comms.event/payload :reason])))
+    (= 401 (:status event))))
 
 (defn get-file
   [schema-id file-id uid ugroups]
@@ -51,23 +42,25 @@
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
-  (base/deliver-file-and-metadata
-   (base/create-metadata
-    {:file-name "./test-resources/metadata-one-valid.csv"
-     :schema-id schema-id
-     :user-id uid
-     :user-groups uid
-     :file-size (base/file-size "./test-resources/metadata-one-valid.csv")})))
+  (base/send-file-and-metadata
+   uid ugroups
+   (assoc
+    (base/create-metadata
+     uid
+     "./test-resources/metadata-one-valid.csv"
+     schema-id)
+    ::ms/sharing {::ms/meta-read [ugroups]})))
 
 (def shares->authorised-actions
-  {[[:file :sharing :file-read]] [get-file]
-   ;[[:file :sharing :meta-visible]] []
-   [[:file :sharing :meta-read]] [get-metadata]
-   ;[[:file :sharing :meta-update]] []
-   [[:schema :sharing :read]] [get-spec]
-   [[:schema :sharing :use]] [post-file-using-schema]})
+  {[[:file :sharing ::ms/file-read]] [get-file]
+   ;[[:file :sharing ::ms/meta-visible]] []
+   [[:file :sharing ::ms/meta-read]] [get-metadata]
+   ;[[:file :sharing ::ms/meta-update]] []
+   [[:schema :sharing :read]] [get-spec] ;;WTF These activites should be namespaced like the others!!!
+   [[:schema :sharing :use]] [post-file-using-schema]
+   })
 
-(def all-shares 
+(def all-shares
   (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))
 
 (def all-actions
@@ -75,52 +68,53 @@
 
 (defn actions-for
   [shares]
-  (mapcat 
+  (mapcat
    #(get shares->authorised-actions %)
    (subsets shares)))
 
 (defn shares->sharing-map
   [type shares upload-ugroup use-ugroup]
-  (->> shares
-       (reduce
-        (fn [acc [stype share-area share-specific]]
-          (if (= type stype)
-            (merge-with concat
-                        acc
-                        {share-specific [use-ugroup]})
-            acc))
-        (case type
-          :file {:file-read [upload-ugroup]
-                 :meta-read [upload-ugroup]}
-          :schema {:read [upload-ugroup]
-                   :use [upload-ugroup]}))))
+  (reduce
+   (fn [acc [stype share-area share-specific]]
+     (if (= type stype)
+       (merge-with (comp vec concat)
+                   acc
+                   {share-specific [use-ugroup]})
+       acc))
+   (case type
+     :file {::ms/file-read [upload-ugroup]
+            ::ms/meta-read [upload-ugroup]}
+     :schema {:read [upload-ugroup]
+              :use [upload-ugroup]})
+   shares))
 
-(def shares->file-sharing-map 
+(def shares->file-sharing-map
   (partial shares->sharing-map :file))
 
-(def shares->schema-sharing-map 
+(def shares->schema-sharing-map
   (partial shares->sharing-map :schema))
 
 (defn post-file
   [schema-id file-id upload-uid upload-ugroup use-ugroup shares]
-  (base/deliver-file-and-metadata
-   (base/create-metadata
-    {:file-name "./test-resources/metadata-one-valid.csv"
-     :schema-id schema-id
-     :user-id upload-uid
-     :user-groups upload-ugroup
-     :file-size (base/file-size "./test-resources/metadata-one-valid.csv")
-     :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)})))
+  (base/send-file-and-metadata
+   upload-uid [upload-ugroup use-ugroup]
+   (assoc
+    (base/create-metadata
+     upload-uid
+     "./test-resources/metadata-one-valid.csv"
+     schema-id)
+    ::ms/sharing (shares->file-sharing-map shares upload-ugroup use-ugroup))))
 
-(defn post-spec 
+(defn post-spec
   [shares upload-uid upload-ugroup use-ugroup]
-  (base/post-spec upload-uid
-                  upload-ugroup
-                  metadata-file-schema
-                  {:sharing (shares->schema-sharing-map
-                             shares
-                             upload-ugroup
-                             use-ugroup)}))
+  (base/send-spec upload-uid
+                  (assoc metadata-file-schema
+                         :sharing (merge-with (comp vec concat)
+                                              {:read [upload-uid]}
+                                              (shares->schema-sharing-map
+                                               shares
+                                               upload-ugroup
+                                               use-ugroup)))))
 
 (deftest explore-sharing-level->actions
   (doseq [shares (subsets all-shares)]
@@ -129,8 +123,8 @@
           use-uid (uuid)
           use-ugroup (uuid)
           psr (post-spec shares upload-uid upload-ugroup use-ugroup)]
-      (when-accepted psr
-        (let [schema-id (extract-id psr)
+      (when-success psr
+        (let [schema-id (::ss/id (base/extract-schema psr))
               pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
           (when-success pfr
             (let [file-id (extract-id pfr)

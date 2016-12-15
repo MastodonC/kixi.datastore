@@ -63,7 +63,7 @@
           (let [schema (sv/schema-id->schema schemastore (get-in metadata [::ms/schema ::ss/id]))
                 result (case (::ms/file-type metadata)
                          "csv" (csv-schema-test schema file (::ms/header metadata)))]
-            {:kixi.comms.event/key :kixi.datastore/file-metadata-updated
+            {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
              :kixi.comms.event/version "1.0.0"
              :kixi.comms.event/payload {::cs/file-metadata-update-type ::cs/file-metadata-structural-validation-checked
                                         ::ms/id (::ms/id metadata)
@@ -83,7 +83,7 @@
           (info "Starting Structural Validator")
           (attach-event-handler! communications
                                  :kixi.datastore/structural-validator
-                                 :kixi.datastore/file-created
+                                 :kixi.datastore.file/created
                                  "1.0.0"
                                  (comp sv-fn :kixi.comms.event/payload))
           (assoc component

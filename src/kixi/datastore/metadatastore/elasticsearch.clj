@@ -1,4 +1,3 @@
-
 (ns kixi.datastore.metadatastore.elasticsearch
   (:require [clojure.spec :as s]
             [com.stuartsierra.component :as component]
@@ -72,7 +71,7 @@
   (merge-data
    conn
    (::ms/id update-event)
-   (select-keys update-event                
+   (select-keys update-event
                 [::ms/structural-validation])))
 
 (defmethod update-metadata-processor ::cs/file-metadata-segmentation-add
@@ -81,7 +80,7 @@
   (cons-data
    conn
    (::ms/id update-event)
-   ::ms/segmentations 
+   ::ms/segmentations
    (::ms/segmentation update-event)))
 
 (defn response-event
@@ -108,12 +107,12 @@
         (let [connection (es/connect host port)]
           (info "Starting File Metadata ElasticSearch Store")
           (ensure-index index-name
-                        doc-type 
+                        doc-type
                         doc-def
                         connection)
           (c/attach-event-handler! communications
                                    :kixi.datastore/metadatastore
-                                   :kixi.datastore/file-metadata-updated
+                                   :kixi.datastore.file-metadata/updated
                                    "1.0.0"
                                    (comp response-event (partial update-metadata-processor connection) :kixi.comms.event/payload))
           (assoc component :conn connection))
@@ -123,5 +122,3 @@
         (do (info "Destroying File Metadata ElasticSearch Store")
             (dissoc component :conn))
         component)))
-
-

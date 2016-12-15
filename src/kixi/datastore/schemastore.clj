@@ -1,8 +1,11 @@
 (ns kixi.datastore.schemastore
   (:require [clojure.spec :as s]
             [clojure.spec.gen :as gen]
-            [kixi.datastore.schemastore.conformers :as sc 
-             :refer [uuid timestamp ns-keyword]]))
+            [kixi.datastore.schemastore.conformers
+             :as
+             sc
+             :refer
+             [ns-keyword timestamp uuid]]))
 
 (s/def ::id uuid)
 (s/def ::tag keyword?)

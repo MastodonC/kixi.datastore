@@ -9,7 +9,7 @@
 (s/def ::event #{:kixi.datastore/file-created
                  :kixi.datastore/file-metadata-updated
                  :kixi.datastore/file-segmentation-created
-                 :kixi.datastore/schema-created})
+                 :kixi.datastore.schema/created})
 
 (s/def ::version (s/and string? #(re-matches #"\d+\.\d+\.\d+" %)))
 
@@ -47,7 +47,7 @@
   [_]
   (s/keys :req [::seg/id ::ms/id ::seg/column-name :kixi.user/id]))
 
-(defmethod payloads :kixi.datastore/schema-created
+(defmethod payloads :kixi.datastore.schema/created
   [_]
   ::ss/create-schema-request)
 

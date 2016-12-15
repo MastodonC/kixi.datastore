@@ -22,22 +22,17 @@
                            :sharing {:read [uid]
                                      :use [uid]}})
 
-(defn setup-schema
-  [all-tests]
-  (let [r (post-spec uid metadata-file-schema)]
-    (if (= 202 (:status r))
-      (reset! metadata-file-schema-id (extract-id-location r))
-      (throw (Exception. (str "Couldn't post metadata-file-schema. Resp: " r)))))
-  (all-tests))
-
-(use-fixtures :once cycle-system-fixture setup-schema extract-comms)
+(use-fixtures :once
+  cycle-system-fixture
+  extract-comms
+  (setup-schema uid metadata-file-schema metadata-file-schema-id))
 
 (deftest unknown-file-401
   (let [sr (get-metadata uid "foo")]
     (unauthorised sr)))
 
 (deftest small-file
-  (let [metadata-response (deliver-file-and-metadata
+  (let [metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
                             "./test-resources/metadata-one-valid.csv"
@@ -60,28 +55,25 @@
          metadata-response)))))
 
 (deftest small-file-no-schema
-  (let [metadata-response (deliver-file-and-metadata
+  (let [metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
                             "./test-resources/metadata-one-valid.csv"))]
     (when-success metadata-response
-      (let [metadata-response (wait-for-metadata-key uid (extract-id metadata-response) ::ms/id)]
-        (is-submap
-         {:status 200
-          :body {::ms/id (extract-id metadata-response)
-                 ::ms/type "stored"
-                 ::ms/file-type "csv"
-                 ::ms/name "./test-resources/metadata-one-valid.csv"
-                 ::ms/header true
-                 ::ms/size-bytes 14
-                 ::ms/provenance {:kixi.user/id uid
-                                  ::ms/source "upload"}}}
-         metadata-response)
-        (is (nil? (::ms/schema metadata-response)))
-        (is (nil? (::ms/structural-validation metadata-response)))))))
+      (is-submap
+       {:status 200
+        :body {::ms/id (extract-id metadata-response)
+               ::ms/type "stored"
+               ::ms/file-type "csv"
+               ::ms/name "./test-resources/metadata-one-valid.csv"
+               ::ms/header true
+               ::ms/size-bytes 14
+               ::ms/provenance {:kixi.user/id uid
+                                ::ms/source "upload"}}}
+       metadata-response))))
 
 (deftest small-file-no-header
-  (let [metadata-response (deliver-file-and-metadata
+  (let [metadata-response (send-file-and-metadata
                            (assoc (create-metadata
                                    uid
                                    "./test-resources/metadata-one-valid-no-header.csv"
@@ -106,15 +98,15 @@
 
 (deftest small-file-invalid-schema
   (is-file-metadata-rejected 
-   #(deliver-file-and-metadata-no-wait
+   #(send-file-and-metadata-no-wait
      (create-metadata
       uid
       "./test-resources/metadata-one-valid.csv"
       "003ba24c-2830-4f28-b6af-905d6215ea1c")) ;; schema doesn't exist
-   {::mdc/rejection-reason :schema-unknown}))
+   {:reason :schema-unknown}))
 
 (deftest small-file-invalid-data
-  (let [metadata-response (deliver-file-and-metadata
+  (let [metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
                             "./test-resources/metadata-one-invalid.csv"

@@ -36,7 +36,9 @@
 
 (defn ctx->user-groups
   [ctx]
-  (vec-if-not (get-in ctx [:request :headers "user-groups"])))
+  (-> (get-in ctx [:request :headers "user-groups"])
+      (clojure.string/split #",")
+      vec-if-not))
 
 (defn say-hello [ctx]
   (info "Saying hello")
@@ -430,7 +432,7 @@
                                                              internal-sr))
                             (do
                               (cs/send-event! communications
-                                              (merge {::cs/event :kixi.datastore/schema-created
+                                              (merge {::cs/event :kixi.datastore.schema/created
                                                       ::cs/version "1.0.0"}
                                                      internal-sr))
                               (assoc (:response ctx)
