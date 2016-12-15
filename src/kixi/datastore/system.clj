@@ -22,6 +22,8 @@
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [elasticsearch :as md-es]]
+            [kixi.datastore.metadata-creator
+             :as md-creator]
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]
              [elasticsearch :as ss-es]]
@@ -46,6 +48,7 @@
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
    :filestore [:logging :communications]
    :metadatastore [:communications]
+   :metadata-creator [:communications :filestore :schemastore]
    :schemastore [:communications]
                                         ;   :schema-extracter [:communications :filestore]
    :segmentation [:communications :metadatastore :filestore]
@@ -57,6 +60,7 @@
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
    :logging (logging/map->Log {})
+   :metadata-creator (md-creator/map->MetadataCreator {})
    :filestore (case (first (keys (:filestore config)))
                 :local (local/map->Local {})
                 :s3 (s3/map->S3 {}))

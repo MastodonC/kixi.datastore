@@ -11,6 +11,7 @@
             [kixi.datastore.system :as system]
             [kixi.repl :as repl]
             [kixi.datastore.filestore :as fs]
+            [kixi.datastore.metadata-creater :as mdc]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as ms]
             [taoensso.timbre :as timbre :refer [error info infof]]
@@ -68,7 +69,7 @@
      (assoc (create-metadata uid
                              "./rejected-when-file-not-uploaded.non-file")
             ::ms/id (uuid)))
-   {::fs/rejection-reason :file-not-exist}))
+   {::mdc/rejection-reason :file-not-exist}))
 
 (deftest rejected-when-size-incorrect
   (is-file-metadata-rejected 
@@ -76,4 +77,4 @@
      (assoc (create-metadata uid
                              "./test-resources/metadata-one-valid.csv")
             ::ms/size-bytes 1))
-   {::fs/rejection-reason :file-size-incorrect}))
+   {::mdc/rejection-reason :file-size-incorrect}))

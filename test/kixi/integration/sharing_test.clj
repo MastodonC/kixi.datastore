@@ -16,10 +16,26 @@
   (#{200 201}
    (:status resp)))
 
-(defn unauthorised 
-  [resp]
-  (= 401
-     (:status resp)))
+(defmacro unauthorised 
+  [activation]
+  `(let [receiver# (atom nil)
+         rejection-handler# (attach-event-handler!
+                             :file-metadata-rejections
+                             :kixi.datastore.filestore/file-metadata-rejected
+                             #(do (reset! receiver# %)
+                                  nil))]
+     (try
+       (let [resp# ~@activation]
+         (#{200 401} ;40
+          (:status resp))
+         (wait-for-pred #(deref receiver#))
+         (is @receiver#
+             "Rejection message not received")
+         (when @receiver#
+           (is ((set (keys (:kixi.comms.event/payload @receiver#)))
+                :rejection))))
+       (finally
+         (detach-handler rejection-handler#)))))
 
 (defn get-file
   [schema-id file-id uid ugroups]
@@ -35,10 +51,13 @@
 
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
-  (base/post-file uid
-                  ugroups
-                  "./test-resources/metadata-one-valid.csv"
-                  schema-id))
+  (base/deliver-file-and-metadata
+   (base/create-metadata
+    {:file-name "./test-resources/metadata-one-valid.csv"
+     :schema-id schema-id
+     :user-id uid
+     :user-groups uid
+     :file-size (base/file-size "./test-resources/metadata-one-valid.csv")})))
 
 (def shares->authorised-actions
   {[[:file :sharing :file-read]] [get-file]
@@ -84,13 +103,14 @@
 
 (defn post-file
   [schema-id file-id upload-uid upload-ugroup use-ugroup shares]
-  (base/post-file 
-   {:file-name "./test-resources/metadata-one-valid.csv"
-    :schema-id schema-id
-    :user-id upload-uid
-    :user-groups upload-ugroup
-    :file-size (base/file-size "./test-resources/metadata-one-valid.csv")
-    :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)}))
+  (base/deliver-file-and-metadata
+   (base/create-metadata
+    {:file-name "./test-resources/metadata-one-valid.csv"
+     :schema-id schema-id
+     :user-id upload-uid
+     :user-groups upload-ugroup
+     :file-size (base/file-size "./test-resources/metadata-one-valid.csv")
+     :sharing (shares->file-sharing-map shares upload-ugroup use-ugroup)})))
 
 (defn post-spec 
   [shares upload-uid upload-ugroup use-ugroup]
@@ -112,7 +132,7 @@
       (when-accepted psr
         (let [schema-id (extract-id psr)
               pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
-          (when-created pfr
+          (when-success pfr
             (let [file-id (extract-id pfr)
                   authorised-actions (actions-for shares)
                   unauthorised-actions (apply disj (set all-actions) authorised-actions)]
