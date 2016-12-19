@@ -13,7 +13,7 @@
   [{:keys [kixi.comms.command/payload] :as cmd}]
   (let [new-id (uuid)
         raw-schema-req (assoc payload
-                              :id new-id)
+                              ::ss/id new-id)
         internal-sr (ts/schema-transport->internal raw-schema-req)]
     (if (s/valid?
          ::ss/create-schema-request

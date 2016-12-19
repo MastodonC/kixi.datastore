@@ -1,23 +1,21 @@
 (ns kixi.integration.base
   (:require [byte-streams :as bs]
-            [clojure.test :refer :all   ;:exclude [deftest]
-             ]
-            [clojure.spec.test :as stest]
-            [clojure.core.async :as async]
             [cheshire.core :as json]
-            [environ.core :refer [env]]
-            [kixi.comms :as c]
-            [kixi.repl :as repl]
-            [kixi.datastore.transit :as t]
             [clj-http.client :as client]
-            [clojure.data]
+            [clojure data 
+             [test :refer :all]]
+            [clojure.core.async :as async]
             [clojure.java.io :as io]
+            [clojure.spec.test :as stest]
             [digest :as d]
-            [kixi.datastore.schemastore :as ss]
-            [kixi.datastore.metadatastore :as ms])
-  (:import [java.io
-            File
-            FileNotFoundException]))
+            [environ.core :refer [env]]
+            [kixi
+             [comms :as c]
+             [repl :as repl]]
+            [kixi.datastore
+             [metadatastore :as ms]
+             [schemastore :as ss]])
+  (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
@@ -436,35 +434,6 @@
               {:accept :json
                :headers {"user-groups" ugroup}
                :throw-exceptions false}))
-
-#_(defn post-spec-no-wait
-    ([uid s]
-     (post-spec-no-wait uid uid s))
-    ([uid ugroup s]
-     (post-spec-no-wait uid ugroup s {:sharing {:read [ugroup]
-                                                :use [ugroup]}}))
-    ([uid ugroup s sharing]
-     (client/post (schema-url)
-                  {:form-params (merge s
-                                       sharing)
-                   :content-type :json
-                   :headers {"user-id" uid
-                             "user-groups" (vec-if-not ugroup)}
-                   :accept :json
-                   :throw-exceptions false})))
-
-#_(defn post-spec
-    ([uid s]
-     (post-spec uid uid s))
-    ([uid ugroup s]
-     (post-spec uid ugroup s
-                {:sharing {:read [ugroup]
-                           :use [ugroup]}}))
-    ([uid ugroup s sharing]
-     (let [psr (post-spec-no-wait uid ugroup s sharing)]
-       (when (accept-status (:status psr))
-         (wait-for-url ugroup (get-in psr [:headers "Location"])))
-       psr)))
 
 (defn extract-schema
   [r-g]

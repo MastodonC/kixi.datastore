@@ -116,10 +116,8 @@
 
 (defn schema-transport->internal
   [transport]
-  (let [schema (keywordize-values
-                (add-ns-to-keys ::ss/_ 
-                                   transport))]
-    schema))
+  (keywordize-values
+   transport))
 
 (defn raise-spec
   [conformed]

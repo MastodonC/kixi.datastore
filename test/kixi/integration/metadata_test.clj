@@ -15,12 +15,12 @@
 ;(def wait-for-metadata-key (partial base/wait-for-metadata-key uid))
 
 (def metadata-file-schema-id (atom nil))
-(def metadata-file-schema {:name ::metadata-file-schema
-                           :schema {:type "list"
-                                    :definition [:cola {:type "integer"}
-                                                 :colb {:type "integer"}]}
-                           :sharing {:read [uid]
-                                     :use [uid]}})
+(def metadata-file-schema {::ss/name ::metadata-file-schema
+                           ::ss/schema {::ss/type "list"
+                                        ::ss/definition [:cola {::ss/type "integer"}
+                                                         :colb {::ss/type "integer"}]}
+                           ::ss/sharing {::ss/read [uid]
+                                         ::ss/use [uid]}})
 
 (use-fixtures :once
   cycle-system-fixture

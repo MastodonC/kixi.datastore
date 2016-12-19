@@ -8,10 +8,10 @@
                                            when-accepted when-created
                                            when-success] :as base]))
 
-(def metadata-file-schema {:name ::metadata-file-schema
-                           :schema {:type "list"
-                                    :definition [:cola {:type "integer"}
-                                                 :colb {:type "integer"}]}})
+(def metadata-file-schema {::ss/name ::metadata-file-schema
+                           ::ss/schema {::ss/type "list"
+                                        ::ss/definition [:cola {::ss/type "integer"}
+                                                         :colb {::ss/type "integer"}]}})
 
 (use-fixtures :once base/cycle-system-fixture base/extract-comms)
 
@@ -56,8 +56,8 @@
    ;[[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata]
    ;[[:file :sharing ::ms/meta-update]] []
-   [[:schema :sharing :read]] [get-spec] ;;WTF These activites should be namespaced like the others!!!
-   [[:schema :sharing :use]] [post-file-using-schema]
+   [[:schema :sharing ::ss/read]] [get-spec] ;;WTF These activites should be namespaced like the others!!!
+   [[:schema :sharing ::ss/use]] [post-file-using-schema]
    })
 
 (def all-shares
@@ -84,8 +84,8 @@
    (case type
      :file {::ms/file-read [upload-ugroup]
             ::ms/meta-read [upload-ugroup]}
-     :schema {:read [upload-ugroup]
-              :use [upload-ugroup]})
+     :schema {::ss/read [upload-ugroup]
+              ::ss/use [upload-ugroup]})
    shares))
 
 (def shares->file-sharing-map
@@ -109,8 +109,8 @@
   [shares upload-uid upload-ugroup use-ugroup]
   (base/send-spec upload-uid
                   (assoc metadata-file-schema
-                         :sharing (merge-with (comp vec concat)
-                                              {:read [upload-uid]}
+                         ::ss/sharing (merge-with (comp vec concat)
+                                              {::ss/read [upload-uid]}
                                               (shares->schema-sharing-map
                                                shares
                                                upload-ugroup

@@ -19,15 +19,15 @@
 (use-fixtures :once cycle-system-fixture extract-comms)
 
 (deftest good-round-trip
-  (let [schema {:name ::new-good-spec-a
-                :schema {:type "integer-range"
-                         :min 3
-                         :max 10}
-                :sharing {:read [uid]
-                          :use [uid]}}
+  (let [schema {::ss/name ::new-good-spec-a
+                ::ss/schema {::ss/type "integer-range"
+                             ::ss/min 3
+                             ::ss/max 10}
+                ::ss/sharing {::ss/read [uid]
+                          ::ss/use [uid]}}
         r2 (send-spec uid schema)]
     (when-success r2
-      (is-submap (add-ns-to-keys ::ss/_ (dissoc schema :name :sharing))
+      (is-submap (add-ns-to-keys ::ss/_ (dissoc schema ::ss/name ::ss/sharing))
                  (extract-schema r2)))))
 
 
@@ -37,55 +37,55 @@
 
 (deftest good-spec-202
   (success
-   (send {:name ::good-spec-a
-          :schema {:type "integer-range"
-                   :min 3
-                   :max 10}
-          :sharing {:read [uid]
-                    :use [uid]}}))
+   (send {::ss/name ::good-spec-a
+          ::ss/schema {::ss/type "integer-range"
+                       ::ss/min 3
+                       ::ss/max 10}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}}))
   (success
-   (send {:name ::good-spec-b
-          :schema {:type "integer"}
-          :sharing {:read [uid]
-                    :use [uid]}}))
+   (send {::ss/name ::good-spec-b
+          ::ss/schema {::ss/type "integer"}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}}))
   (success
-   (send {:name ::good-spec-c
-          :schema {:type "list"
-                   :definition [:foo {:type "integer"}
-                                :bar {:type "integer"}
-                                :baz {:type "integer-range"
-                                      :min 3
-                                      :max 10}]}
-          :sharing {:read [uid]
-                    :use [uid]}})))
+   (send {::ss/name ::good-spec-c
+          ::ss/schema {::ss/type "list"
+                       ::ss/definition [:foo {::ss/type "integer"}
+                                        :bar {::ss/type "integer"}
+                                        :baz {::ss/type "integer-range"
+                                              ::ss/min 3
+                                              ::ss/max 10}]}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}})))
 
 (deftest good-spec-202-with-reference
-  (let [schema {:name ::ref-good-spec-a
-                :schema {:type "integer-range"
-                         :min 3
-                         :max 10}
-                :sharing {:read [uid]
-                          :use [uid]}}
+  (let [schema {::ss/name ::ref-good-spec-a
+                ::ss/schema {::ss/type "integer-range"
+                             ::ss/min 3
+                             ::ss/max 10}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}
         r1       (send schema)]
     (when-success r1
       (let [id (::ss/id (extract-schema r1))]
         (success
-         (send {:name ::ref-good-spec-b
-                :schema {:type "id"
-                         :id    id}
-                :sharing {:read [uid]
-                          :use [uid]}}))
+         (send {::ss/name ::ref-good-spec-b
+                ::ss/schema {::ss/type "id"
+                             ::ss/id    id}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}))
         (success
-         (send {:name ::ref-good-spec-b
-                :schema {:type "list"
-                         :definition [:foo {:type "id"
-                                            :id   id}
-                                      :bar {:type "integer"}
-                                      :baz {:type "integer-range"
-                                            :min 3
-                                            :max 10}]}
-                :sharing {:read [uid]
-                          :use [uid]}}))))))
+         (send {::ss/name ::ref-good-spec-b
+                ::ss/schema {::ss/type "list"
+                             ::ss/definition [:foo {::ss/type "id"
+                                                    ::ss/id   id}
+                                              :bar {::ss/type "integer"}
+                                              :baz {::ss/type "integer-range"
+                                                    ::ss/min 3
+                                                    ::ss/max 10}]}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}))))))
 
 (defn rejected-schema
   [event]
@@ -94,24 +94,24 @@
 
 (deftest bad-specs
   (rejected-schema
-   (send {:type "integer"}))
+   (send {::ss/type "integer"}))
   (rejected-schema
-   (send {:name :foo
-          :schema {:type "integer"}}))
+   (send {::ss/name :foo
+          ::ss/schema {::ss/type "integer"}}))
   (rejected-schema
-   (send {:name ::foo
-          :schema {:type "foo"}}))
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "foo"}}))
   (rejected-schema
-   (send {:name ::foo
-          :schema {:type "integer-range"
-                   :foo 1}}))
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "integer-range"
+                       :foo 1}}))
   (rejected-schema
-   (send {:name ::foo
-          :schema {:type "list"
-                   :definition [:foo]}}))
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "list"
+                       :definition [:foo]}}))
 
   (rejected-schema
-   (send {:name ::foo
-          :schema {:type "list"
-                   :definition [:foo
-                                {:type "foo"}]}})))
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "list"
+                       ::ss/definition [:foo
+                                        {::ss/type "foo"}]}})))
