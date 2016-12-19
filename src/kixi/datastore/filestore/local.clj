@@ -15,27 +15,25 @@
     (str "file://" dir "/" id)))
 
 (defn file-exists
-  [dir]
-  (fn [id]
-    (let [^java.io.File file (io/file dir
-                                      id)]
-      (.exists file))))
+  [dir id]
+  (let [^java.io.File file (io/file dir
+                                    id)]
+    (.exists file)))
 
 (defn file-size
-  [dir]
-  (fn [id]
-    (when-let [^java.io.File file (io/file dir
-                                           id)]
-      (when (.exists file)
-        (.length file)))))
+  [dir id]
+  (when-let [^java.io.File file (io/file dir
+                                         id)]
+    (when (.exists file)
+      (.length file))))
 
 (defrecord Local
     [communications base-dir ^java.io.File dir]
     FileStore
     (exists [this id]
-      ((file-exists dir) id))
+      (file-exists dir id))
     (size [this id]
-      ((file-size dir) id)) ;;TODO tidy this
+      (file-size dir id))
     (retrieve [this id]
       (let [^java.io.File file (io/file dir
                                         id)]

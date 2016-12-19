@@ -334,6 +334,11 @@
            (doto (io/file (strip-protocol target))
              (.createNewFile))))
 
+(defmethod upload-file "https"
+  [target file-name]
+  (client/put target
+              {:body (io/file file-name)}))
+
 (defn create-metadata
   ([uid file-name]
    (create-metadata uid file-name nil))
