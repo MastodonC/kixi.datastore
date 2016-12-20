@@ -3,119 +3,115 @@
             [kixi.datastore
              [schemastore :as ss]
              [transport-specs :refer [add-ns-to-keys]]]
-            [kixi.integration.base :as base :refer [bad-request success when-accepted not-found cycle-system-fixture
-                                                    extract-id extract-schema is-submap not-found
-                                                    accepted]]))
+            [kixi.integration.base :as base :refer :all]))
 
 (def uuid-regex
   #"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
-(def uid (base/uuid))
+(def uid (uuid))
 
-(def post-spec (partial base/post-spec uid))
-(def post-spec-no-wait (partial base/post-spec-no-wait uid))
-(def get-spec (partial base/get-spec uid))
+(def send (partial send-spec uid))
+(def send-no-wait (partial send-spec-no-wait uid))
 
 (def location-regex
   (re-pattern (str #"schema\/" uuid-regex)))
 
-(use-fixtures :once cycle-system-fixture)
+(use-fixtures :once cycle-system-fixture extract-comms)
 
 (deftest good-round-trip
-  (let [schema {:name ::new-good-spec-a
-                :schema {:type "integer-range"
-                         :min 3
-                         :max 10}
-                :sharing {:read [uid]
-                          :use [uid]}}
-        r1 (post-spec schema)]
-    (when-accepted r1
-      (let [location (get-in r1 [:headers "Location"])
-            id       (extract-id r1)
-            r2       (get-spec id)]
-        (is (re-find location-regex location))
-        (is (re-find uuid-regex id))
-        (success r2)
-        (is-submap (add-ns-to-keys ::ss/_ (dissoc schema :name :sharing))
-                   (extract-schema r2))))))
+  (let [schema {::ss/name ::new-good-spec-a
+                ::ss/schema {::ss/type "integer-range"
+                             ::ss/min 3
+                             ::ss/max 10}
+                ::ss/sharing {::ss/read [uid]
+                          ::ss/use [uid]}}
+        r2 (send-spec uid schema)]
+    (when-success r2
+      (is-submap (add-ns-to-keys ::ss/_ (dissoc schema ::ss/name ::ss/sharing))
+                 (extract-schema r2)))))
+
 
 (deftest unknown-spec-404
-  (let [r-g (get-spec "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
+  (let [r-g (get-spec uid "c0bbb46f-9a31-47c2-b30c-62eba45470d4")]
     (not-found r-g)))
 
 (deftest good-spec-202
-  (accepted 
-   (post-spec {:name ::good-spec-a
-               :schema {:type "integer-range"
-                        :min 3
-                        :max 10}
-               :sharing {:read [uid]
-                         :use [uid]}}))
-  (accepted 
-   (post-spec {:name ::good-spec-b
-               :schema {:type "integer"}
-               :sharing {:read [uid]
-                         :use [uid]}}))
-  (accepted 
-   (post-spec {:name ::good-spec-c
-               :schema {:type "list"
-                        :definition [:foo {:type "integer"}
-                                     :bar {:type "integer"}
-                                     :baz {:type "integer-range"
-                                           :min 3
-                                           :max 10}]}
-               :sharing {:read [uid]
-                         :use [uid]}})))
+  (success
+   (send {::ss/name ::good-spec-a
+          ::ss/schema {::ss/type "integer-range"
+                       ::ss/min 3
+                       ::ss/max 10}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}}))
+  (success
+   (send {::ss/name ::good-spec-b
+          ::ss/schema {::ss/type "integer"}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}}))
+  (success
+   (send {::ss/name ::good-spec-c
+          ::ss/schema {::ss/type "list"
+                       ::ss/definition [:foo {::ss/type "integer"}
+                                        :bar {::ss/type "integer"}
+                                        :baz {::ss/type "integer-range"
+                                              ::ss/min 3
+                                              ::ss/max 10}]}
+          ::ss/sharing {::ss/read [uid]
+                        ::ss/use [uid]}})))
 
 (deftest good-spec-202-with-reference
-  (let [schema {:name ::ref-good-spec-a
-                :schema {:type "integer-range"
-                         :min 3
-                         :max 10}
-                :sharing {:read [uid]
-                          :use [uid]}}
-        r1       (post-spec schema)]
-    (when-accepted r1      
-      (let [location (get-in r1 [:headers "Location"])
-            id       (extract-id r1)]
-        (accepted 
-         (post-spec {:name ::ref-good-spec-b
-                     :schema {:type "id"
-                              :id    id}
-                     :sharing {:read [uid]
-                               :use [uid]}}))
-        (accepted 
-         (post-spec {:name ::ref-good-spec-b
-                     :schema {:type "list"
-                              :definition [:foo {:type "id"
-                                                 :id   id}
-                                           :bar {:type "integer"}
-                                           :baz {:type "integer-range"
-                                                 :min 3
-                                                 :max 10}]}
-                     :sharing {:read [uid]
-                               :use [uid]}}))))))
+  (let [schema {::ss/name ::ref-good-spec-a
+                ::ss/schema {::ss/type "integer-range"
+                             ::ss/min 3
+                             ::ss/max 10}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}
+        r1       (send schema)]
+    (when-success r1
+      (let [id (::ss/id (extract-schema r1))]
+        (success
+         (send {::ss/name ::ref-good-spec-b
+                ::ss/schema {::ss/type "id"
+                             ::ss/id    id}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}))
+        (success
+         (send {::ss/name ::ref-good-spec-b
+                ::ss/schema {::ss/type "list"
+                             ::ss/definition [:foo {::ss/type "id"
+                                                    ::ss/id   id}
+                                              :bar {::ss/type "integer"}
+                                              :baz {::ss/type "integer-range"
+                                                    ::ss/min 3
+                                                    ::ss/max 10}]}
+                ::ss/sharing {::ss/read [uid]
+                              ::ss/use [uid]}}))))))
+
+(defn rejected-schema
+  [event]
+  (is (contains? event :kixi.comms.event/key) "Is not an event.")
+  (is (= :kixi.datastore.schema/rejected (:kixi.comms.event/key event)) "Was not rejected."))
 
 (deftest bad-specs
-  (bad-request 
-   (post-spec {:type "integer"}))
-  (bad-request 
-   (post-spec {:name :foo
-               :schema {:type "integer"}}))
-  (bad-request 
-   (post-spec {:name ::foo
-               :schema {:type "foo"}}))
-  (bad-request 
-   (post-spec {:name ::foo
-               :schema {:type "integer-range"
-                        :foo 1}}))
-  (bad-request 
-   (post-spec {:name ::foo
-               :schema {:type "list"
-                        :definition [:foo]}}))
+  (rejected-schema
+   (send {::ss/type "integer"}))
+  (rejected-schema
+   (send {::ss/name :foo
+          ::ss/schema {::ss/type "integer"}}))
+  (rejected-schema
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "foo"}}))
+  (rejected-schema
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "integer-range"
+                       :foo 1}}))
+  (rejected-schema
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "list"
+                       :definition [:foo]}}))
 
-  (bad-request 
-   (post-spec {:name ::foo
-               :schema {:type "list"
-                        :definition [:foo
-                                     {:type "foo"}]}})))
+  (rejected-schema
+   (send {::ss/name ::foo
+          ::ss/schema {::ss/type "list"
+                       ::ss/definition [:foo
+                                        {::ss/type "foo"}]}})))

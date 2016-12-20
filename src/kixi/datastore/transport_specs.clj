@@ -8,59 +8,56 @@
              [time :as t]]
             [kixi.datastore.schemastore.conformers :refer [uuid]]))
 
-(s/def ::schema-id uuid)
+(defmulti file-metadata-transport ::ms/type)
 
-(s/def ::filemetadata-transport
-  (s/keys :req-un [::ms/name]
-          :opt-un [::schema-id
-                   ::ms/type
-                   ::ms/header
-                   ::ms/sharing]))
+(defmethod file-metadata-transport "stored"
+  [_]
+  (s/keys :req [::ms/id
+                ::ms/name
+                ::ms/type
+                ::ms/size-bytes
+                ::ms/provenance
+                ::ms/sharing]
+          :opt [::ss/id                
+                ::ms/file-type
+                ::ms/header]))
 
-(s/def ::file-details
-  (s/keys :req [::ms/id ::ms/size-bytes ::ms/provenance]))
+(s/def ::file-metadata-transport (s/multi-spec file-metadata-transport ::ms/type))
 
 (def file-type->default-metadata
   {"csv" {::ms/header true}})
 
 (def default-primary-metadata
-  {::ms/type "csv"
-   ::ms/sharing {}})
+  {::ms/file-type "csv"})
 
 (s/fdef filemetadata-transport->internal
-        :args (s/cat :meta ::filemetadata-transport
-                     :details ::file-details)
-        :fn #(let [{:keys [meta details]} (get % :args)
+        :args (s/cat :meta ::file-metadata-transport)
+        :fn #(let [{:keys [meta]} (get % :args)
                    file-metadata (get % :ret)]
-               (and (= (::ms/id details)
+               (and (= (::ms/id meta)
                        (::ms/id file-metadata))
-                    (= (::ms/size-bytes details)
+                    (= (::ms/size-bytes meta)
                        (::ms/size-bytes file-metadata))
-                    (= (::ms/provenance details)
+                    (= (::ms/provenance meta)
                        (::ms/provenance file-metadata))
-                    (= (:schema-id meta)
+                    (= (::ss/id meta)
                        (get-in file-metadata [::ms/schema ::ss/id]))
-                    (= (:name meta)
+                    (= (::ms/name meta)
                        (::ms/name file-metadata))
-                    (or (= (:sharing meta)
-                           (::ms/sharing file-metadata))
-                        (= {}
-                           (::ms/sharing file-metadata)))
-                    (case (or (:type meta) 
-                              (::ms/type file-metadata)) 
-                      "csv" (if-not (nil? (:header meta))
-                              (= (:header meta) 
+                    (= (::ms/sharing meta)
+                       (::ms/sharing file-metadata))
+                    (or (= (::ms/type meta)
+                           (::ms/type file-metadata))
+                        (= "stored"
+                           (::ms/type file-metadata)))
+                    (case (or (::ms/file-type meta) 
+                              (::ms/file-type file-metadata)) 
+                      "csv" (if-not (nil? (::ms/header meta))
+                              (= (::ms/header meta) 
                                  (::ms/header file-metadata))
                               (true? (::ms/header file-metadata)))
                       false)))
         :ret ::ms/file-metadata)
-
-(def key-mapping
-  {:name ::ms/name
-   :header ::ms/header
-   :type ::ms/type
-   :schema-id ::ss/id
-   :sharing ::ms/sharing})
 
 (defn raise-schema
   [md user-id]
@@ -74,18 +71,16 @@
     md))
 
 (defn filemetadata-transport->internal
-  [transport file-details]
-  (let [mapped (zipmap (map key-mapping (keys transport))
-                       (vals transport))        
+  [transport]
+  (let [mapped transport
         with-primaries (merge default-primary-metadata
                               mapped)
         with-file-type (merge (get file-type->default-metadata
-                                   (::ms/type with-primaries))
+                                   (::ms/file-type with-primaries))
                               with-primaries)
         with-schema (raise-schema with-file-type 
-                                  (get-in file-details [::ms/provenance :kixi.user/id]))]
-    (merge with-schema
-           file-details)))
+                                  (get-in transport [::ms/provenance :kixi.user/id]))]
+    with-schema))
 
 (defn add-ns-to-keys
   ([ns m]
@@ -121,10 +116,8 @@
 
 (defn schema-transport->internal
   [transport]
-  (let [schema (keywordize-values
-                (add-ns-to-keys ::ss/_ 
-                                   transport))]
-    schema))
+  (keywordize-values
+   transport))
 
 (defn raise-spec
   [conformed]

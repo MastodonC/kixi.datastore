@@ -6,6 +6,7 @@
             [kixi.comms :as c]
             [kixi.datastore
              [elasticsearch :as es :refer [ensure-index string-analyzed string-stored-not_analyzed]]
+             [schema-creator :as sc]
              [schemastore :as ss :refer [SchemaStore]]
              [time :as time]]
             [taoensso.timbre :as timbre :refer [error info]]))
@@ -61,7 +62,7 @@
 (defn inject-tags
   [schema]
   (if (get-in schema [::ss/schema ::ss/definition])
-    (update-in schema 
+    (update-in schema
                [::ss/schema ::ss/definition]
                inject-tag)
     schema))
@@ -84,7 +85,7 @@
     stored-schema))
 
 (defn persist-new-schema
-  [conn schema]  
+  [conn schema]
   (let [id (::ss/id schema)
         schema' (assoc schema ::ss/timestamp (time/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
@@ -108,39 +109,40 @@
 
 (defrecord ElasticSearch
     [communications host port conn]
-    SchemaStore
-    (authorised
-      [_ action id user-groups]
-      (when-let [sharing (get-document-key conn id ::ss/sharing)]
-        (not-empty (clojure.set/intersection (set (get sharing action))
-                                             (set user-groups)))))
-    (exists [_ id]
-      (present? conn id))
-    (fetch-with [_ sub-spec]
-      (prn "fetching: " sub-spec)
-;      (fetch-with-sub-spec data sub-spec)
-      )
-    (retrieve [_ id]
-      (extract-tags
-       (get-document conn id)))
-    component/Lifecycle
-    (start [component]
-      (if-not conn
-        (let [connection (es/connect host port)]
-          (info "Starting Schema ElasticSearch Store")
-          (ensure-index index-name
-                        doc-type 
-                        doc-def
-                        connection)
-          (c/attach-event-handler! communications
-                                   :kixi.datastore/schemastore
-                                   :kixi.datastore/schema-created
-                                   "1.0.0"
-                                   (comp response-event (partial persist-new-schema connection) :kixi.comms.event/payload))      
-          (assoc component :conn connection))
-        component))
-    (stop [component]
-      (if conn
-        (do (info "Destroying Schema ElasticSearch Store")
-            (dissoc component :conn))
-        component)))
+  SchemaStore
+  (authorised
+    [_ action id user-groups]
+    (when-let [sharing (get-document-key conn id ::ss/sharing)]
+      (not-empty (clojure.set/intersection (set (get sharing action))
+                                           (set user-groups)))))
+  (exists [_ id]
+    (present? conn id))
+  (fetch-with [_ sub-spec]
+    (prn "fetching: " sub-spec)
+                                        ;      (fetch-with-sub-spec data sub-spec)
+    )
+  (retrieve [_ id]
+    (extract-tags
+     (get-document conn id)))
+  component/Lifecycle
+  (start [component]
+    (if-not conn
+      (let [connection (es/connect host port)]
+        (info "Starting Schema ElasticSearch Store")
+        (ensure-index index-name
+                      doc-type
+                      doc-def
+                      connection)
+        (c/attach-event-handler! communications
+                                 :kixi.datastore/schemastore
+                                 :kixi.datastore.schema/created
+                                 "1.0.0"
+                                 (comp response-event (partial persist-new-schema connection) :kixi.comms.event/payload))
+        (sc/attach-command-handler communications)
+        (assoc component :conn connection))
+      component))
+  (stop [component]
+    (if conn
+      (do (info "Destroying Schema ElasticSearch Store")
+          (dissoc component :conn))
+      component)))

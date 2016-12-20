@@ -1,14 +1,14 @@
 (ns kixi.datastore.schemastore.inmemory
-  (:require [clojure.spec :as s]
-            [clojure.data :as data]
+  (:require [clojure
+             [data :as data]
+             [spec :as s]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications :refer [Communications]]
-            [kixi.datastore.schemastore :refer [SchemaStore] :as ss]
-            [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.comms :as c]
-            [kixi.datastore.transit :as t]
-            [kixi.datastore.time :as time]
-            [taoensso.timbre :as timbre :refer [error info infof debug fatal]]))
+            [kixi.datastore
+             [schema-creator :as sc]
+             [schemastore :as ss :refer [SchemaStore]]
+             [time :as time]]
+            [taoensso.timbre :as timbre :refer [error info]]))
 
 (defn persist-new-schema
   [data schema]
@@ -61,6 +61,7 @@
                                    :kixi.datastore/schema-created
                                    "1.0.0"
                                    (comp response-event (partial persist-new-schema new-data) :kixi.comms.event/payload))
+          (sc/attach-command-handler communications)
           (assoc component :data new-data))
         component))
     (stop [component]

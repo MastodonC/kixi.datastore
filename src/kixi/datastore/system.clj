@@ -11,7 +11,7 @@
              [metrics :as metrics]
              [web-server :as web-server]
              [schemaextracter :as se]
-             [structural-validation :as sv]]            
+             [structural-validation :as sv]]
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
@@ -22,6 +22,8 @@
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [elasticsearch :as md-es]]
+            [kixi.datastore.metadata-creator
+             :as md-creator]
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]
              [elasticsearch :as ss-es]]
@@ -40,12 +42,13 @@
   (aero/read-config (io/resource "config.edn") {:profile profile}))
 
 (def component-dependencies
-  {:metrics [] 
+  {:metrics []
    :logging [:metrics]
    :communications []
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
-   :filestore [:logging]
+   :filestore [:logging :communications]
    :metadatastore [:communications]
+   :metadata-creator [:communications :filestore :schemastore]
    :schemastore [:communications]
                                         ;   :schema-extracter [:communications :filestore]
    :segmentation [:communications :metadatastore :filestore]
@@ -57,6 +60,7 @@
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
    :logging (logging/map->Log {})
+   :metadata-creator (md-creator/map->MetadataCreator {})
    :filestore (case (first (keys (:filestore config)))
                 :local (local/map->Local {})
                 :s3 (s3/map->S3 {}))
@@ -98,7 +102,7 @@
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])}]
     (log/merge-config! level-config)
-    (log/handle-uncaught-jvm-exceptions! 
+    (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
        (log/error throwable (str "Unhandled exception on " (.getName thread)))))))
 

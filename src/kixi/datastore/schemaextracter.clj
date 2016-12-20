@@ -16,6 +16,8 @@
             [clojure.java.io :as io])
   (:import [java.io File]))
 
+(comment "PROTOTYPE CODE - This is some rough ideas around extracting schemas from data")
+
 (defn metadata->file
   [filestore metadata]
   (let [id (get-in metadata [:id])
@@ -28,7 +30,6 @@
 (defn requires-schema-extraction?
   [msg]
   (and
-  ; (instance? FileMetaData msg)
    (get-in msg [:structural-validation :valid])
    ((complement :schema) msg)))
 

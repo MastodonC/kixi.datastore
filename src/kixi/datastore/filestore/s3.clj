@@ -6,51 +6,56 @@
             [clojure.core.async :as async :refer [go]]
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as fs :refer [FileStore]]
-            [taoensso.timbre :as timbre :refer [error]]))
+            [kixi.datastore.time :as t]
+            [taoensso.timbre :as timbre :refer [error]])
+  (:import [com.amazonaws.services.s3.model AmazonS3Exception]))
 
 (defn ensure-bucket
   [creds bucket]
   (when-not (s3/does-bucket-exist creds bucket)
     (s3/create-bucket creds bucket)))
 
-(def ^Integer buffer-size 
-  "The piped stream must have a buffer size at least as big as the S3 clients: http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/constant-values.html#com.amazonaws.RequestClientOptions.DEFAULT_STREAM_BUFFER_SIZE"
-  (inc 131073))
+(defn create-link
+  [creds bucket]
+  (fn [id]
+    (str
+     (s3/generate-presigned-url
+      creds
+      :bucket-name bucket
+      :key id
+      :expiration (t/minutes-from-now 30)
+      :method "PUT"))))
 
-(defn upload
-  [creds bucket id content-length]
-  (let [in-stream (new java.io.PipedInputStream buffer-size)
-        out-stream (new java.io.PipedOutputStream in-stream)]
-    [(go
-       (try
-         (s3/put-object creds
-                        bucket id in-stream 
-                        {:content-length content-length})
-         :done
-         (catch Throwable t
-           t)))
-     out-stream]))
+(defn object-size
+  [creds bucket id]
+  (try
+    (when-let [meta (s3/get-object-metadata creds bucket id)]
+      (:instance-length meta))
+    (catch AmazonS3Exception e
+      nil)))
 
 (defrecord S3
-    [logging region endpoint access-key secret-key bucket client-options creds]
+    [communications logging region endpoint access-key secret-key bucket client-options creds]
     FileStore
     (exists [this id]
       (s3/does-object-exist creds bucket id))
-    (output-stream [this id content-length]
-      (upload creds bucket id content-length))
+    (size [this id]
+      (object-size creds bucket id))
     (retrieve [this id]
       (when (s3/does-object-exist creds bucket id)
         (:object-content
          (s3/get-object creds bucket id))))
     component/Lifecycle
-    (start [component]      
+    (start [component]
       (if-not creds
         (let [c (merge {:endpoint endpoint}
-                       (when secret-key 
+                       (when secret-key
                          {:secret-key secret-key})
-                       (when access-key 
+                       (when access-key
                          {:access-key access-key}))]
           (ensure-bucket c bucket)
+          (fs/attach-command-handlers communications
+                                      {:link-creator (create-link c bucket)})
           (assoc component
                  :creds
                  c))

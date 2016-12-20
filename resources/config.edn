@@ -7,19 +7,19 @@
                                  :port 18080}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
                                              :local "localhost"
-                                             :circleci "localhost"}                
+                                             :circleci "localhost"}
                              :port 8086
-                                        ;                             :auth 
+                                        ;                             :auth
                              :connect-timeout 1500
                              :read-timeout 1500
                              :group-gauges true
-                                        ;                             :duration-unit 
+                                        ;                             :duration-unit
                              :measurement-mappings {"jvm_threads" "jvm\\.thread.*"
                                                     "jvm_gc" "jvm\\.gc\\..*"
                                                     "jvm_memory" "jvm\\.memory\\..*"
                                                     "resources" "resources\\..*"
                                                     "log" "log\\..*"}
-                                        ;                             :excludes 
+                                        ;                             :excludes
                              :prefix ^:ref [:service-name]
                              :db-name "metrics"
                              :fields {"meters" #{"m1_rate" "m5_rate" "m15_rate"}}
@@ -36,7 +36,7 @@
            :ns-blacklist ["org.eclipse.jetty"]}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
-                              :s3 {:bucket "kixi-data-store-file-store"
+                              #_:s3 #_{:bucket "kixi-data-store-file-store"
                                    :endpoint "s3.eu-central-1.amazonaws.com"
                                    :access-key ""
                                    :secret-key ""}}

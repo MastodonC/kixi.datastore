@@ -6,7 +6,7 @@
 
 (def es-format (clojure.string/replace (name format) "-" "_"))
 
-(def formatter 
+(def formatter
   (tf/formatters format))
 
 (defn timestamp
@@ -14,3 +14,7 @@
   (tf/unparse
    formatter
    (t/now)))
+
+(defn minutes-from-now
+  [mins]
+  (-> mins t/minutes t/from-now))
