@@ -1,5 +1,6 @@
 (ns kixi.integration.metadata-test
   (:require [clojure.test :refer :all]
+            [clojure.spec.test :refer [with-instrument-disabled]]
             [kixi.datastore
              [metadata-creator :as mdc]
              [metadatastore :as ms]
@@ -105,6 +106,19 @@
       "003ba24c-2830-4f28-b6af-905d6215ea1c")) ;; schema doesn't exist
    {:reason :schema-unknown}))
 
+(comment "with-instument-disabled just doesn't seem to work here. Investigate!"
+  (deftest small-file-invalid-metadata
+    (with-instrument-disabled 
+      (let [resp (send-file-and-metadata
+                  (dissoc
+                   (create-metadata
+                    uid
+                    "./test-resources/metadata-one-valid.csv"
+                    @metadata-file-schema-id)
+                   ::ms/size-bytes))]
+        (is-submap {:reason :metadata-invalid}
+                   (:kixi.comms.event/payload resp))))))
+
 (deftest small-file-invalid-data
   (let [metadata-response (send-file-and-metadata
                            (create-metadata
@@ -126,4 +140,3 @@
                                   ::ms/source "upload"}
                  ::ms/structural-validation {::ms/valid false}}}
          metadata-response)))))
-
