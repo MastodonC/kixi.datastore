@@ -1,5 +1,6 @@
 (ns kixi.datastore.metadata-creator
   (:require [com.stuartsierra.component :as component]
+            [clojure.spec :as spec]
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
@@ -14,6 +15,12 @@
    {:kixi.comms.event/key :kixi.datastore.file-metadata/rejected
     :kixi.comms.event/version "1.0.0"
     :kixi.comms.event/payload {:reason reason
+                               ::ms/file-metadata metadata}})
+([metadata reason explain]
+   {:kixi.comms.event/key :kixi.datastore.file-metadata/rejected
+    :kixi.comms.event/version "1.0.0"
+    :kixi.comms.event/payload {:reason reason
+                               :explaination explain
                                ::ms/file-metadata metadata}})
   ([metadata reason actual expected]
    {:kixi.comms.event/key :kixi.datastore.file-metadata/rejected
@@ -34,12 +41,14 @@
                     (assoc-in payload
                               [::ms/provenance ::ms/created]
                               (t/timestamp)))
+          metadata-explain (spec/explain-data ::ms/file-metadata metadata)
           id (::ms/id metadata)
           size-expected (::ms/size-bytes metadata)
           size-actual (fs/size filestore id)
           schema-id (get-in metadata [::ms/schema ::ss/id])
           user-groups (get-user-groups cmd)]
       (cond
+        metadata-explain (reject metadata :metadata-invalid metadata-explain)
         (nil? size-actual) (reject metadata :file-not-exist)
         (not= size-actual size-expected) (reject metadata :file-size-incorrect size-actual size-expected)
         (and schema-id
