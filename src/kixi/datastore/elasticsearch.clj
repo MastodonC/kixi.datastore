@@ -3,6 +3,7 @@
             [clojurewerkz.elastisch.rest
              [document :as esd]
              [index :as esi]]
+            [clojurewerkz.elastisch.rest.response :as esrsp]
             [taoensso.timbre :as timbre :refer [error]]
             [kixi.datastore.time :as t]))
 
@@ -161,3 +162,42 @@
   [host port]
   (esr/connect (str "http://" host ":" port)
                {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})}))
+
+(def collapse-keys ["terms"])
+
+(defn collapse-nesting
+  ([m]
+   (reduce
+    (fn [a collapse-key]
+      (update a collapse-key
+              collapse-nesting ""))
+    m
+    collapse-keys))
+  ([m prefix]
+   (reduce
+    (fn [a [k v]]
+      (if (map? v)
+        (merge a
+               (collapse-nesting v (str prefix k ".")))
+        (assoc a (str prefix k)
+               v)))
+    {}
+    m)))
+
+(defn search-data
+  [index-name doc-type conn query from-index cnt]
+  (try
+    (let [resp (esd/search conn
+                           index-name
+                           doc-type
+                           {:query (collapse-nesting
+                                    (all-keys->es-format
+                                     query))
+                            :from from-index
+                            :size cnt})]
+      {:items (esrsp/hits-from resp)
+       :paging {:total (esrsp/total-hits resp)
+                :count (count (esrsp/hits-from resp))
+                :index from-index}})
+    (catch Exception e
+      (prn "EEEE: " e))))

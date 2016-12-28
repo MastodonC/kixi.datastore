@@ -17,11 +17,9 @@
   {::ms/id string-stored-not_analyzed
    ::ms/type string-stored-not_analyzed
    ::ms/name string-analyzed
-   ::ms/schame {:type "nested"
-                :properties {::ss/id string-stored-not_analyzed
+   ::ms/schema {:properties {::ss/id string-stored-not_analyzed
                              ::ms/added es/timestamp}}
-   ::ms/provenance {:type "nested"
-                    :properties {::ms/source string-stored-not_analyzed
+   ::ms/provenance {:properties {::ms/source string-stored-not_analyzed
                                  :kixi.user/id string-stored-not_analyzed
                                  ::ms/parent-id string-stored-not_analyzed
                                  ::ms/created es/timestamp}}
@@ -29,8 +27,7 @@
                       :properties {::seg/type string-stored-not_analyzed
                                    ::seg/line-count es/long
                                    ::seg/value string-stored-not_analyzed}}
-   ::ms/sharing {:type "nested"
-                 :properties (zipmap ms/activities
+   ::ms/sharing {:properties (zipmap ms/activities
                                      (repeat string-stored-not_analyzed))}})
 
 (s/fdef update-metadata-processor
@@ -51,6 +48,9 @@
 
 (def present?
   (partial es/present? index-name doc-type))
+
+(def search
+  (partial es/search-data index-name doc-type))
 
 (defmulti update-metadata-processor
   (fn [conn update-event]
@@ -87,6 +87,26 @@
   [r]
   nil)
 
+(s/def ::query-criteria
+  (s/keys :req [:kixi.user/groups]
+          :opts [::ms/activities]))
+
+(s/def ::es-query
+  (s/keys :req-un [::terms]))
+
+(s/fdef query-criteria->es-query
+        :args (s/cat :criteria ::query-criteria))
+
+(defn query-criteria->es-query
+  [criteria]
+  (let [activities (->> criteria
+                        :activities
+                        (cons ::ms/meta-read)
+                        set)
+        groups (:kixi.user/groups criteria)]
+    {:terms {::ms/sharing (zipmap activities
+                                  (repeat groups))}}))
+
 (defrecord ElasticSearch
     [communications host port conn]
     MetaDataStore
@@ -99,7 +119,11 @@
       (present? conn id))
     (retrieve [this id]
       (get-document conn id))
-    (query [this criteria])
+    (query [this criteria from-index count]
+      (prn "SS: " criteria)
+      (search conn 
+              (query-criteria->es-query criteria)
+              from-index count))
 
     component/Lifecycle
     (start [component]

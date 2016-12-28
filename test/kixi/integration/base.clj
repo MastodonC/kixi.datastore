@@ -56,7 +56,8 @@
                      'kixi.datastore.metadatastore.inmemory/update-metadata-processor
                      'kixi.datastore.communication-specs/send-event!
                      'kixi.datastore.transport-specs/filemetadata-transport->internal
-                     'kixi.datastore.transport-specs/schema-transport->internal]))
+                     'kixi.datastore.transport-specs/schema-transport->internal
+                     'kixi.datastore.metadatastore.elasticsearch/query-criteria->es-query]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -89,6 +90,10 @@
    (str "http://" (service-url) "/schema/"))
   ([id]
    (str (schema-url) id)))
+
+(defn metadata-query-url
+  []
+   (str "http://" (service-url) "/metadata"))
 
 (defn extract-id
   [metadata-response]
@@ -142,7 +147,7 @@
      (let [md (client/get url
                           {:accept :json
                            :throw-exceptions false
-                           :headers {"user-groups" uid}})]
+                           :headers {"user-groups" (vec-if-not uid)}})]
        (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
@@ -160,6 +165,26 @@
                        :accept :json
                        :throw-exceptions false
                        :headers {"user-groups" (vec-if-not ugroup)}})
+          :body
+          parse-json))
+
+(defn encode-kw
+  [kw]
+  (str (namespace kw)
+       "_"
+       (name kw)))
+
+(defn search-metadata
+  [group-ids activities]
+  (update (client/get (->> activities
+                           (map (comp #(str "activity=" %) encode-kw))
+                           (interpose "&")
+                           (apply str)
+                           (str (metadata-query-url)
+                                "?"))
+                      {:accept :json
+                       :throw-exceptions false
+                       :headers {"user-groups" (vec-if-not group-ids)}})
           :body
           parse-json))
 

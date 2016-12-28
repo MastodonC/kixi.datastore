@@ -163,6 +163,34 @@
                  (ms/retrieve metadatastore id)
                  (return-unauthorised ctx))))}}}))
 
+(defn decode-keyword
+  [kw-s]
+  (apply keyword
+         (clojure.string/split kw-s #"_")))
+
+(def default-query-count 100)
+
+(defn metadata-query
+  [metrics metadatastore]
+  (resource
+   metrics
+   {:id :file-meta
+    :methods
+    {:get {:produces "application/json"
+           :response
+           (fn [ctx]
+             (let [user-groups (ctx->user-groups ctx)
+                   activities (->> (get-in ctx [:parameters :query "activity"])
+                                   vec-if-not
+                                   (map decode-keyword))
+                   results (ms/query metadatastore
+                                     {:kixi.user/groups user-groups
+                                      ::ms/activities activities}
+                                     (or (get-in ctx [:parameters :query "index"]) 0)
+                                     (or (get-in ctx [:parameters :query "count"] default-query-count)))]
+               (prn "RRR: " results)
+               results))}}}))
+
 (defn file-segmentation-create
   [metrics communications metadatastore]
   (resource
@@ -240,6 +268,8 @@
               [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
+    ["/metadata" [[["/" :id] (file-meta metrics metadatastore)]
+                  [[""] (metadata-query metrics metadatastore)]]]
     ["/schema" [[["/" :id] (schema-id-entry metrics schemastore)]]]]])
 
 (defn routes

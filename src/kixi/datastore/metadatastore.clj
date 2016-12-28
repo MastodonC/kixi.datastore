@@ -21,9 +21,13 @@
 (s/def ::added sc/timestamp)
 
 (s/def :kixi.user-group/id sc/uuid)
+(s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (def activities
   [::ms/file-read ::ms/meta-visible ::ms/meta-read ::ms/meta-update])
+
+(s/def ::activities
+  (s/coll-of (set activities)))
 
 (s/def ::sharing
   (s/map-of (set activities)
@@ -96,4 +100,4 @@
     [this action id user-groups])
   (exists [this id])
   (retrieve [this id])
-  (query [this criteria]))
+  (query [this criteria from-index count]))
