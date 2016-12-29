@@ -38,7 +38,10 @@
              (:body
               (search-metadata (uuid) [::ms/file-read]))))
 
-(deftest unknown-activity-errors-nicely)
+(deftest unknown-activity-errors-nicely
+  (is-submap {:status 400
+              :body {:kixi.datastore.web-server/error "query-invalid"}}
+             (search-metadata (uuid) [::ms/Xfile-readX])))
 
 (deftest only-one-group-of-many-matches)
 
@@ -67,7 +70,7 @@
 
 (deftest meta-read-user-reads-without-sending-activities
   
-  (is (= (search (uuid) [])
+  (is (= (search-metadata (uuid) [])
          {:count 0})))
 
 (deftest paging)

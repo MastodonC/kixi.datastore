@@ -87,15 +87,8 @@
   [r]
   nil)
 
-(s/def ::query-criteria
-  (s/keys :req [:kixi.user/groups]
-          :opts [::ms/activities]))
-
-(s/def ::es-query
-  (s/keys :req-un [::terms]))
-
 (s/fdef query-criteria->es-query
-        :args (s/cat :criteria ::query-criteria))
+        :args (s/cat :criteria ::ms/query-criteria))
 
 (defn query-criteria->es-query
   [criteria]
@@ -120,7 +113,6 @@
     (retrieve [this id]
       (get-document conn id))
     (query [this criteria from-index count]
-      (prn "SS: " criteria)
       (search conn 
               (query-criteria->es-query criteria)
               from-index count))

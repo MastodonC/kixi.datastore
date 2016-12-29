@@ -94,6 +94,9 @@
 
 (s/def ::file-metadata (s/multi-spec file-metadata ::type))
 
+(s/def ::query-criteria
+  (s/keys :req [:kixi.user/groups]
+          :opts [::activities]))
 
 (defprotocol MetaDataStore
   (authorised

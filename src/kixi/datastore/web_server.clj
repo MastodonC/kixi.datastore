@@ -71,7 +71,8 @@
              :opts []))
 
 (spec/def ::error #{:schema-invalid-request
-                    :unknown-schema :file-upload-failed})
+                    :unknown-schema :file-upload-failed
+                    :query-invalid})
 (spec/def ::msg (spec/keys :req []
                            :opts []))
 (spec/def ::error-map
@@ -183,13 +184,17 @@
                    activities (->> (get-in ctx [:parameters :query "activity"])
                                    vec-if-not
                                    (map decode-keyword))
-                   results (ms/query metadatastore
-                                     {:kixi.user/groups user-groups
-                                      ::ms/activities activities}
-                                     (or (get-in ctx [:parameters :query "index"]) 0)
-                                     (or (get-in ctx [:parameters :query "count"] default-query-count)))]
-               (prn "RRR: " results)
-               results))}}}))
+                   query {:kixi.user/groups user-groups
+                          ::ms/activities activities}
+                   explain (spec/explain-data ::ms/query-criteria query)]
+               (if-not explain
+                 (ms/query metadatastore
+                           query
+                           (or (get-in ctx [:parameters :query "index"]) 0)
+                           (or (get-in ctx [:parameters :query "count"] default-query-count)))
+                 (return-error ctx
+                               :query-invalid
+                               explain))))}}}))
 
 (defn file-segmentation-create
   [metrics communications metadatastore]
