@@ -1,13 +1,10 @@
 (ns kixi.unit.transport-specs-test
-  (:require [clojure.test :refer :all]
-            [clojure.test.check :as tc]
-            [clojure.spec :as s]
-            [clojure.spec.test :as stest]
-            [clojure.spec.gen :as gen]
+  (:require [clojure.spec.test :as stest]
+            [clojure.test :refer :all]
             [environ.core :refer [env]]
-            [kixi.datastore.metadatastore :as ms]
-            [kixi.datastore.transport-specs :as ts :refer [add-ns-to-keys]]
-            [kixi.datastore.schemastore :as ss]))
+            [kixi.datastore
+             [schemastore :as ss]
+             [transport-specs :as ts :refer [add-ns-to-keys]]]))
 
 (stest/instrument `ts/filemetadata-transport->internal
                   `ts/schema-transport->internal)
