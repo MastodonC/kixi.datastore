@@ -183,7 +183,7 @@
              (let [user-groups (ctx->user-groups ctx)
                    activities (->> (get-in ctx [:parameters :query "activity"])
                                    vec-if-not
-                                   (map decode-keyword))
+                                   (mapv decode-keyword))
                    query {:kixi.user/groups user-groups
                           ::ms/activities activities}
                    explain (spec/explain-data ::ms/query-criteria query)]

@@ -93,12 +93,12 @@
 (defn query-criteria->es-query
   [criteria]
   (let [activities (->> criteria
-                        :activities
+                        ::ms/activities
                         (cons ::ms/meta-read)
                         set)
         groups (:kixi.user/groups criteria)]
-    {:terms {::ms/sharing (zipmap activities
-                                  (repeat groups))}}))
+    {::ms/sharing (zipmap activities
+                          (repeat groups))}))
 
 (defrecord ElasticSearch
     [communications host port conn]

@@ -131,7 +131,7 @@
            index-name
            doc-type
            conn
-           id   
+           id
            (fn [curr]
              (merge-with merge
                          (:_source curr)
@@ -167,12 +167,7 @@
 
 (defn collapse-nesting
   ([m]
-   (reduce
-    (fn [a collapse-key]
-      (update a collapse-key
-              collapse-nesting ""))
-    m
-    collapse-keys))
+   (collapse-nesting m ""))
   ([m prefix]
    (reduce
     (fn [a [k v]]
@@ -190,14 +185,24 @@
     (let [resp (esd/search conn
                            index-name
                            doc-type
-                           {:query (collapse-nesting
-                                    (all-keys->es-format
-                                     query))
+                           {:filter 
+                            {:bool 
+                             {:must (mapcat
+                                     (fn [[k values]]
+                                       (map
+                                        #(hash-map :term {k %})
+                                        values))
+                                     (collapse-nesting
+                                      (all-keys->es-format
+                                       query)))}}
                             :from from-index
                             :size cnt})]
-      {:items (esrsp/hits-from resp)
+      {:items (doall
+               (map (comp all-keys->kw :_source)
+                    (esrsp/hits-from resp)))
        :paging {:total (esrsp/total-hits resp)
                 :count (count (esrsp/hits-from resp))
                 :index from-index}})
     (catch Exception e
-      (prn "EEEE: " e))))
+      (error e)
+      (throw e))))

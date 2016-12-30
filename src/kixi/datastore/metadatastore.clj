@@ -3,8 +3,7 @@
             [kixi.datastore.schemastore :as schemastore]
             [kixi.datastore.segmentation :as seg]
             [kixi.datastore.schemastore.conformers :as sc]
-            [clojure.spec.gen :as gen]
-            [kixi.datastore.metadatastore :as ms]))
+            [clojure.spec.gen :as gen]))
 
 (s/def ::type #{"stored"})
 (s/def ::file-type #{"csv"})
@@ -24,7 +23,7 @@
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (def activities
-  [::ms/file-read ::ms/meta-visible ::ms/meta-read ::ms/meta-update])
+  [::file-read ::meta-visible ::meta-read ::meta-update])
 
 (s/def ::activities
   (s/coll-of (set activities)))
