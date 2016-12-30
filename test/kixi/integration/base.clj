@@ -175,18 +175,21 @@
        (name kw)))
 
 (defn search-metadata
-  [group-ids activities]
-  (update (client/get (->> activities
-                           (map (comp #(str "activity=" %) encode-kw))
-                           (interpose "&")
-                           (apply str)
-                           (str (metadata-query-url)
-                                "?"))
-                      {:accept :json
-                       :throw-exceptions false
-                       :headers {"user-groups" (vec-if-not group-ids)}})
-          :body
-          parse-json))
+  ([group-ids activities]
+   (search-metadata group-ids activities nil nil))
+  ([group-ids activities index count]
+   (update (client/get (metadata-query-url)
+                       {:query-params (merge (zipmap (repeat :activity)
+                                                     (map encode-kw activities))
+                                             (when index
+                                               {:index index})
+                                             (when count
+                                               {:count count}))
+                        :accept :json
+                        :throw-exceptions false
+                        :headers {"user-groups" (vec-if-not group-ids)}})
+           :body
+           parse-json)))
 
 (defn wait-for-metadata-key
   ([ugroup id k]

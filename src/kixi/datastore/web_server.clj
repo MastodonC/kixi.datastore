@@ -72,9 +72,13 @@
 
 (spec/def ::error #{:schema-invalid-request
                     :unknown-schema :file-upload-failed
-                    :query-invalid})
-(spec/def ::msg (spec/keys :req []
-                           :opts []))
+                    :query-invalid :query-index-invalid
+                    :query-count-invalid})
+
+(spec/def ::msg (spec/or :error-map (spec/keys :req []
+                                    :opts [])
+                         :error-str string?))
+
 (spec/def ::error-map
   (spec/keys :req [::error ::msg]))
 
@@ -169,7 +173,7 @@
   (apply keyword
          (clojure.string/split kw-s #"_")))
 
-(def default-query-count 100)
+(def default-query-count "100")
 
 (defn metadata-query
   [metrics metadatastore]
@@ -186,15 +190,22 @@
                                    (mapv decode-keyword))
                    query {:kixi.user/groups user-groups
                           ::ms/activities activities}
-                   explain (spec/explain-data ::ms/query-criteria query)]
-               (if-not explain
-                 (ms/query metadatastore
-                           query
-                           (or (get-in ctx [:parameters :query "index"]) 0)
-                           (or (get-in ctx [:parameters :query "count"] default-query-count)))
-                 (return-error ctx
-                               :query-invalid
-                               explain))))}}}))
+                   explain (spec/explain-data ::ms/query-criteria query)
+                   dex (Integer/parseInt (or (get-in ctx [:parameters :query "index"]) "0"))
+                   cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))]
+               (cond 
+                 explain (return-error ctx
+                                       :query-invalid
+                                       explain)
+                 (neg? dex) (return-error ctx
+                                          :query-index-invalid
+                                          "Index must be positive")
+                 (neg? cnt) (return-error ctx
+                                          :query-count-invalid
+                                          "Count must be positive")
+                 :default (ms/query metadatastore
+                                     query
+                                     dex cnt))))}}}))
 
 (defn file-segmentation-create
   [metrics communications metadatastore]
