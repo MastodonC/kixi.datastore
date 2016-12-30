@@ -19,7 +19,7 @@
   cycle-system-fixture
   extract-comms)
 
-(def sample-size (Integer/valueOf (str (env :generative-testing-size "100"))))
+(def sample-size (Integer/valueOf (str (env :generative-testing-size "10"))))
 (def such-that-size 100)
 
 (deftest paging
@@ -48,7 +48,7 @@
                                                         cnt)}}}
                            resp)
                 (is (= (min (- total-files
-                               dex) 
+                               dex)
                             cnt)
                        (count (get-in resp [:body :items]))))))
 

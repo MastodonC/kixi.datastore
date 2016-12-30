@@ -9,7 +9,7 @@
 
 (s/def ::id uuid)
 (s/def ::tag keyword?)
-(s/def ::timestamp timestamp)
+(s/def ::created timestamp)
 (s/def ::name ns-keyword)
 (s/def ::min number?)
 (s/def ::max number?)
@@ -18,6 +18,17 @@
                     #(gen/vector (gen/string)
                               {:min-elements 1
                                :max-elements 10})))
+(s/def ::source #{"upload"})
+
+
+(defmulti provenance-type ::source)
+
+(defmethod provenance-type "upload"
+  [_]
+  (s/keys :req [::source :kixi.user/id]
+          :opt [::created]))
+
+(s/def ::provenance (s/multi-spec provenance-type ::source))
 
 (def activities
   [::read ::use])
@@ -76,7 +87,7 @@
                          "list")))
 
 (s/def ::stored-schema
-  (s/keys :req [::schema ::id ::name ::timestamp ::sharing]))
+  (s/keys :req [::schema ::id ::name ::provenance ::sharing]))
 
 (s/def ::create-schema-request
   (s/keys :req [::schema ::id ::name ::sharing]))

@@ -20,6 +20,8 @@
 
 (deftest good-round-trip
   (let [schema {::ss/name ::new-good-spec-a
+                ::ss/provenance {::ss/source "upload"
+                                 :kixi.user/id uid}
                 ::ss/schema {::ss/type "integer-range"
                              ::ss/min 3
                              ::ss/max 10}
@@ -27,7 +29,7 @@
                           ::ss/use [uid]}}
         r2 (send-spec uid schema)]
     (when-success r2
-      (is-submap (add-ns-to-keys ::ss/_ (dissoc schema ::ss/name ::ss/sharing))
+      (is-submap (add-ns-to-keys ::ss/_ (dissoc schema ::ss/name ::ss/sharing ::ss/provenance))
                  (extract-schema r2)))))
 
 
@@ -38,6 +40,8 @@
 (deftest good-spec-202
   (success
    (send {::ss/name ::good-spec-a
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "integer-range"
                        ::ss/min 3
                        ::ss/max 10}
@@ -45,11 +49,15 @@
                         ::ss/use [uid]}}))
   (success
    (send {::ss/name ::good-spec-b
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "integer"}
           ::ss/sharing {::ss/read [uid]
                         ::ss/use [uid]}}))
   (success
    (send {::ss/name ::good-spec-c
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "list"
                        ::ss/definition [:foo {::ss/type "integer"}
                                         :bar {::ss/type "integer"}
@@ -61,6 +69,8 @@
 
 (deftest good-spec-202-with-reference
   (let [schema {::ss/name ::ref-good-spec-a
+                ::ss/provenance {::ss/source "upload"
+                                 :kixi.user/id uid}
                 ::ss/schema {::ss/type "integer-range"
                              ::ss/min 3
                              ::ss/max 10}
@@ -71,12 +81,16 @@
       (let [id (::ss/id (extract-schema r1))]
         (success
          (send {::ss/name ::ref-good-spec-b
+                ::ss/provenance {::ss/source "upload"
+                                 :kixi.user/id uid}
                 ::ss/schema {::ss/type "id"
                              ::ss/id    id}
                 ::ss/sharing {::ss/read [uid]
                               ::ss/use [uid]}}))
         (success
          (send {::ss/name ::ref-good-spec-b
+                ::ss/provenance {::ss/source "upload"
+                                 :kixi.user/id uid}
                 ::ss/schema {::ss/type "list"
                              ::ss/definition [:foo {::ss/type "id"
                                                     ::ss/id   id}
@@ -89,29 +103,41 @@
 
 (defn rejected-schema
   [event]
-  (is (contains? event :kixi.comms.event/key) "Is not an event.")
-  (is (= :kixi.datastore.schema/rejected (:kixi.comms.event/key event)) "Was not rejected."))
+  (is (contains? event :kixi.comms.event/key) (str "Is not an event: " event))
+  (is (= :kixi.datastore.schema/rejected (:kixi.comms.event/key event)) (str "Was not rejected: " event)))
 
 (deftest bad-specs
   (rejected-schema
-   (send {::ss/type "integer"}))
+   (send {::ss/type "integer"
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}}))
   (rejected-schema
    (send {::ss/name :foo
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "integer"}}))
   (rejected-schema
    (send {::ss/name ::foo
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "foo"}}))
   (rejected-schema
    (send {::ss/name ::foo
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "integer-range"
                        :foo 1}}))
   (rejected-schema
    (send {::ss/name ::foo
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "list"
                        :definition [:foo]}}))
 
   (rejected-schema
    (send {::ss/name ::foo
+          ::ss/provenance {::ss/source "upload"
+                           :kixi.user/id uid}
           ::ss/schema {::ss/type "list"
                        ::ss/definition [:foo
                                         {::ss/type "foo"}]}})))

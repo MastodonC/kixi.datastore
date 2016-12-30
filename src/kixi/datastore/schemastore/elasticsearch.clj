@@ -17,9 +17,9 @@
 (def doc-def
   {::ss/id string-stored-not_analyzed
    ::ss/name string-analyzed
-   ::ss/timestamp es/timestamp
-   ::ss/schema {:type "nested"
-                :properties {::ss/tag string-stored-not_analyzed
+   ::ss/provenance {:properties {:kixi.user/id string-stored-not_analyzed                                 
+                                 ::ss/created es/timestamp}}
+   ::ss/schema {:properties {::ss/tag string-stored-not_analyzed
                              ::ss/type string-stored-not_analyzed
                              ::ss/id string-stored-not_analyzed
                              ::ss/min es/double
@@ -87,7 +87,7 @@
 (defn persist-new-schema
   [conn schema]
   (let [id (::ss/id schema)
-        schema' (assoc schema ::ss/timestamp (time/timestamp))]
+        schema' (assoc-in schema [::ss/provenance ::ss/created] (time/timestamp))]
     (if (s/valid? ::ss/stored-schema schema')
       (merge-data conn id (inject-tags schema'))
       (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema')))))                               ;should be at the command level

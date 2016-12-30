@@ -75,7 +75,6 @@
   [nskw]
   (subs (str nskw) 1))
 
-
 (defmacro deftest-broken
   [name & everything]
   `(clojure.test/deftest ~(vary-meta name assoc :integration true) ~@everything))
@@ -305,12 +304,16 @@
         rejection-handler (attach-event-handler!
                            :send-spec-rejections
                            :kixi.datastore.schema/rejected
-                           #(do (reset! rejected-a %)
+                           #(do (when (= uid
+                                         (get-in % [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id]))
+                                  (reset! rejected-a %))
                                 nil))
         success-handler (attach-event-handler!
                          :send-spec-successes
                          :kixi.datastore.schema/created
-                         #(do (reset! created-a %)
+                         #(do (when (= uid
+                                       (get-in % [:kixi.comms.event/payload ::ss/provenance :kixi.user/id]))
+                                (reset! created-a %))
                               nil))]
     (try
       (send-spec-no-wait uid spec)
@@ -428,13 +431,15 @@
          rejection-handler (attach-event-handler!
                             :send-file-metadata-rejections
                             :kixi.datastore.file-metadata/rejected
-                            #(do (when-not @rejected-a
+                            #(do (when (= uid
+                                          (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
                                    (reset! rejected-a %))
                                  nil))
          success-handler (attach-event-handler!
                           :send-file-metadata-sucesses
                           :kixi.datastore.file-metadata/updated
-                          #(do (when-not @created-a
+                          #(do (when (= uid
+                                        (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
                                  (reset! created-a %))
                                nil))]
      (try
@@ -502,7 +507,7 @@
     (let [r (send-spec uid schema)]
       (if (= 200 (:status r))
         (reset! id-atom (::ss/id (extract-schema r)))
-        (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
+        (throw (Exception. (str "Couldn't post small-segmentable-file-schema. Resp: " r)))))
     (all-tests)))
 
 (defmacro has-status

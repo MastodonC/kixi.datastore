@@ -9,7 +9,8 @@
                                            when-success] :as base]))
 
 (def metadata-file-schema {::ss/name ::metadata-file-schema
-                           ::ss/schema {::ss/type "list"
+                           ::ss/provenance {::ss/source "upload"}
+                           ::ss/schema {::ss/type "list"                                        
                                         ::ss/definition [:cola {::ss/type "integer"}
                                                          :colb {::ss/type "integer"}]}})
 
@@ -108,13 +109,15 @@
 (defn post-spec
   [shares upload-uid upload-ugroup use-ugroup]
   (base/send-spec upload-uid
-                  (assoc metadata-file-schema
-                         ::ss/sharing (merge-with (comp vec concat)
-                                              {::ss/read [upload-uid]}
-                                              (shares->schema-sharing-map
-                                               shares
-                                               upload-ugroup
-                                               use-ugroup)))))
+                  (assoc-in
+                   (assoc metadata-file-schema
+                          ::ss/sharing (merge-with (comp vec concat)
+                                                   {::ss/read [upload-uid]}
+                                                   (shares->schema-sharing-map
+                                                    shares
+                                                    upload-ugroup
+                                                    use-ugroup)))
+                   [::ss/provenance :kixi.user/id] upload-uid)))
 
 (deftest explore-sharing-level->actions
   (doseq [shares (subsets all-shares)]

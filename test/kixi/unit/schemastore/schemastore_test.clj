@@ -68,6 +68,8 @@
   [schema-name schema-def good-generator bad-generator]
   `(let [id#         (uuid)
          schema-req# {::ss/name ~schema-name
+                      ::ss/provenance {::ss/source "upload"
+                                       :kixi.user/id id#}
                       ::ss/schema ~schema-def
                       ::ss/id id#
                       ::ss/sharing {}}]

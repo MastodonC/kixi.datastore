@@ -20,6 +20,8 @@
                            ::ss/schema {::ss/type "list"
                                         ::ss/definition [:cola {::ss/type "integer"}
                                                          :colb {::ss/type "integer"}]}
+                           ::ss/provenance {::ss/source "upload"
+                                            :kixi.user/id uid}
                            ::ss/sharing {::ss/read [uid]
                                          ::ss/use [uid]}})
 
@@ -98,7 +100,7 @@
          metadata-response)))))
 
 (deftest small-file-invalid-schema
-  (is-file-metadata-rejected 
+  (is-file-metadata-rejected
    #(send-file-and-metadata-no-wait
      (create-metadata
       uid
@@ -108,7 +110,7 @@
 
 (comment "with-instument-disabled just doesn't seem to work here. Investigate!"
   (deftest small-file-invalid-metadata
-    (with-instrument-disabled 
+    (with-instrument-disabled
       (let [resp (send-file-and-metadata
                   (dissoc
                    (create-metadata
