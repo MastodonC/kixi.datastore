@@ -501,14 +501,12 @@
   [uid id]
   (dload-file uid (file-url id)))
 
-(defn setup-schema
-  [uid schema id-atom]
-  (fn [all-tests]
-    (let [r (send-spec uid schema)]
-      (if (= 200 (:status r))
-        (reset! id-atom (::ss/id (extract-schema r)))
-        (throw (Exception. (str "Couldn't post small-segmentable-file-schema. Resp: " r)))))
-    (all-tests)))
+(defn schema->schema-id
+  [schema]
+  (let [r (send-spec (get-in schema [::ss/provenance :kixi.user/id]) schema)]
+    (if (= 200 (:status r))
+      (::ss/id (extract-schema r))
+      (throw (Exception. (str "Couldn't post small-segmentable-file-schema. Resp: " r))))))
 
 (defmacro has-status
   [status resp]
