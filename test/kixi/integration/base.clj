@@ -56,7 +56,8 @@
                      'kixi.datastore.metadatastore.inmemory/update-metadata-processor
                      'kixi.datastore.communication-specs/send-event!
                      'kixi.datastore.transport-specs/filemetadata-transport->internal
-                     'kixi.datastore.transport-specs/schema-transport->internal]))
+                     'kixi.datastore.transport-specs/schema-transport->internal
+                     'kixi.datastore.metadatastore.elasticsearch/query-criteria->es-query]))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -74,7 +75,6 @@
   [nskw]
   (subs (str nskw) 1))
 
-
 (defmacro deftest-broken
   [name & everything]
   `(clojure.test/deftest ~(vary-meta name assoc :integration true) ~@everything))
@@ -89,6 +89,10 @@
    (str "http://" (service-url) "/schema/"))
   ([id]
    (str (schema-url) id)))
+
+(defn metadata-query-url
+  []
+   (str "http://" (service-url) "/metadata"))
 
 (defn extract-id
   [metadata-response]
@@ -142,7 +146,7 @@
      (let [md (client/get url
                           {:accept :json
                            :throw-exceptions false
-                           :headers {"user-groups" uid}})]
+                           :headers {"user-groups" (vec-if-not uid)}})]
        (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
@@ -162,6 +166,29 @@
                        :headers {"user-groups" (vec-if-not ugroup)}})
           :body
           parse-json))
+
+(defn encode-kw
+  [kw]
+  (str (namespace kw)
+       "_"
+       (name kw)))
+
+(defn search-metadata
+  ([group-ids activities]
+   (search-metadata group-ids activities nil nil))
+  ([group-ids activities index count]
+   (update (client/get (metadata-query-url)
+                       {:query-params (merge (zipmap (repeat :activity)
+                                                     (map encode-kw activities))
+                                             (when index
+                                               {:index index})
+                                             (when count
+                                               {:count count}))
+                        :accept :json
+                        :throw-exceptions false
+                        :headers {"user-groups" (vec-if-not group-ids)}})
+           :body
+           parse-json)))
 
 (defn wait-for-metadata-key
   ([ugroup id k]
@@ -277,12 +304,16 @@
         rejection-handler (attach-event-handler!
                            :send-spec-rejections
                            :kixi.datastore.schema/rejected
-                           #(do (reset! rejected-a %)
+                           #(do (when (= uid
+                                         (get-in % [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id]))
+                                  (reset! rejected-a %))
                                 nil))
         success-handler (attach-event-handler!
                          :send-spec-successes
                          :kixi.datastore.schema/created
-                         #(do (reset! created-a %)
+                         #(do (when (= uid
+                                       (get-in % [:kixi.comms.event/payload ::ss/provenance :kixi.user/id]))
+                                (reset! created-a %))
                               nil))]
     (try
       (send-spec-no-wait uid spec)
@@ -400,13 +431,15 @@
          rejection-handler (attach-event-handler!
                             :send-file-metadata-rejections
                             :kixi.datastore.file-metadata/rejected
-                            #(do (when-not @rejected-a
+                            #(do (when (= uid
+                                          (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
                                    (reset! rejected-a %))
                                  nil))
          success-handler (attach-event-handler!
                           :send-file-metadata-sucesses
                           :kixi.datastore.file-metadata/updated
-                          #(do (when-not @created-a
+                          #(do (when (= uid
+                                        (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
                                  (reset! created-a %))
                                nil))]
      (try
@@ -474,7 +507,7 @@
     (let [r (send-spec uid schema)]
       (if (= 200 (:status r))
         (reset! id-atom (::ss/id (extract-schema r)))
-        (throw (Exception. "Couldn't post small-segmentable-file-schema"))))
+        (throw (Exception. (str "Couldn't post small-segmentable-file-schema. Resp: " r)))))
     (all-tests)))
 
 (defmacro has-status

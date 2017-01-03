@@ -24,6 +24,7 @@
       {:kixi.comms.event/key :kixi.datastore.schema/rejected
        :kixi.comms.event/version "1.0.0"
        :kixi.comms.event/payload {:reason :invalid-schema
+                                  :schema raw-schema-req
                                   :explaination (s/explain-data ::ss/create-schema-request
                                                                 internal-sr)}})))
 
