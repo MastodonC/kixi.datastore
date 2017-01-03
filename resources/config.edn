@@ -37,9 +37,9 @@
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
                               #_:s3 #_{:bucket "kixi-data-store-file-store"
-                                   :endpoint "s3.eu-central-1.amazonaws.com"
-                                   :access-key ""
-                                   :secret-key ""}}
+                                       :endpoint "s3.eu-central-1.amazonaws.com"
+                                       :access-key ""
+                                       :secret-key ""}}
                       :circleci {:s3 {:bucket "kixi-data-store-file-store"
                                       :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :staging {:s3 {:bucket "kixi-data-store-file-store"
@@ -62,11 +62,13 @@
  :communications {:kafka #profile {:local {:host "127.0.0.1"
                                            :port 2181
                                            :consumer-config {:session.timeout.ms 6000
-                                                             :auto.commit.interval.ms 1500}}
+                                                             :auto.commit.interval.ms 1500
+                                                             :max.poll.records 1}}
                                    :circleci {:host "127.0.0.1"
                                               :port 2181
                                               :consumer-config {:session.timeout.ms 6000
-                                                                :auto.commit.interval.ms 1500}}
+                                                                :auto.commit.interval.ms 1500
+                                                                :max.poll.records 1}}
                                    :staging {:host "master.mesos"
                                              :zk-path "/dcos-service-kafka/"
                                              :port 2181

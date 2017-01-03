@@ -120,21 +120,6 @@
       (append-error-interceptor
        yada.interceptors/create-response (:record-ctx-metrics metrics))))
 
-(defn hello-parameters-resource
-  [metrics]
-  (resource
-   metrics
-   {:methods
-    {:get
-     {:parameters {:query {:p s/Str}}
-      :produces "text/plain"
-      :response say-hello}}}))
-
-(defn hello-routes
-  [metrics]
-  ["" [["/hello" (yada/handler "Hello World!\n")]
-       ["/hello-param" (hello-parameters-resource metrics)]]])
-
 (defn uuid
   []
   (str (java.util.UUID/randomUUID)))
@@ -292,29 +277,9 @@
   "Create the URI route structure for our application."
   [metrics filestore metadatastore communications schemastore]
   [""
-   [(hello-routes metrics)
-    (service-routes metrics filestore metadatastore communications schemastore)
-    ["/healthcheck" healthcheck]
-
-    #_      ["/api" (-> roots
-                        ;; Wrap this route structure in a Swagger
-                        ;; wrapper. This introspects the data model and
-                        ;; provides a swagger.json file, used by Swagger UI
-                        ;; and other tools.
-                        (yada/swaggered
-                         {:info {:title "Kixi Datastore"
-                                 :version "1.0"
-                                 :description "Testing api resource UI"}
-                          :basePath "/api"})
-                        ;; Tag it so we can create an href to this API
-                        (tag :edge.resources/api))]
+   [(service-routes metrics filestore metadatastore communications schemastore)   
 
     ["/metrics" (yada/resource (:expose-metrics-resource metrics))]
-
-    ;; Swagger UI
-    ["/swagger" (-> (new-webjar-resource "/swagger-ui" {})
-                    ;; Tag it so we can create an href to the Swagger UI
-                    (tag :edge.resources/swagger))]
 
     ;; This is a backstop. Always produce a 404 if we ge there. This
     ;; ensures we never pass nil back to Aleph.

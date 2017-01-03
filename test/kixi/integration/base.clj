@@ -146,7 +146,8 @@
      (let [md (client/get url
                           {:accept :json
                            :throw-exceptions false
-                           :headers {"user-groups" (vec-if-not uid)}})]
+                           :headers {:user-id uid
+                                     :user-groups (vec-if-not uid)}})]
        (if (= 404 (:status md))
          (do
            (when (zero? (mod cnt every-count-tries-emit))
@@ -163,7 +164,8 @@
                       {:as :json
                        :accept :json
                        :throw-exceptions false
-                       :headers {"user-groups" (vec-if-not ugroup)}})
+                       :headers {"user-id" (uuid)
+                                 "user-groups" (vec-if-not ugroup)}})
           :body
           parse-json))
 
@@ -186,7 +188,8 @@
                                                {:count count}))
                         :accept :json
                         :throw-exceptions false
-                        :headers {"user-groups" (vec-if-not group-ids)}})
+                        :headers {"user-id" (uuid)
+                                  "user-groups" (vec-if-not group-ids)}})
            :body
            parse-json)))
 
@@ -461,7 +464,8 @@
   [url seg]
   (client/post url
                {:form-params seg
-                :headers {"user-id" (uuid)}
+                :headers {"user-id" (uuid)
+                          "user-groups" (uuid)}
                 :content-type :json
                 :throw-exceptions false
                 :as :json}))
@@ -470,7 +474,8 @@
   [ugroup id]
   (client/get (schema-url id)
               {:accept :json
-               :headers {"user-groups" ugroup}
+               :headers {"user-id" (uuid)
+                         "user-groups" ugroup}
                :throw-exceptions false}))
 
 (defn extract-schema
@@ -493,7 +498,8 @@
         f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
     (bs/transfer (:body (client/get location {:as :stream
-                                              :headers {"user-groups" uid}}))
+                                              :headers {"user-id" uid
+                                                        "user-groups" uid}}))
                  f)
     f))
 
@@ -506,7 +512,9 @@
   (let [r (send-spec (get-in schema [::ss/provenance :kixi.user/id]) schema)]
     (if (= 200 (:status r))
       (::ss/id (extract-schema r))
-      (throw (Exception. (str "Couldn't post small-segmentable-file-schema. Resp: " r))))))
+      (if r
+        (throw (new Exception (str "Recieved non-200 response trying to fetch schema:" {:resp r})))
+        (throw (new Exception "No acceptance or rejection response event seen for schema command"))))))
 
 (defmacro has-status
   [status resp]
