@@ -21,7 +21,7 @@
       ]
     }
   },
-  "id": "@@APP_NAME@@@@CANARY@@",
+  "id": "@@APP_NAME@@",
   "constraints": [["hostname", "UNIQUE"]],
   "instances": @@INSTANCE_COUNT@@,
   "cpus": 0.5,

@@ -1,11 +1,12 @@
 {:service-name "kixi.datastore"
  :web-server #profile {:local {:vhost "localhost"
                                :port 8080}
-                       :circleci {:vhost "localhost"
-                                  :port 8080}
+                       :jenkins {:vhost "localhost"
+                                 :port 8080}
                        :staging {:vhost "kixi.datastore.marathon.mesos"
                                  :port 18080}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
+                                             :jenkins "influxdb.sandpitvpc.kixi"
                                              :local "localhost"
                                              :circleci "localhost"}
                              :port 8086
@@ -28,7 +29,7 @@
                                     "taskid" #or [#env MESOS_TASK_ID #rand-uuid "rand"]}
                              :seconds #profile {:staging 60
                                                 :local 1
-                                                :circleci 30}}}
+                                                :jenkins 30}}}
  :logging {:level :error ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
@@ -40,22 +41,23 @@
                                        :endpoint "s3.eu-central-1.amazonaws.com"
                                        :access-key ""
                                        :secret-key ""}}
-                      :circleci {:s3 {:bucket "kixi-data-store-file-store"
-                                      :endpoint "s3.eu-central-1.amazonaws.com"}}
+                      :jenkins {:s3 {:bucket "kixi-data-store-file-store"
+                                     :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :staging {:s3 {:bucket "kixi-data-store-file-store"
                                      :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch #profile {:local {:host "localhost"
                                                   :port 9200}
-                                          :circleci {:host "localhost"
-                                                     :port 9200}
+                                          :jenkins {:host "elasticsearch.marathon.mesos"
+                                                    :port 1026}
                                           :staging {:host "elasticsearch.marathon.mesos"
-                                                    :port 1026}}}
+                                                    :port 1026}
+                                          }}
  :schemastore {:elasticsearch #profile {:local {:host "localhost"
                                                 :port 9200}
-                                        :circleci {:host "localhost"
-                                                   :port 9200}
+                                        :jenkins {:host "elasticsearch.marathon.mesos"
+                                                  :port 1026}
                                         :staging {:host "elasticsearch.marathon.mesos"
                                                   :port 1026}}}
  :segmentation {:inmemory {}}
@@ -64,11 +66,12 @@
                                            :consumer-config {:session.timeout.ms 6000
                                                              :auto.commit.interval.ms 1500
                                                              :max.poll.records 1}}
-                                   :circleci {:host "127.0.0.1"
-                                              :port 2181
-                                              :consumer-config {:session.timeout.ms 6000
-                                                                :auto.commit.interval.ms 1500
-                                                                :max.poll.records 1}}
+                                   :jenkins {:host "master.mesos"
+                                             :port 2181
+                                             :zk-path "/dcos-service-kafka/"
+                                             :consumer-config {:session.timeout.ms 6000
+                                                               :auto.commit.interval.ms 1500
+                                                               :max.poll.records 1}}
                                    :staging {:host "master.mesos"
                                              :zk-path "/dcos-service-kafka/"
                                              :port 2181
