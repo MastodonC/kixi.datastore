@@ -40,10 +40,6 @@
       (clojure.string/split #",")
       vec-if-not))
 
-(defn say-hello [ctx]
-  (info "Saying hello")
-  (str "Hello " (get-in ctx [:parameters :query :p]) "!\n"))
-
 (defn yada-timbre-logger
   [ctx]
   (when (= 500 (get-in ctx [:response :status]))
@@ -277,7 +273,9 @@
   "Create the URI route structure for our application."
   [metrics filestore metadatastore communications schemastore]
   [""
-   [(service-routes metrics filestore metadatastore communications schemastore)   
+   [(service-routes metrics filestore metadatastore communications schemastore)  
+ 
+    ["/healthcheck" healthcheck]
 
     ["/metrics" (yada/resource (:expose-metrics-resource metrics))]
 

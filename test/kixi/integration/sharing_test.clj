@@ -57,7 +57,7 @@
    ;[[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata]
    ;[[:file :sharing ::ms/meta-update]] []
-   [[:schema :sharing ::ss/read]] [get-spec] ;;WTF These activites should be namespaced like the others!!!
+   [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]
    })
 

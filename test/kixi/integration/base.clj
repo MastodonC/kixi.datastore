@@ -20,6 +20,7 @@
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
+(def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
@@ -61,7 +62,9 @@
 
 (defn cycle-system-fixture
   [all-tests]
-  (repl/start)
+  (if run-against-staging    
+    (repl/start {} [:communications])
+    (repl/start))
   (try (instrument-specd-functions)
        (all-tests)
        (finally
@@ -81,7 +84,7 @@
 
 (defn service-url
   []
-  (or (System/getenv "SERVICE_URL") "localhost:8080"))
+  (env :service-url "localhost:8080"))
 
 
 (defn schema-url
@@ -224,12 +227,7 @@
   (.length (io/file file-name)))
 
 (def comms (atom nil))
-
-(defn extract-comms
-  [all-tests]
-  (reset! comms (:communications @repl/system))
-  (all-tests)
-  (reset! comms nil))
+(def event-channel (atom nil))
 
 (defn attach-event-handler!
   [group-id event handler]
@@ -240,19 +238,52 @@
    "1.0.0"
    handler))
 
-(defn attach-create-upload-link
-  [receiver]
-  (attach-event-handler!
-   :get-upload-link
-   :kixi.datastore.filestore/upload-link-created
-   #(do (reset! receiver %)
-        nil)))
-
 (defn detach-handler
   [handler]
   (c/detach-handler!
    @comms
    handler))
+
+(defn sink-to
+  [a]
+  #(do (async/>!! @a %)
+       nil))
+
+(defn extract-comms
+  [all-tests]
+  (reset! comms (:communications @repl/system))
+  (let [_ (reset! event-channel (async/chan 100))
+        spec-reject-handler (attach-event-handler!
+                             :send-spec-rejections
+                             :kixi.datastore.schema/rejected
+                             (sink-to event-channel))
+        spec-create-handler (attach-event-handler!
+                             :send-spec-successes
+                             :kixi.datastore.schema/created
+                             (sink-to event-channel))
+        md-rejection-handler (attach-event-handler!
+                              :send-file-metadata-rejections
+                              :kixi.datastore.file-metadata/rejected
+                              (sink-to event-channel))
+        md-success-handler (attach-event-handler!
+                            :send-file-metadata-sucesses
+                            :kixi.datastore.file-metadata/updated
+                            (sink-to event-channel))
+        upload-link-handler (attach-event-handler!
+                             :get-upload-link
+                             :kixi.datastore.filestore/upload-link-created
+                             (sink-to event-channel))]
+    (try
+      (all-tests)
+      (finally
+        (detach-handler spec-reject-handler)
+        (detach-handler spec-create-handler)
+        (detach-handler md-rejection-handler)
+        (detach-handler md-success-handler)
+        (detach-handler upload-link-handler)
+        (async/close! @event-channel)
+        (reset! event-channel nil))))
+  (reset! comms nil))
 
 (defn send-upload-link-cmd
   ([uid]
@@ -290,45 +321,40 @@
      :kixi.user/groups (vec-if-not ugroup)}
     spec)))
 
-(defn wait-for-atoms
-  [& atoms]
+(defn event-for
+  [uid event]
+  (= uid
+     (or (get-in event [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id])
+         (get-in event [:kixi.comms.event/payload ::ss/provenance :kixi.user/id])
+         (get-in event [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id])
+         (get-in event [:kixi.comms.event/payload :kixi.user/id]))))
+
+(defn wait-for-events
+  [uid & event-types]
   (first
    (async/alts!!
-    (mapv (fn [a]
-            (async/go
-              (wait-for-pred #(deref a))
-              @a))
-          atoms))))
+    (mapv (fn [c]
+            (async/go-loop 
+                [event (async/<! c)]
+                (if (and (event-for uid event)
+                         ((set event-types)
+                          (:kixi.comms.event/key event)))
+                  event
+                  (when event
+                    (recur (async/<! c))))))                  
+          [@event-channel
+           (async/timeout (* wait-tries 
+                             wait-per-try))]))))
 
 (defn send-spec
   [uid spec]
-  (let [rejected-a (atom nil)
-        created-a (atom nil)
-        rejection-handler (attach-event-handler!
-                           :send-spec-rejections
-                           :kixi.datastore.schema/rejected
-                           #(do (when (= uid
-                                         (get-in % [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id]))
-                                  (reset! rejected-a %))
-                                nil))
-        success-handler (attach-event-handler!
-                         :send-spec-successes
-                         :kixi.datastore.schema/created
-                         #(do (when (= uid
-                                       (get-in % [:kixi.comms.event/payload ::ss/provenance :kixi.user/id]))
-                                (reset! created-a %))
-                              nil))]
-    (try
-      (send-spec-no-wait uid spec)
-      (let [event (wait-for-atoms rejected-a created-a)]
-        (if (= :kixi.datastore.schema/created
-               (:kixi.comms.event/key  event))
-          (wait-for-url uid (schema-url
-                             (get-in event [:kixi.comms.event/payload ::ss/id])))
-          event))
-      (finally
-        (detach-handler rejection-handler)
-        (detach-handler success-handler)))))
+  (send-spec-no-wait uid spec)
+  (let [event (wait-for-events uid :kixi.datastore.schema/rejected :kixi.datastore.schema/created)]
+    (if (= :kixi.datastore.schema/created
+           (:kixi.comms.event/key  event))
+      (wait-for-url uid (schema-url
+                         (get-in event [:kixi.comms.event/payload ::ss/id])))
+      event)))
 
 (defn metadata->user-id
   [metadata]
@@ -336,13 +362,8 @@
 
 (defn get-upload-link-event
   [user-id]
-  (let [result (atom nil)
-        handler (attach-create-upload-link
-                 result)]
-    (send-upload-link-cmd user-id)
-    (wait-for-pred #(deref result))
-    (detach-handler handler)
-    @result))
+  (send-upload-link-cmd user-id)
+  (wait-for-events user-id :kixi.datastore.filestore/upload-link-created))
 
 (defn get-upload-link
   [user-id]
@@ -429,36 +450,16 @@
     (metadata->user-id metadata)
     metadata))
   ([uid ugroup metadata]
-   (let [rejected-a (atom nil)
-         created-a (atom nil)
-         rejection-handler (attach-event-handler!
-                            :send-file-metadata-rejections
-                            :kixi.datastore.file-metadata/rejected
-                            #(do (when (= uid
-                                          (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
-                                   (reset! rejected-a %))
-                                 nil))
-         success-handler (attach-event-handler!
-                          :send-file-metadata-sucesses
-                          :kixi.datastore.file-metadata/updated
-                          #(do (when (= uid
-                                        (get-in % [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id]))
-                                 (reset! created-a %))
-                               nil))]
-     (try
-       (send-file-and-metadata-no-wait uid ugroup metadata)
-       (let [event (wait-for-atoms rejected-a created-a)]
-         (if (= :kixi.datastore.file-metadata/updated
-                (:kixi.comms.event/key event))
-           (wait-for-metadata-key ugroup
-                                  (get-in event [:kixi.comms.event/payload
-                                                 ::ms/file-metadata
-                                                 ::ms/id])
-                                  ::ms/id)
-           event))
-       (finally
-         (detach-handler rejection-handler)
-         (detach-handler success-handler))))))
+   (send-file-and-metadata-no-wait uid ugroup metadata)
+   (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
+     (if (= :kixi.datastore.file-metadata/updated
+            (:kixi.comms.event/key event))
+       (wait-for-metadata-key ugroup
+                              (get-in event [:kixi.comms.event/payload
+                                             ::ms/file-metadata
+                                             ::ms/id])
+                              ::ms/id)
+       event))))
 
 (defn post-segmentation
   [url seg]
@@ -575,21 +576,12 @@
   `(when-status 200 ~resp ~rest))
 
 
-(defmacro is-file-metadata-rejected
-  [deliverer rejection-submap]
-  `(let [receiver# (atom nil)
-         rejection-handler# (attach-event-handler!
-                             :send-file-metadata-rejections
-                             :kixi.datastore.file-metadata/rejected
-                             #(do (reset! receiver# %)
-                                  nil))]
-     (try
-       (~deliverer)
-       (wait-for-pred #(deref receiver#))
-       (is @receiver#
-           "Rejection message not received")
-       (when @receiver#
-         (is-submap ~rejection-submap
-                    (:kixi.comms.event/payload @receiver#)))
-       (finally
-         (detach-handler rejection-handler#)))))
+(defn is-file-metadata-rejected
+  [uid deliverer rejection-submap]
+  (deliverer)
+  (let [e (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/update)]
+    (is e
+        "Rejection message not received")
+    (when e
+      (is-submap rejection-submap
+                 (:kixi.comms.event/payload e)))))

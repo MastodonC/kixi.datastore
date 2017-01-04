@@ -52,6 +52,7 @@
 (deftest rejected-when-file-not-uploaded
   (let [uid (uuid)]
     (is-file-metadata-rejected 
+     uid
      #(send-metadata-cmd uid
                          (assoc (create-metadata uid
                                                  "./rejected-when-file-not-uploaded.non-file")
@@ -61,6 +62,7 @@
 (deftest rejected-when-size-incorrect
   (let [uid (uuid)]
     (is-file-metadata-rejected 
+     uid
      #(send-file-and-metadata-no-wait
        (assoc (create-metadata uid
                                "./test-resources/metadata-one-valid.csv")

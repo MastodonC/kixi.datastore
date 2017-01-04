@@ -6,6 +6,7 @@
       "privileged": true,
       "parameters": [
          {"key": "env", "value": "ENVIRONMENT=@@ENVIRONMENT@@"},
+         {"key": "env", "value": "JAVA_OPTS=@@JAVA_OPTS@@"},
          {"key": "log-driver", "value": "gelf"},
          {"key": "log-opt", "value": "gelf-address=udp://logstash.@@VPC@@-vpc.kixi:12201"},
          {"key": "label", "value": "cluster=@@ENVIRONMENT@@"},

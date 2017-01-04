@@ -8,13 +8,16 @@
 
 (defn start
   ([]
-   (start {}))
-  ([overrides]
+   (start {} nil))
+  ([overrides component-subset]
    (when-not @system
      (try
        (prn "Starting system")
        (->> (system/new-system (keyword (env :system-profile "local")))
             (#(merge % overrides))
+            (#(if component-subset
+                (select-keys % component-subset)
+                %))
             component/start-system
             (reset! system))
        (catch Exception e

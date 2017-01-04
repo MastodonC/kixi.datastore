@@ -103,6 +103,7 @@
 (deftest small-file-invalid-schema
   (let [uid (uuid)]
     (is-file-metadata-rejected
+     uid
      #(send-file-and-metadata-no-wait
        (create-metadata
         uid

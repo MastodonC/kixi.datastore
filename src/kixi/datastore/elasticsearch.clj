@@ -4,10 +4,15 @@
              [document :as esd]
              [index :as esi]]
             [clojurewerkz.elastisch.rest.response :as esrsp]
+            [environ.core :refer [env]]
             [taoensso.timbre :as timbre :refer [error]]
             [kixi.datastore.time :as t]))
 
-(def put-opts {:consistency "default"})
+(def put-opts (merge {:consistency (env :elasticsearch-consistency "default")
+                      :replication (env :elasticsearch-replication "default")
+                      :refresh (Boolean/parseBoolean (env :elasticsearch-refresh "true"))}
+                     (when-let [s  (env :elasticsearch-wait-for-active-shards nil)]
+                       {:wait-for-active-shards s})))
 
 (def string-stored-not_analyzed
   {:type "string"
@@ -108,7 +113,7 @@
   (:error resp))
 
 (defn apply-func
-  ([index-name doc-type conn id f]
+  ([index-name doc-type conn id f]   
    (loop [tries apply-attempts]
      (let [curr (get-document-raw index-name doc-type conn id)
            resp (esd/put conn
