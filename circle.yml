@@ -2,7 +2,6 @@ machine:
   services:
     - docker
   environment:
-    wait_tries: 300
     generative_testing_size: 100
     _JAVA_OPTIONS: "-Xms248m -Xmx1024m"
 
@@ -11,7 +10,6 @@ test:
     - ./test-resources/create-test-files.sh
     - docker-compose up -d
   override:
-    - lein test
     - SYSTEM_PROFILE=circleci lein test
 
 deployment:

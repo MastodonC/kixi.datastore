@@ -18,12 +18,13 @@
 
 (defn create-upload-cmd-handler
   [link-fn]
-  (fn [_]
+  (fn [e]
     (let [id (uuid)]
       {:kixi.comms.event/key :kixi.datastore.filestore/upload-link-created
        :kixi.comms.event/version "1.0.0"
        :kixi.comms.event/payload {::upload-link (link-fn id)
-                                  ::id id}})))
+                                  ::id id
+                                  :kixi.user/id (get-in e [:kixi.comms.command/user :kixi.user/id])}})))
 
 (defn attach-command-handlers
   [comms {:keys [link-creator

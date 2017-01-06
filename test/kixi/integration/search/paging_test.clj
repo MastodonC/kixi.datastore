@@ -31,16 +31,17 @@
              metadata))]
     (wait-for-pred
      #(= total-files
-         (get-in (search-metadata uid [])
+         (get-in (search-metadata uid [::ms/meta-read])
                  [:body :paging :total])))
+
     (is-submap {:body {:paging {:total total-files}}}
-               (search-metadata uid []))
+               (search-metadata uid [::ms/meta-read]))
 
     (checking "various combinations of index and count return correct items"
               sample-size
               [dex (gen/elements (range total-files))
                cnt (gen/elements (range total-files))]
-              (let [resp (search-metadata uid [] dex cnt)]
+              (let [resp (search-metadata uid [::ms/meta-read] dex cnt)]
                 (is-submap {:body {:paging {:total total-files
                                             :index dex
                                             :count (min (- total-files
@@ -57,7 +58,7 @@
               [dex (gen/such-that (partial (complement (set (range total-files))))
                                   (gen/int)
                                   such-that-size)]
-              (let [resp (search-metadata uid [] dex nil)]
+              (let [resp (search-metadata uid [::ms/meta-read] dex nil)]
                 (if (pos? dex)
                   (is-submap {:body {:items []
                                      :paging {:total total-files
@@ -73,7 +74,7 @@
               [cnt (gen/such-that (partial (complement (set (range total-files)))) 
                                   (gen/int) 
                                   such-that-size)]
-              (let [resp (search-metadata uid [] nil cnt)]
+              (let [resp (search-metadata uid [::ms/meta-read] nil cnt)]
                 (if (pos? cnt)
                   (is-submap {:body {:paging {:total total-files
                                               :index 0

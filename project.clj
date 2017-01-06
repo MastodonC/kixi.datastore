@@ -32,7 +32,7 @@
                  [digest "1.4.4"]
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.21"]
+                 [kixi/kixi.comms "0.1.22"]
                  [manifold "0.1.6-alpha1"]
                  [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]
@@ -47,6 +47,8 @@
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
                  [org.clojure/test.check "0.9.0"]
                  [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
+
+  :jvm-opts ["-Xmx2g"]
 
   :exclusions [cheshire]
 
