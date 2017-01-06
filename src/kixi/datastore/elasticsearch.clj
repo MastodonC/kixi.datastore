@@ -10,7 +10,7 @@
 
 (def put-opts (merge {:consistency (env :elasticsearch-consistency "default")
                       :replication (env :elasticsearch-replication "default")
-                      :refresh (Boolean/parseBoolean (env :elasticsearch-refresh "true"))}
+                      :refresh (Boolean/parseBoolean (env :elasticsearch-refresh "false"))}
                      (when-let [s  (env :elasticsearch-wait-for-active-shards nil)]
                        {:wait-for-active-shards s})))
 

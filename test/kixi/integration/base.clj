@@ -7,6 +7,9 @@
             [clojure.core.async :as async]
             [clojure.java.io :as io]
             [clojure.spec.test :as stest]
+            [clojurewerkz.elastisch.rest :as esr]
+            [clojurewerkz.elastisch.rest
+             [index :as esi]]
             [digest :as d]
             [environ.core :refer [env]]
             [kixi
@@ -21,6 +24,8 @@
 (def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
+(def es-host (env :es-host "localhost"))
+(def es-port (Integer/parseInt (env :es-port "9200")))
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
@@ -33,6 +38,17 @@
   (if (vector? x)
     x
     (vector x)))
+
+(defn refresh-indexes
+  []
+  (let [conn (esr/connect (str "http://" es-host ":" es-port)
+                          {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})})]
+    (esi/refresh 
+     conn
+     kixi.datastore.metadatastore.elasticsearch/index-name)
+    (esi/refresh 
+     conn
+     kixi.datastore.schemastore.elasticsearch/index-name)))
 
 (defmacro is-submap
   [expected actual & [msg]]
@@ -182,6 +198,7 @@
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
   ([group-ids activities index count]
+   (refresh-indexes)
    (update (client/get (metadata-query-url)
                        {:query-params (merge (zipmap (repeat :activity)
                                                      (map encode-kw activities))
