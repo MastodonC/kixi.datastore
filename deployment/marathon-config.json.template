@@ -26,7 +26,7 @@
   "constraints": [["hostname", "UNIQUE"]],
   "instances": @@INSTANCE_COUNT@@,
   "cpus": 0.5,
-  "mem": 1048,
+  "mem": 2048,
   "healthChecks": [{
         "protocol": "TCP",
         "path": "/healthcheck",
