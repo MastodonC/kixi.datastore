@@ -10,7 +10,7 @@
          {"key": "log-driver", "value": "gelf"},
          {"key": "log-opt", "value": "gelf-address=udp://logstash.@@VPC@@-vpc.kixi:12201"},
          {"key": "label", "value": "cluster=@@ENVIRONMENT@@"},
-         {"key": "label", "value": "application=@@APP_NAME@@@@CANARY@@"}
+         {"key": "label", "value": "application=@@APP_NAME@@"}
       ],
       "network": "BRIDGE",
       "portMappings": [
