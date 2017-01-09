@@ -43,12 +43,7 @@
   []
   (let [conn (esr/connect (str "http://" es-host ":" es-port)
                           {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})})]
-    (esi/refresh 
-     conn
-     kixi.datastore.metadatastore.elasticsearch/index-name)
-    (esi/refresh 
-     conn
-     kixi.datastore.schemastore.elasticsearch/index-name)))
+    (esi/refresh conn)))
 
 (defmacro is-submap
   [expected actual & [msg]]
@@ -369,8 +364,10 @@
   (let [event (wait-for-events uid :kixi.datastore.schema/rejected :kixi.datastore.schema/created)]
     (if (= :kixi.datastore.schema/created
            (:kixi.comms.event/key  event))
-      (wait-for-url uid (schema-url
-                         (get-in event [:kixi.comms.event/payload ::ss/id])))
+      (do
+        (wait-for-url uid (schema-url
+                             (get-in event [:kixi.comms.event/payload ::ss/id])))
+        (refresh-indexes))
       event)))
 
 (defn metadata->user-id
