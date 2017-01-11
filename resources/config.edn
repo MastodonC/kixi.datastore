@@ -1,5 +1,5 @@
 {:service-name "kixi.datastore"
- :web-server #profile {:local {:vhost "localhost"
+ :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080}
                        :jenkins {:vhost "localhost"
                                  :port 8080}
@@ -7,8 +7,7 @@
                                  :port 18080}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
                                              :jenkins "influxdb.sandpitvpc.kixi"
-                                             :local "localhost"
-                                             :circleci "localhost"}
+                                             :local #or [#env INFLUXDB "localhost"]}
                              :port 8086
                                         ;                             :auth
                              :connect-timeout 1500
@@ -47,13 +46,12 @@
                                      :endpoint "s3.eu-central-1.amazonaws.com"}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
- :metadatastore {:elasticsearch #profile {:local {:host "localhost"
+ :metadatastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
                                                   :port 9200}
                                           :jenkins {:host "elasticsearch.marathon.mesos"
                                                     :port 1026}
                                           :staging {:host "elasticsearch.marathon.mesos"
-                                                    :port 1026}
-                                          }}
+                                                    :port 1026}}}
  :schemastore {:elasticsearch #profile {:local {:host "localhost"
                                                 :port 9200}
                                         :jenkins {:host "elasticsearch.marathon.mesos"
