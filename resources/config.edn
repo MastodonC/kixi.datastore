@@ -52,7 +52,7 @@
                                                     :port 1026}
                                           :staging {:host "elasticsearch.marathon.mesos"
                                                     :port 1026}}}
- :schemastore {:elasticsearch #profile {:local {:host "localhost"
+ :schemastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
                                                 :port 9200}
                                         :jenkins {:host "elasticsearch.marathon.mesos"
                                                   :port 1026}
