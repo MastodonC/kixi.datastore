@@ -25,8 +25,8 @@
   "id": "@@APP_NAME@@",
   "constraints": [["hostname", "UNIQUE"]],
   "instances": @@INSTANCE_COUNT@@,
-  "cpus": 0.5,
-  "mem": 2048,
+  "cpus": @@CPUS@@,
+  "mem": @@MEM@@,
   "healthChecks": [{
         "protocol": "TCP",
         "path": "/healthcheck",
