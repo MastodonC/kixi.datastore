@@ -6,6 +6,7 @@
             [clojurewerkz.elastisch.rest.response :as esrsp]
             [environ.core :refer [env]]
             [taoensso.timbre :as timbre :refer [error]]
+            [cheshire.core :as json]
             [kixi.datastore.time :as t]))
 
 (def put-opts (merge {:consistency (env :elasticsearch-consistency "default")
@@ -162,6 +163,14 @@
 (defn present?
   [index-name doc-type conn id]
   (esd/present? conn index-name doc-type id))
+
+(defn discover-executor
+  [url]
+  (->> (json/parse-string (slurp url) keyword)
+       (map :http_address)
+       (rand-nth)
+       (re-find #"([0-9\.]+):([0-9]+)")
+       (rest)))
 
 (defn connect
   [host port]

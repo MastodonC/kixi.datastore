@@ -48,16 +48,12 @@
                                   :endpoint "s3.eu-central-1.amazonaws.com"}}}
  :metadatastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
                                                   :port 9200}
-                                          :jenkins {:host "elasticsearch.marathon.mesos"
-                                                    :port 1026}
-                                          :staging {:host "elasticsearch.marathon.mesos"
-                                                    :port 1026}}}
+                                          :jenkins {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}
+                                          :staging {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}}}
  :schemastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
                                                 :port 9200}
-                                        :jenkins {:host "elasticsearch.marathon.mesos"
-                                                  :port 1026}
-                                        :staging {:host "elasticsearch.marathon.mesos"
-                                                  :port 1026}}}
+                                        :jenkins {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}
+                                        :staging {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}}}
  :segmentation {:inmemory {}}
  :communications {:kafka #profile {:local {:host #or [#env ZOOKEEPER "127.0.0.1"]
                                            :port 2181

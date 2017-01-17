@@ -101,40 +101,41 @@
                           (repeat groups))}))
 
 (defrecord ElasticSearch
-    [communications host port conn]
-    MetaDataStore
-    (authorised
-      [this action id user-groups]
-      (when-let [sharing (get-document-key conn id ::ms/sharing)]
-        (not-empty (clojure.set/intersection (set (get sharing action))
-                                             (set user-groups)))))
-    (exists [this id]
-      (present? conn id))
-    (retrieve [this id]
-      (get-document conn id))
-    (query [this criteria from-index count]
-      (search conn 
-              (query-criteria->es-query criteria)
-              from-index count))
+    [communications host port discover conn]
+  MetaDataStore
+  (authorised
+    [this action id user-groups]
+    (when-let [sharing (get-document-key conn id ::ms/sharing)]
+      (not-empty (clojure.set/intersection (set (get sharing action))
+                                           (set user-groups)))))
+  (exists [this id]
+    (present? conn id))
+  (retrieve [this id]
+    (get-document conn id))
+  (query [this criteria from-index count]
+    (search conn
+            (query-criteria->es-query criteria)
+            from-index count))
 
-    component/Lifecycle
-    (start [component]
-      (if-not conn
-        (let [connection (es/connect host port)]
-          (info "Starting File Metadata ElasticSearch Store")
-          (ensure-index index-name
-                        doc-type
-                        doc-def
-                        connection)
-          (c/attach-event-handler! communications
-                                   :kixi.datastore/metadatastore
-                                   :kixi.datastore.file-metadata/updated
-                                   "1.0.0"
-                                   (comp response-event (partial update-metadata-processor connection) :kixi.comms.event/payload))
-          (assoc component :conn connection))
-        component))
-    (stop [component]
-      (if conn
-        (do (info "Destroying File Metadata ElasticSearch Store")
-            (dissoc component :conn))
-        component)))
+  component/Lifecycle
+  (start [component]
+    (if-not conn
+      (let [[host port] (if discover (es/discover-executor discover) [host port])
+            connection (es/connect host port)]
+        (info "Starting File Metadata ElasticSearch Store")
+        (ensure-index index-name
+                      doc-type
+                      doc-def
+                      connection)
+        (c/attach-event-handler! communications
+                                 :kixi.datastore/metadatastore
+                                 :kixi.datastore.file-metadata/updated
+                                 "1.0.0"
+                                 (comp response-event (partial update-metadata-processor connection) :kixi.comms.event/payload))
+        (assoc component :conn connection))
+      component))
+  (stop [component]
+    (if conn
+      (do (info "Destroying File Metadata ElasticSearch Store")
+          (dissoc component :conn))
+      component)))

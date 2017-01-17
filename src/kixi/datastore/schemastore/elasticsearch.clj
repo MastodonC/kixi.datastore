@@ -108,7 +108,7 @@
   nil)
 
 (defrecord ElasticSearch
-    [communications host port conn]
+    [communications host port discover conn]
   SchemaStore
   (authorised
     [_ action id user-groups]
@@ -127,7 +127,8 @@
   component/Lifecycle
   (start [component]
     (if-not conn
-      (let [connection (es/connect host port)]
+      (let [[host port] (if discover (es/discover-executor discover) [host port])
+            connection (es/connect host port)]
         (info "Starting Schema ElasticSearch Store")
         (ensure-index index-name
                       doc-type
