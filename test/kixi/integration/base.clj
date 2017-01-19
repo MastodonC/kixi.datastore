@@ -383,16 +383,19 @@
      (get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/id])]))
 
 (defn get-dload-link-event
-  [user-id id]
-  (send-dload-link-cmd user-id id)
+  [user-id user-groups id]
+  (send-dload-link-cmd user-id user-groups id)
   (wait-for-events user-id
                    :kixi.datastore.filestore/download-link-created
                    :kixi.datastore.filestore/download-link-rejected))
 
 (defn get-dload-link
-  [user-id id]
-  (let [link-event (get-dload-link-event user-id id)]    
-    (get-in link-event [:kixi.comms.event/payload ::ms/link])))
+  ([user-id id]
+   (get-dload-link
+    user-id user-id id))
+  ([user-id user-groups id]
+   (let [link-event (get-dload-link-event user-id user-groups id)]    
+     (get-in link-event [:kixi.comms.event/payload ::ms/link]))))
 
 (defmulti upload-file
   (fn [^String target file-name]
