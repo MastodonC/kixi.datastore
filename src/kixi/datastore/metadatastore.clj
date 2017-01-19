@@ -102,4 +102,5 @@
     [this action id user-groups])
   (exists [this id])
   (retrieve [this id])
+  (create-link [this id])
   (query [this criteria from-index count]))

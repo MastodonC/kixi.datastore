@@ -22,7 +22,7 @@
                  (create-metadata uid
                                   "./test-resources/metadata-one-valid.csv"))]
     (when-success md-resp
-      (when-let [locat (file-url (get-in md-resp [:body ::ms/id]))]
+      (let [locat (file-url (get-in md-resp [:body ::ms/id]))]
         (is (files-match?
              "./test-resources/metadata-one-valid.csv"
              (dload-file uid locat)))))))
@@ -33,7 +33,7 @@
                  (create-metadata uid
                                   "./test-resources/metadata-12MB-valid.csv"))]
     (when-success md-resp
-      (when-let [locat (file-url (get-in md-resp [:body ::ms/id]))]
+      (let [locat (file-url (get-in md-resp [:body ::ms/id]))]
         (is (files-match?
              "./test-resources/metadata-12MB-valid.csv"
              (dload-file uid locat)))))))
@@ -44,7 +44,7 @@
                  (create-metadata uid
                                   "./test-resources/metadata-344MB-valid.csv"))]
     (when-success md-resp
-      (when-let [locat (file-url (get-in md-resp [:body ::ms/id]))]
+      (let [locat (file-url (get-in md-resp [:body ::ms/id]))]
         (is (files-match?
              "./test-resources/metadata-344MB-valid.csv"
              (dload-file uid locat)))))))

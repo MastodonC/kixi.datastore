@@ -39,6 +39,11 @@
                                         id)]
         (when (.exists file)
           (io/input-stream file))))
+    (create-link [this id file-name]
+      (let [^java.io.File file (io/file dir
+                                        id)]
+        (when (.exists file)
+          (str "file://" (.getPath file)))))
 
     component/Lifecycle
     (start [component]
