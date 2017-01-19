@@ -25,13 +25,21 @@
   [event]
   (if (contains? event :kixi.comms.event/key)
     (and
-     (= "rejected" (name (:kixi.comms.event/key event)))
+     (.contains (name (:kixi.comms.event/key event)) "rejected")
      (= :unauthorised (get-in event [:kixi.comms.event/payload :reason])))
     (= 401 (:status event))))
 
 (defn get-file
   [schema-id file-id uid ugroups]
   (base/get-file uid ugroups file-id))
+
+(defn get-file-link
+  [schema-id file-id uid ugroups]
+  (let [event (base/get-dload-link-event uid ugroups file-id)]
+    (if (= :kixi.datastore.filestore/download-link-created
+           (:kixi.comms.event/key event))
+      {:status 200}
+      event)))
 
 (defn get-metadata
   [schema-id file-id uid ugroups]
@@ -53,7 +61,7 @@
     ::ms/sharing {::ms/meta-read [ugroups]})))
 
 (def shares->authorised-actions
-  {[[:file :sharing ::ms/file-read]] [get-file]
+  {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
    ;[[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata]
    ;[[:file :sharing ::ms/meta-update]] []
@@ -142,4 +150,4 @@
                 (is (unauthorised
                      (action
                       schema-id file-id use-uid use-ugroup))
-                    (str "Is " action " NOT allowed with " shares))))))))))
+                    (str "Is " action " NOT allowed with " (mapv str shares)))))))))))
