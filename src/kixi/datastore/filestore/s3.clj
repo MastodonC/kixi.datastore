@@ -38,12 +38,13 @@
   [creds bucket id file-name expiry]
   (let [header-overrides (com.amazonaws.services.s3.model.ResponseHeaderOverrides.)
         _ (when file-name (.setContentDisposition header-overrides (str "attachment; filename=" file-name)))]
-    (s3/generate-presigned-url creds
-                               :bucket-name bucket 
-                               :key id
-                               :expiration expiry
-                               :method "GET" 
-                               :response-headers header-overrides)))
+    (-> (s3/generate-presigned-url creds
+                                   :bucket-name bucket 
+                                   :key id
+                                   :expiration expiry
+                                   :method "GET" 
+                                   :response-headers header-overrides)
+        str)))
 
 (defrecord S3
     [communications logging region endpoint access-key secret-key link-expiration-mins bucket client-options creds]
