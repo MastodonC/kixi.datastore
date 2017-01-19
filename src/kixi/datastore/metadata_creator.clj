@@ -75,7 +75,7 @@
           file-id (::ms/id payload)]
       (if (ms/authorised metadatastore ::ms/file-read file-id user-groups)
         (let [metadata (ms/retrieve metadatastore file-id)
-              link (fs/create-link filestore file-id (:ms/name metadata))]
+              link (fs/create-link filestore file-id (::ms/name metadata))]
           {:kixi.comms.event/key :kixi.datastore.filestore/download-link-created
            :kixi.comms.event/version "1.0.0"
            :kixi.comms.event/payload {::ms/id file-id
