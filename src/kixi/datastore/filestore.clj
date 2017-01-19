@@ -14,7 +14,9 @@
   (size [this id]
     "Size in bytes of the file with this id, nil if file does not exist")
   (retrieve [this id]
-    "Returns an inputstream for read a files contents from"))
+    "Returns an inputstream for read a files contents from")
+  (create-link [this id file-name]
+    "Returns a link from which the file can be downloaded"))
 
 (defn create-upload-cmd-handler
   [link-fn]

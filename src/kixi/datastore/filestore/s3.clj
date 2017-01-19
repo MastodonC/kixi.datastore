@@ -34,8 +34,21 @@
     (catch AmazonS3Exception e
       nil)))
 
+(defn create-dload-link
+  [creds bucket id name expiry]
+  (defn presigned-download-url
+    [name file-name]
+    (let [header-overrides (com.amazonaws.services.s3.model.ResponseHeaderOverrides.)
+          _ (when file-name (.setContentDisposition header-overrides (str "attachment; filename=" name)))]
+      (s3/generate-presigned-url creds
+                                 :bucket-name bucket 
+                                 :key id
+                                 :expiration expiry
+                                 :method "GET" 
+                                 :response-headers header-overrides))))
+
 (defrecord S3
-    [communications logging region endpoint access-key secret-key bucket client-options creds]
+    [communications logging region endpoint access-key secret-key link-expiration-mins bucket client-options creds]
     FileStore
     (exists [this id]
       (s3/does-object-exist creds bucket id))
@@ -45,6 +58,9 @@
       (when (s3/does-object-exist creds bucket id)
         (:object-content
          (s3/get-object creds bucket id))))
+    (create-link [this id name]
+      (when (s3/does-object-exist creds bucket id)
+        (create-dload-link creds bucket id name (t/minutes-from-now link-expiration-mins))))
     component/Lifecycle
     (start [component]
       (if-not creds

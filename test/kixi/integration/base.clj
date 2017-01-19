@@ -268,34 +268,15 @@
   [all-tests]
   (reset! comms (:communications @repl/system))
   (let [_ (reset! event-channel (async/chan 100))
-        spec-reject-handler (attach-event-handler!
-                             :send-spec-rejections
-                             :kixi.datastore.schema/rejected
-                             (sink-to event-channel))
-        spec-create-handler (attach-event-handler!
-                             :send-spec-successes
-                             :kixi.datastore.schema/created
-                             (sink-to event-channel))
-        md-rejection-handler (attach-event-handler!
-                              :send-file-metadata-rejections
-                              :kixi.datastore.file-metadata/rejected
-                              (sink-to event-channel))
-        md-success-handler (attach-event-handler!
-                            :send-file-metadata-sucesses
-                            :kixi.datastore.file-metadata/updated
-                            (sink-to event-channel))
-        upload-link-handler (attach-event-handler!
-                             :get-upload-link
-                             :kixi.datastore.filestore/upload-link-created
-                             (sink-to event-channel))]
+        handler (c/attach-event-with-key-handler!
+                 @comms
+                 :datastore-integration-tests
+                 :kixi.comms.event/id
+                 (sink-to event-channel))]
     (try
       (all-tests)
       (finally
-        (detach-handler spec-reject-handler)
-        (detach-handler spec-create-handler)
-        (detach-handler md-rejection-handler)
-        (detach-handler md-success-handler)
-        (detach-handler upload-link-handler)
+        (detach-handler handler)
         (async/close! @event-channel)
         (reset! event-channel nil))))
   (reset! comms nil))
@@ -311,6 +292,18 @@
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     {})))
+
+(defn send-dload-link-cmd
+  ([uid id]
+   (send-dload-link-cmd uid uid id))
+  ([uid ugroup id]
+   (c/send-command!
+    @comms
+    :kixi.datastore.filestore/create-download-link
+    "1.0.0" 
+    {:kixi.user/id uid
+     :kixi.user/groups (vec-if-not ugroup)}
+    {::ms/id id})))
 
 (defn send-metadata-cmd
   ([uid metadata]
@@ -342,7 +335,8 @@
      (or (get-in event [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id])
-         (get-in event [:kixi.comms.event/payload :kixi.user/id]))))
+         (get-in event [:kixi.comms.event/payload :kixi.user/id])
+         (get-in event [:kixi.comms.event/payload :kixi/user :kixi.user/id]))))
 
 (defn wait-for-events
   [uid & event-types]
@@ -387,6 +381,18 @@
   (let [link-event (get-upload-link-event user-id)]
     [(get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/upload-link])
      (get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/id])]))
+
+(defn get-dload-link-event
+  [user-id id]
+  (send-dload-link-cmd user-id id)
+  (wait-for-events user-id
+                   :kixi.datastore.filestore/download-link-created
+                   :kixi.datastore.filestore/download-link-rejected))
+
+(defn get-dload-link
+  [user-id id]
+  (let [link-event (get-dload-link-event user-id id)]    
+    (get-in link-event [:kixi.comms.event/payload ::ms/link])))
 
 (defmulti upload-file
   (fn [^String target file-name]

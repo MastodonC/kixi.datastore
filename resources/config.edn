@@ -38,15 +38,19 @@
                                         ;To use S3 locally, remove :local config and set some keys.
                               #_:s3 #_{:bucket "kixi-data-store-file-store"
                                        :endpoint "s3.eu-central-1.amazonaws.com"
+                                       :link-expiration-minutes 10
                                        :access-key ""
                                        :secret-key ""}}
                       :jenkins {:s3 {:bucket "kixi-data-store-file-store"
-                                     :endpoint "s3.eu-central-1.amazonaws.com"}}
+                                     :endpoint "s3.eu-central-1.amazonaws.com"
+                                     :link-expiration-mins 10}}
                       :staging {:s3 {:bucket "kixi-data-store-file-store"
-                                     :endpoint "s3.eu-central-1.amazonaws.com"}}
+                                     :endpoint "s3.eu-central-1.amazonaws.com"
+                                     :link-expiration-mins 10}}
                       :prod {:s3 {:bucket "kixi-data-store-file-store"
-                                  :endpoint "s3.eu-central-1.amazonaws.com"}}}
- :metadatastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
+                                  :endpoint "s3.eu-central-1.amazonaws.com"
+                                  :link-expiration-mins 10}}}
+ :metadatastore {:elasticsearch #profile {:local {:host "localhost"
                                                   :port 9200}
                                           :jenkins {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}
                                           :staging {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"}}}
