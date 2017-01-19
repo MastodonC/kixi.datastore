@@ -21,7 +21,7 @@
   (File. (.substring link (inc (.indexOf link "://")))))
 
 (defmethod dload-file-link
-  "s3"
+  "https"
   [^String link]
   (let [f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
