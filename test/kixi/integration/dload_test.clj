@@ -23,6 +23,7 @@
 (defmethod dload-file-link
   "https"
   [^String link]
+  (is (.endsWith link ".csv"))
   (let [f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)]
     (bs/transfer (:body (client/get link {:as :stream}))
