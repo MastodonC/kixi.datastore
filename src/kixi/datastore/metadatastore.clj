@@ -28,6 +28,9 @@
 (s/def ::activities
   (s/coll-of (set activities)))
 
+(s/def ::activity
+  (set activities))
+
 (s/def ::sharing
   (s/map-of (set activities)
             (s/coll-of :kixi.user-group/id)))

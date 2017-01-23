@@ -67,6 +67,9 @@
 (def all-keys->es-format
   (map-all-keys kw->es-format))
 
+(def all-keys->es-format-kws
+  (map-all-keys (comp keyword kw->es-format)))
+
 (def all-keys->kw
   (map-all-keys es-format->kw))
 
@@ -146,18 +149,19 @@
       (error "Unable to merge data for id: " id ". Trying to merge: " es-u ". Response: " r)
       r)))
 
-(defn cons-data
-  [index-name doc-type conn id k element]
+
+(defn update-in-data
+  [index-name doc-type conn id update-fn ks element]
   (let [r (apply-func
            index-name
            doc-type
            conn
            id   
            (fn [curr]
-             (update (:_source curr) (kw->es-format k) 
-                     #(cons (all-keys->es-format element) %))))]
+             (update-in (:_source curr) (all-keys->es-format-kws ks) 
+                        #(vec (update-fn (set %) (all-keys->es-format-kws element))))))]
     (if (error? r)
-      (error "Unable to cons data for id: " id ". Trying to update: " k ". Response: " r)
+      (error "Unable to cons data for id: " id ". Trying to update: " ks ". Response: " r)
       r)))
 
 (defn present?

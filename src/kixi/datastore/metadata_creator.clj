@@ -87,8 +87,27 @@
                                     ::ms/id file-id
                                     :kixi/user (:kixi.comms.command/user cmd)}}))))
 
+(defn create-sharing-change-handler
+  [metadatastore]
+  (fn [{:keys [kixi.comms.command/payload] :as cmd}]
+    (let [user-id (get-user-id cmd)
+          user-groups (get-user-groups cmd)
+          metadata-id (::ms/id payload)]
+      (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
+        {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
+         :kixi.comms.event/version "1.0.0"
+         :kixi.comms.event/payload (merge {::cs/file-metadata-update-type
+                                           ::cs/file-metadata-sharing-updated}
+                                          payload)}
+        {:kixi.comms.event/key :kixi.datastore.metadatastore/sharing-change-rejected
+         :kixi.comms.event/version "1.0.0"
+         :kixi.comms.event/payload {:reason :unauthorised
+                                    ::ms/id metadata-id
+                                    :kixi/user (:kixi.comms.command/user cmd)}}))))
+
 (defrecord MetadataCreator
-    [communications filestore schemastore metadatastore metadata-create-handler dload-link-handler]
+    [communications filestore schemastore metadatastore 
+     metadata-create-handler dload-link-handler sharing-change-handler]
     component/Lifecycle
     (start [component]
       (merge component
@@ -106,7 +125,14 @@
                  communications
                  :kixi.datastore/metadata-creator-download-link
                  :kixi.datastore.filestore/create-download-link
-                 "1.0.0" (create-dload-link-handler filestore metadatastore))})))
+                 "1.0.0" (create-dload-link-handler filestore metadatastore))})
+             (when-not sharing-change-handler
+               {:sharing-change-handler
+                (c/attach-command-handler!
+                 communications
+                 :kixi.datastore/metadata-creator-sharing-change
+                 :kixi.datastore.metadatastore/sharing-change
+                 "1.0.0" (create-sharing-change-handler metadatastore))})))
     (stop [component]
       (-> component
           (update component :metadata-create-handler
@@ -114,6 +140,10 @@
                      (c/detach-handler! communications %)
                      nil))
           (update component :dload-link-handler
+                  #(when %
+                     (c/detach-handler! communications %)
+                     nil))
+          (update component :sharing-change-handler
                   #(when %
                      (c/detach-handler! communications %)
                      nil)))))
