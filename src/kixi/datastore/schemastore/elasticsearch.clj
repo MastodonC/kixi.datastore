@@ -37,9 +37,6 @@
 (def merge-data
   (partial es/merge-data index-name doc-type))
 
-(def cons-data
-  (partial es/cons-data index-name doc-type))
-
 (def get-document
   (partial es/get-document index-name doc-type))
 

@@ -8,7 +8,7 @@
              [metadatastore :as ms :refer [MetaDataStore]]
              [schemastore :as ss]
              [segmentation :as seg]]
-            [taoensso.timbre :as timbre :refer [info]]))
+            [taoensso.timbre :as timbre :refer [info error]]))
 
 (def index-name "kixi-datastore_file-metadata")
 (def doc-type "file-metadata")
@@ -37,8 +37,8 @@
 (def merge-data
   (partial es/merge-data index-name doc-type))
 
-(def cons-data
-  (partial es/cons-data index-name doc-type))
+(def update-in-data
+  (partial es/update-in-data index-name doc-type))
 
 (def get-document
   (partial es/get-document index-name doc-type))
@@ -77,11 +77,24 @@
 (defmethod update-metadata-processor ::cs/file-metadata-segmentation-add
   [conn update-event]
   (info "Update: " update-event)
-  (cons-data
+  (update-in-data 
    conn
    (::ms/id update-event)
-   ::ms/segmentations
+   conj
+   [::ms/segmentations]
    (::ms/segmentation update-event)))
+
+(defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
+  [conn update-event]
+  (info "Update: " update-event)
+  (let [update-fn (case (::ms/sharing-update update-event)
+                    ::ms/sharing-conj conj
+                    ::ms/sharing-disj disj)]
+    (update-in-data conn
+                    (::ms/id update-event)
+                    update-fn
+                    [::ms/sharing (::ms/activity update-event)]
+                    (:kixi.group/id update-event))))
 
 (defn response-event
   [r]
