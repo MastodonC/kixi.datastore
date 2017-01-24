@@ -16,6 +16,7 @@
              [comms :as c]
              [repl :as repl]]
             [kixi.datastore
+             [communication-specs :as cs]
              [metadatastore :as ms]
              [schemastore :as ss]])
   (:import [java.io File FileNotFoundException]))
@@ -177,6 +178,7 @@
 
 (defn get-metadata
   [ugroup id]
+  (refresh-indexes)
   (update (client/get (metadata-url id)
                       {:as :json
                        :accept :json
@@ -317,6 +319,21 @@
      :kixi.user/groups (vec-if-not ugroup)}
     metadata)))
 
+(defn send-metadata-sharing-change-cmd
+  ([uid metadata-id change-type activity target-group]
+   (send-metadata-cmd uid uid metadata-id change-type activity target-group))
+  ([uid ugroup metadata-id change-type activity target-group]
+   (c/send-command!
+    @comms
+    :kixi.datastore.metadatastore/sharing-change
+    "1.0.0" 
+    {:kixi.user/id uid
+     :kixi.user/groups (vec-if-not ugroup)}
+    {::ms/id metadata-id
+     ::ms/sharing-update change-type
+     ::ms/activity activity
+     :kixi.group/id target-group})))
+
 (defn send-spec-no-wait
   ([uid spec]
    (send-spec-no-wait uid uid spec))
@@ -428,7 +445,8 @@
     {:file-name file-name
      :type "stored"
      :sharing {::ms/file-read [uid]
-               ::ms/meta-read [uid]}
+               ::ms/meta-read [uid]
+               ::ms/meta-update [uid]}
      :provenance {::ms/source "upload"
                   :kixi.user/id uid}
      :size-bytes (file-size file-name)
@@ -486,6 +504,13 @@
                                              ::ms/id])
                               ::ms/id)
        event))))
+
+(defn update-metadata-sharing
+  ([uid metadata-id change-type activity target-group]
+   (update-metadata-sharing uid uid metadata-id change-type activity target-group))
+  ([uid ugroup metadata-id change-type activity target-group]
+   (send-metadata-sharing-change-cmd uid ugroup metadata-id change-type activity target-group)
+   (wait-for-events uid :kixi.datastore.metadatastore/sharing-change-rejected :kixi.datastore.file-metadata/updated)))
 
 (defn post-segmentation
   [url seg]
@@ -600,6 +625,15 @@
 (defmacro when-success
   [resp & rest]
   `(when-status 200 ~resp ~rest))
+
+(defmacro when-event-key
+  [event k & rest]
+  `(let [k-val# (:kixi.comms.event/key ~event)]
+     (is (= ~k
+            k-val#))
+     (when (= ~k
+            k-val#)
+        ~@rest)))
 
 
 (defn is-file-metadata-rejected
