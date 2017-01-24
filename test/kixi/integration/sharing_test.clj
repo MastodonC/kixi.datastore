@@ -49,6 +49,32 @@
   [schema-id file-id uid ugroups]
   (base/get-spec ugroups schema-id))
 
+(defn add-meta-read
+  [schema-id file-id uid ugroups]
+  (let [event (base/update-metadata-sharing
+               uid ugroups
+               file-id
+               ::ms/sharing-conj 
+               ::ms/meta-read
+               (uuid))]
+    (if (= (:kixi.comms.event/key event)
+           :kixi.datastore.file-metadata/updated)
+      {:status 200}
+      event)))
+
+(defn remove-meta-read
+  [schema-id file-id uid ugroups]
+  (let [event (base/update-metadata-sharing
+               uid ugroups
+               file-id
+               ::ms/sharing-disj
+               ::ms/meta-read
+               (uuid))]
+    (if (= (:kixi.comms.event/key event)
+           :kixi.datastore.file-metadata/updated)
+      {:status 200}
+      event)))
+
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
   (base/send-file-and-metadata
@@ -62,9 +88,9 @@
 
 (def shares->authorised-actions
   {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
-   ;[[:file :sharing ::ms/meta-visible]] []
+   [[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata]
-   ;[[:file :sharing ::ms/meta-update]] []
+   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read]
    [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]
    })

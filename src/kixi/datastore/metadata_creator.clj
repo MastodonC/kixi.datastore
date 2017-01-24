@@ -97,7 +97,8 @@
         {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
          :kixi.comms.event/version "1.0.0"
          :kixi.comms.event/payload (merge {::cs/file-metadata-update-type
-                                           ::cs/file-metadata-sharing-updated}
+                                           ::cs/file-metadata-sharing-updated
+                                           :kixi/user (:kixi.comms.command/user cmd)}
                                           payload)}
         {:kixi.comms.event/key :kixi.datastore.metadatastore/sharing-change-rejected
          :kixi.comms.event/version "1.0.0"
