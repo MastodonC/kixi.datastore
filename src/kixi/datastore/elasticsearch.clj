@@ -209,15 +209,29 @@
        (all-keys->es-format
         query)))}}})
 
+(defn str->keyword
+  [^String s]
+  (->> (clojure.string/split s #"/")
+       (apply keyword)
+       kw->es-format))
+
+(defn sort-by-vec->str
+  [sort-by-v]
+  (->> sort-by-v
+       (mapv str->keyword)
+       (clojure.string/join ".")))
+
 (defn search-data
-  [index-name doc-type conn query from-index cnt]
+  [index-name doc-type conn query from-index cnt sort-by sort-order]
   (try
     (let [resp (esd/search conn
                            index-name
                            doc-type
                            (merge (query->es-filter query)
                                   {:from from-index
-                                   :size cnt}))]
+                                   :size cnt
+                                   :sort {(sort-by-vec->str sort-by)
+                                          {:order sort-order}}}))]
       {:items (doall
                (map (comp all-keys->kw :_source)
                     (esrsp/hits-from resp)))

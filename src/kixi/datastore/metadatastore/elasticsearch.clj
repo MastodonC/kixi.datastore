@@ -125,10 +125,11 @@
     (present? conn id))
   (retrieve [this id]
     (get-document conn id))
-  (query [this criteria from-index count]
+  (query [this criteria from-index count sort-by sort-order]
     (search conn
             (query-criteria->es-query criteria)
-            from-index count))
+            from-index count
+            sort-by sort-order))
 
   component/Lifecycle
   (start [component]

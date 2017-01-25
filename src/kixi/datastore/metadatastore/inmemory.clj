@@ -64,7 +64,7 @@
        id))
     (retrieve [this id]
       (get @data id))
-    (query [this criteria from-index count])
+    (query [this criteria from-index count sort-by sort-order])
 
     component/Lifecycle
     (start [component]
