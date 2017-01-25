@@ -6,7 +6,7 @@
             [clojure.spec.gen :as gen]))
 
 (s/def ::type #{"stored"})
-(s/def ::file-type #{"csv"})
+(s/def ::file-type string?)
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
