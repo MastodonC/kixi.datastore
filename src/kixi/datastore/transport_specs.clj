@@ -18,7 +18,7 @@
                 ::ms/size-bytes
                 ::ms/provenance
                 ::ms/sharing]
-          :opt [::ss/id                
+          :opt [::ss/id
                 ::ms/file-type
                 ::ms/header]))
 
@@ -50,13 +50,13 @@
                            (::ms/type file-metadata))
                         (= "stored"
                            (::ms/type file-metadata)))
-                    (case (or (::ms/file-type meta) 
-                              (::ms/file-type file-metadata)) 
+                    (case (or (::ms/file-type meta)
+                              (::ms/file-type file-metadata))
                       "csv" (if-not (nil? (::ms/header meta))
-                              (= (::ms/header meta) 
+                              (= (::ms/header meta)
                                  (::ms/header file-metadata))
                               (true? (::ms/header file-metadata)))
-                      false)))
+                      true)))
         :ret ::ms/file-metadata)
 
 (defn raise-schema
@@ -78,7 +78,7 @@
         with-file-type (merge (get file-type->default-metadata
                                    (::ms/file-type with-primaries))
                               with-primaries)
-        with-schema (raise-schema with-file-type 
+        with-schema (raise-schema with-file-type
                                   (get-in transport [::ms/provenance :kixi.user/id]))]
     with-schema))
 
@@ -111,7 +111,7 @@
                           % 2))
       m')))
 
-(s/fdef schema-transport->internal      
+(s/fdef schema-transport->internal
         :ret ::ss/create-schema-request)
 
 (defn schema-transport->internal
