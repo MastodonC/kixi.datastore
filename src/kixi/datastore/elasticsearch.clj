@@ -197,24 +197,27 @@
     {}
     m)))
 
+(defn query->es-filter
+  [query]
+  {:filter 
+   {:bool
+    {:must
+     (map
+      (fn [[k values]]
+        {:terms {k values}})
+      (collapse-nesting
+       (all-keys->es-format
+        query)))}}})
+
 (defn search-data
   [index-name doc-type conn query from-index cnt]
   (try
     (let [resp (esd/search conn
                            index-name
                            doc-type
-                           {:filter 
-                            {:bool 
-                             {:must (mapcat
-                                     (fn [[k values]]
-                                       (map
-                                        #(hash-map :term {k %})
-                                        values))
-                                     (collapse-nesting
-                                      (all-keys->es-format
-                                       query)))}}
-                            :from from-index
-                            :size cnt})]
+                           (merge (query->es-filter query)
+                                  {:from from-index
+                                   :size cnt}))]
       {:items (doall
                (map (comp all-keys->kw :_source)
                     (esrsp/hits-from resp)))

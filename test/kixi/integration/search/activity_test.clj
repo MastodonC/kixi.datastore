@@ -1,5 +1,6 @@
 (ns kixi.integration.search.activity-test
   (:require [clojure.test :refer :all]
+            [clojure.math.combinatorics :as combo :refer [subsets]]
             [kixi.datastore
              [metadatastore :as ms]
              [web-server :as ws]]
@@ -63,26 +64,37 @@
                   :body {:items []}}
                  (search-metadata novel-group [])))))
 
-(deftest meta-read-explicitly-set
-  (let [uid (uuid)
-        metadata-response (send-file-and-metadata
-                           (create-metadata uid))]
-    (when-success metadata-response
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid]}}]}}
-                 (search-metadata uid [::ms/meta-read])))))
-
-(deftest user-with-multiple-groups
-  (let [uid (uuid)
-        extra-group (uuid)
-        metadata-response (send-file-and-metadata
-                           uid
-                           [uid extra-group]
-                           (create-metadata uid))]
-    (when-success metadata-response
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid]}}]}}
-                 (search-metadata uid [::ms/meta-read])))))
+(deftest search-returns-metadata-when-the-user-has-meta-read-and-uses-it-when-searching
+  (doseq [activities (map set (subsets ms/activities))]
+    (let [uid (uuid)
+          activity->group (zipmap ms/activities
+                                  (repeatedly uuid))
+          metadata (update-in 
+                    (reduce
+                     (fn [md act]
+                       (assoc-in md [::ms/sharing act] [(act activity->group)]))
+                     (dissoc (create-metadata uid)
+                             ::ms/sharing)
+                     activities)
+                    [::ms/sharing ::ms/meta-read]
+                    #((comp vec cons) uid %))
+          metadata-response (send-file-and-metadata
+                             uid
+                             uid
+                             metadata)]
+      (when-success metadata-response
+        (doseq [search-activities (remove empty? (map set (subsets ms/activities)))]
+          (let [search-result (search-metadata (mapv activity->group search-activities) search-activities)]
+            (if (and (activities ::ms/meta-read)
+                     (search-activities ::ms/meta-read))
+              (is-submap {:status 200
+                          :body {:paging {:total 1 :count 1 :index 0}}}
+                         search-result
+                         (str "Failed to find metadata with " search-activities " when meta has " activities))
+              (is-submap {:status 200
+                          :body {:paging {:total 0 :count 0 :index 0}}}
+                         search-result
+                         (str "Found metadata with " search-activities " when meta has " activities)))))))))
 
 (deftest search-uses-and-for-multiple-activities
   (let [uid (uuid)
