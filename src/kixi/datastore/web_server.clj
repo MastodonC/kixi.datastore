@@ -40,19 +40,32 @@
           (clojure.string/split #",")
           vec-if-not))
 
-(defn yada-timbre-logger
+(defn ctx->request-log
   [ctx]
-  (when (= 500 (get-in ctx [:response :status]))
-    (if-let [err (or (get-in ctx [:response :error])
-                     (:error ctx))]
-      (if (instance? Exception err)
-        (error err "Server error")
-        (error (str "Server error: " err)))
-      (if (or ((set (keys (get-in ctx [:response]))) :error)
-              ((set (keys ctx)) :error))
-        (error "Server error, error key available, but set to nil")
-        (error "Server error, no exception available"))))
-  ctx)
+  (let [req (:request ctx)]
+    (str "REQUEST: " {:method (:request-method req)
+                      :uri (:uri req)
+                      :params (:params req)
+                      :query-string (:query-string req)
+                      :user-id (ctx->user-id ctx)
+                      :user-groups (ctx->user-groups ctx)})))
+
+(defn yada-timbre-logger
+  [request-logging?]
+  (fn [ctx]
+    (when request-logging?
+      (info (ctx->request-log ctx)))
+    (when (= 500 (get-in ctx [:response :status]))
+      (if-let [err (or (get-in ctx [:response :error])
+                       (:error ctx))]
+        (if (instance? Exception err)
+          (error err "Server error")
+          (error (str "Server error: " err)))
+        (if (or ((set (keys (get-in ctx [:response]))) :error)
+                ((set (keys ctx)) :error))
+          (error "Server error, error key available, but set to nil")
+          (error "Server error, no exception available"))))  
+    ctx))
 
 (defn append-error-interceptor
   [res point & interceptors]
@@ -103,9 +116,9 @@
   {:msg "Server Error, see logs"})
 
 (defn resource
-  [metrics model]
+  [metrics request-logging? model]
   (-> model
-      (assoc :logger yada-timbre-logger)
+      (assoc :logger (yada-timbre-logger request-logging?))
       (assoc :responses {500 {:produces "application/json"
                               :response server-error-resp}})
       yada/resource
@@ -122,32 +135,28 @@
 
 (defn file-entry
   [metrics filestore metadatastore]
-  (resource
-   metrics
-   {:id :file-entry
-    :methods
-    {:get {:produces [{:media-type #{"application/octet-stream"}}]
-           :response
-           (fn [ctx]
-             (let [id (get-in ctx [:parameters :path :id])]
-               (if (ms/authorised metadatastore ::ms/file-read id (ctx->user-groups ctx))
-                 (ds/retrieve filestore
-                              id)
-                 (return-unauthorised ctx))))}}}))
+  {:id :file-entry
+   :methods
+   {:get {:produces [{:media-type #{"application/octet-stream"}}]
+          :response
+          (fn [ctx]
+            (let [id (get-in ctx [:parameters :path :id])]
+              (if (ms/authorised metadatastore ::ms/file-read id (ctx->user-groups ctx))
+                (ds/retrieve filestore
+                             id)
+                (return-unauthorised ctx))))}}})
 
 (defn file-meta
   [metrics metadatastore]
-  (resource
-   metrics
-   {:id :file-meta
-    :methods
-    {:get {:produces "application/json"
-           :response
-           (fn [ctx]
-             (let [id (get-in ctx [:parameters :path :id])]
-               (if (ms/authorised metadatastore ::ms/meta-read id (ctx->user-groups ctx))
-                 (ms/retrieve metadatastore id)
-                 (return-unauthorised ctx))))}}}))
+  {:id :file-meta
+   :methods
+   {:get {:produces "application/json"
+          :response
+          (fn [ctx]
+            (let [id (get-in ctx [:parameters :path :id])]
+              (if (ms/authorised metadatastore ::ms/meta-read id (ctx->user-groups ctx))
+                (ms/retrieve metadatastore id)
+                (return-unauthorised ctx))))}}})
 
 (defn decode-keyword
   [kw-s]
@@ -158,96 +167,88 @@
 
 (defn metadata-query
   [metrics metadatastore]
-  (resource
-   metrics
-   {:id :file-meta
-    :methods
-    {:get {:produces "application/json"
-           :response
-           (fn [ctx]
-             (let [user-groups (ctx->user-groups ctx)
-                   activities (->> (get-in ctx [:parameters :query "activity"])
-                                   vec-if-not
-                                   (mapv decode-keyword))
-                   query {:kixi.user/groups user-groups
-                          ::ms/activities activities}
-                   explain (spec/explain-data ::ms/query-criteria query)
-                   dex (Integer/parseInt (or (get-in ctx [:parameters :query "index"]) "0"))
-                   cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))]
-               (cond 
-                 explain (return-error ctx
-                                       :query-invalid
-                                       explain)
-                 (neg? dex) (return-error ctx
-                                          :query-index-invalid
-                                          "Index must be positive")
-                 (neg? cnt) (return-error ctx
-                                          :query-count-invalid
-                                          "Count must be positive")
-                 :default (ms/query metadatastore
-                                     query
-                                     dex cnt))))}}}))
+  {:id :file-meta
+   :methods
+   {:get {:produces "application/json"
+          :response
+          (fn [ctx]
+            (let [user-groups (ctx->user-groups ctx)
+                  activities (->> (get-in ctx [:parameters :query "activity"])
+                                  vec-if-not
+                                  (mapv decode-keyword))
+                  query {:kixi.user/groups user-groups
+                         ::ms/activities activities}
+                  explain (spec/explain-data ::ms/query-criteria query)
+                  dex (Integer/parseInt (or (get-in ctx [:parameters :query "index"]) "0"))
+                  cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))]
+              (cond 
+                explain (return-error ctx
+                                      :query-invalid
+                                      explain)
+                (neg? dex) (return-error ctx
+                                         :query-index-invalid
+                                         "Index must be positive")
+                (neg? cnt) (return-error ctx
+                                         :query-count-invalid
+                                         "Count must be positive")
+                :default (ms/query metadatastore
+                                   query
+                                   dex cnt))))}}})
 
 (defn file-segmentation-create
   [metrics communications metadatastore]
-  (resource
-   metrics
-   {:id :file-segmentation
-    :methods
-    {:post {:consumes "application/json"
-            :response
-            (fn [ctx]
-              (let [id (uuid)
-                    file-id (get-in ctx [:parameters :path :id])
-                    body (get-in ctx [:body])
-                    type (:type body)
-                    user-id (ctx->user-id ctx)]
-                (if (ms/exists metadatastore file-id)
-                  (do
-                    (case type
-                      "column" (let [col-name (:column-name body)]
-                                 (cs/send-event! communications
-                                                 {::cs/event :kixi.datastore/file-segmentation-created
-                                                  ::cs/version"1.0.0"
-                                                  :kixi.datastore.request/type ::seg/group-rows-by-column
-                                                  ::seg/id id
-                                                  ::ms/id file-id
-                                                  ::seg/column-name col-name
-                                                  :kixi.user/id user-id})))
-                    (java.net.URI.
-                     (yada/url-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
-                                                                                :id file-id}})))
-                  (assoc (:response ctx) ;don't know why i'm having to do this here...
-                         :status 404))))}}}))
+  {:id :file-segmentation
+   :methods
+   {:post {:consumes "application/json"
+           :response
+           (fn [ctx]
+             (let [id (uuid)
+                   file-id (get-in ctx [:parameters :path :id])
+                   body (get-in ctx [:body])
+                   type (:type body)
+                   user-id (ctx->user-id ctx)]
+               (if (ms/exists metadatastore file-id)
+                 (do
+                   (case type
+                     "column" (let [col-name (:column-name body)]
+                                (cs/send-event! communications
+                                                {::cs/event :kixi.datastore/file-segmentation-created
+                                                 ::cs/version"1.0.0"
+                                                 :kixi.datastore.request/type ::seg/group-rows-by-column
+                                                 ::seg/id id
+                                                 ::ms/id file-id
+                                                 ::seg/column-name col-name
+                                                 :kixi.user/id user-id})))
+                   (java.net.URI.
+                    (yada/url-for ctx :file-segmentation-entry {:route-params {:segmentation-id id
+                                                                               :id file-id}})))
+                 (assoc (:response ctx) ;don't know why i'm having to do this here...
+                        :status 404))))}}})
 
 (defn file-segmentation-entry
   [metrics filestore]
-  (resource
-   metrics
-   {:id :file-segmentation-entry
-    :methods
-    {:get {:produces "application/json"
-           :response
-           (fn [ctx]
+  {:id :file-segmentation-entry
+   :methods
+   {:get {:produces "application/json"
+          :response
+          (fn [ctx]
                                         ;get all the segmentation information (each segment is a FILE!)
-             (let [id (get-in ctx [:parameters :path :id])]
-               (ds/retrieve filestore
-                            id)))}}}))
+            (let [id (get-in ctx [:parameters :path :id])]
+              (ds/retrieve filestore
+                           id)))}}})
 
 (defn schema-id-entry
   [metrics schemastore]
-  (resource
-   metrics
-   {:id :schema-id-entry
-    :methods
-    {:get {:produces "application/json"
-           :response
-           (fn [ctx]
-             (let [id (get-in ctx [:parameters :path :id])]
-               (when (ss/exists schemastore id)
-                 (if (ss/authorised schemastore ::ss/read id (ctx->user-groups ctx))
-                   (ss/retrieve schemastore id)
-                   (return-unauthorised ctx)))))}}}))
+  {:id :schema-id-entry
+   :methods
+   {:get {:produces "application/json"
+          :response
+          (fn [ctx]
+            (let [id (get-in ctx [:parameters :path :id])]
+              (when (ss/exists schemastore id)
+                (if (ss/authorised schemastore ::ss/read id (ctx->user-groups ctx))
+                  (ss/retrieve schemastore id)
+                  (return-unauthorised ctx)))))}}})
 
 (defn healthcheck
   [ctx]
@@ -257,23 +258,23 @@
          :body "All is well"))
 
 (defn service-routes
-  [metrics filestore metadatastore communications schemastore]
+  [metrics filestore metadatastore communications schemastore request-logging?]
   [""
-   [["/file" [[["/" :id] (file-entry metrics filestore metadatastore)]
-              [["/" :id "/meta"] (file-meta metrics metadatastore)]
-              [["/" :id "/segmentation"] (file-segmentation-create metrics communications metadatastore)]
-              [["/" :id "/segmentation/" :segmentation-id] (file-segmentation-entry metrics communications)]
+   [["/file" [[["/" :id] (resource metrics request-logging? (file-entry metrics filestore metadatastore))]
+              [["/" :id "/meta"] (resource metrics request-logging? (file-meta metrics metadatastore))]
+              [["/" :id "/segmentation"] (resource metrics request-logging? (file-segmentation-create metrics communications metadatastore))]
+              [["/" :id "/segmentation/" :segmentation-id] (resource metrics request-logging? (file-segmentation-entry metrics communications))]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
               ]]
-    ["/metadata" [[["/" :id] (file-meta metrics metadatastore)]
-                  [[""] (metadata-query metrics metadatastore)]]]
-    ["/schema" [[["/" :id] (schema-id-entry metrics schemastore)]]]]])
+    ["/metadata" [[["/" :id] (resource metrics request-logging? (file-meta metrics metadatastore))]
+                  [[""] (resource metrics request-logging? (metadata-query metrics metadatastore))]]]
+    ["/schema" [[["/" :id] (resource metrics request-logging? (schema-id-entry metrics schemastore))]]]]])
 
 (defn routes
   "Create the URI route structure for our application."
-  [metrics filestore metadatastore communications schemastore]
+  [metrics filestore metadatastore communications schemastore request-logging?]
   [""
-   [(service-routes metrics filestore metadatastore communications schemastore)  
+   [(service-routes metrics filestore metadatastore communications schemastore request-logging?)  
  
     ["/healthcheck" healthcheck]
 
@@ -284,7 +285,7 @@
     [true (yada/handler nil)]]])
 
 (defrecord WebServer
-    [port vhost listener log-config metrics filestore metadatastore communications schemastore]
+    [port vhost listener log-config metrics filestore metadatastore communications schemastore request-logging?]
   component/Lifecycle
   (start [component]
     (if listener
@@ -292,7 +293,7 @@
       (let [vhosts-model (vhosts-model
                           [{:scheme :http
                             :host (str vhost ":" port)}
-                           (routes metrics filestore metadatastore communications schemastore)])
+                           (routes metrics filestore metadatastore communications schemastore request-logging?)])
             listener (yada/listener vhosts-model {:port port})]
         (infof "Started web-server on port %s" port)
         (assoc component :listener listener))))

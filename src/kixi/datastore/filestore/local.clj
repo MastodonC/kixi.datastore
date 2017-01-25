@@ -55,7 +55,7 @@
           (assoc component :dir dir))
         component))
     (stop [component]
-      (info "Destroying Local File Datastore" component)
+      (info "Destroying Local File Datastore")
       (if dir
         (do (doseq [^java.io.File f (.listFiles dir)]
               (.delete f))
