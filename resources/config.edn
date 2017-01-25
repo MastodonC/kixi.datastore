@@ -1,10 +1,13 @@
 {:service-name "kixi.datastore"
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
-                               :port 8080}
+                               :port 8080
+                               :request-logging? true}
                        :jenkins {:vhost "localhost"
-                                 :port 8080}
+                                 :port 8080
+                                 :request-logging? true}
                        :staging {:vhost "kixi.datastore.marathon.mesos"
-                                 :port 18080}}
+                                 :port 18080
+                                 :request-logging? true}}
  :metrics {:influx-reporter {:host #profile {:staging "172.20.0.48"
                                              :jenkins "influxdb.sandpitvpc.kixi"
                                              :local #or [#env INFLUXDB "localhost"]}
