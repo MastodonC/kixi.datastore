@@ -36,9 +36,9 @@
 
 (defn ctx->user-groups
   [ctx]
-  (-> (get-in ctx [:request :headers "user-groups"])
-      (clojure.string/split #",")
-      vec-if-not))
+  (some-> (get-in ctx [:request :headers "user-groups"])
+          (clojure.string/split #",")
+          vec-if-not))
 
 (defn yada-timbre-logger
   [ctx]

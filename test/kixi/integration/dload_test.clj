@@ -25,9 +25,10 @@
   [^String link]
   (let [f (java.io.File/createTempFile (uuid) ".tmp")
         _ (.deleteOnExit f)
-        resp (client/get link {:as :stream})]
+        resp (client/get link {:as :stream})
+        ^String cd (get-in resp [:headers "Content-Disposition"])]
     (is (.endsWith 
-         (get-in resp [:headers "Content-Disposition"])
+        cd
          ".csv"))
     (bs/transfer (:body resp)
                  f)
