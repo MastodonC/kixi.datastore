@@ -82,7 +82,8 @@
 (spec/def ::error #{:schema-invalid-request
                     :unknown-schema :file-upload-failed
                     :query-invalid :query-index-invalid
-                    :query-count-invalid})
+                    :query-count-invalid
+                    :query-sort-order-invalid})
 
 (spec/def ::msg (spec/or :error-map (spec/keys :req []
                                     :opts [])
@@ -180,7 +181,11 @@
                          ::ms/activities activities}
                   explain (spec/explain-data ::ms/query-criteria query)
                   dex (Integer/parseInt (or (get-in ctx [:parameters :query "index"]) "0"))
-                  cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))]
+                  cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))
+                  sort-by (vec-if-not
+                           (or (get-in ctx [:parameters :query "sort-by"]) ["kixi.datastore.metadatastore/provenance"
+                                                                            "kixi.datastore.metadatastore/created"]))
+                  sort-order (or (get-in ctx [:parameters :query "sort-order"]) "desc")]
               (cond 
                 explain (return-error ctx
                                       :query-invalid
@@ -191,9 +196,13 @@
                 (neg? cnt) (return-error ctx
                                          :query-count-invalid
                                          "Count must be positive")
+                ((complement #{"asc" "desc"}) sort-order) (return-error ctx
+                                                           :query-sort-order-invalid
+                                                           "Sort order must be either asc or desc")
                 :default (ms/query metadatastore
                                    query
-                                   dex cnt))))}}})
+                                   dex cnt
+                                   sort-by sort-order))))}}})
 
 (defn file-segmentation-create
   [metrics communications metadatastore]
