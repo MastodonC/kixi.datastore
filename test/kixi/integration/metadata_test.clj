@@ -74,6 +74,28 @@
                                 ::ms/source "upload"}}}
        metadata-response))))
 
+(deftest small-file-with-description
+  (let [uid (uuid)
+        description "A description of this test file"
+        metadata-response (send-file-and-metadata
+                           (assoc (create-metadata
+                                   uid
+                                   "./test-resources/metadata-one-valid.csv")
+                                  ::ms/description description))]
+    (when-success metadata-response
+      (is-submap
+       {:status 200
+        :body {::ms/id (extract-id metadata-response)
+               ::ms/type "stored"
+               ::ms/file-type "csv"
+               ::ms/name "./test-resources/metadata-one-valid.csv"
+               ::ms/description description
+               ::ms/header true
+               ::ms/size-bytes 14
+               ::ms/provenance {:kixi.user/id uid
+                                ::ms/source "upload"}}}
+       metadata-response))))
+
 (deftest small-file-no-header
   (let [uid (uuid)
         schema-id (get-schema-id uid)

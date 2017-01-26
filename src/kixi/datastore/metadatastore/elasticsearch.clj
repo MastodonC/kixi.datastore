@@ -17,6 +17,7 @@
   {::ms/id string-stored-not_analyzed
    ::ms/type string-stored-not_analyzed
    ::ms/name string-analyzed
+   ::ms/description string-analyzed
    ::ms/schema {:properties {::ss/id string-stored-not_analyzed
                              ::ms/added es/timestamp}}
    ::ms/provenance {:properties {::ms/source string-stored-not_analyzed
