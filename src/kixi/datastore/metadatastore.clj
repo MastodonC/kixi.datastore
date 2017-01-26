@@ -11,6 +11,7 @@
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
 (s/def ::name string?)
+(s/def ::description string?)
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})
 (s/def ::line-count int?)
@@ -92,7 +93,7 @@
 (defmethod file-metadata "stored"
   [_]
   (s/keys :req [::type ::file-type ::id ::name ::provenance ::size-bytes ::sharing]
-          :opt [::schema ::segmentations ::segment ::structural-validation]))
+          :opt [::schema ::segmentations ::segment ::structural-validation ::description]))
 
 (s/def ::file-metadata (s/multi-spec file-metadata ::type))
 
