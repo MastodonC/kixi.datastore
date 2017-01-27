@@ -12,6 +12,7 @@ RUN add-apt-repository -y ppa:webupd8team/java \
 && apt-get install -y \
 software-properties-common \
 oracle-java8-installer
+oracle-java8-set-default
 
 ENV JAR_LOCATION=/srv/kixi.datastore.jar
 ENV CONFIG_PROFILE=${environment}
