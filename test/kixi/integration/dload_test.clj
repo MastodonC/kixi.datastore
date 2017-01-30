@@ -27,8 +27,8 @@
         _ (.deleteOnExit f)
         resp (client/get link {:as :stream})
         ^String cd (get-in resp [:headers "Content-Disposition"])]
-    (is (.endsWith 
-        cd
+    (is (.endsWith
+         cd
          ".csv"))
     (bs/transfer (:body resp)
                  f)
@@ -36,12 +36,20 @@
 
 (deftest round-trip-small-file
   (let [uid (uuid)
-        md-resp (send-file-and-metadata 
-                 (create-metadata uid
-                                  "./test-resources/metadata-one-valid.csv"))]
+        filename "./test-resources/metadata-one-valid.csv"
+        md-resp (send-file-and-metadata
+                 (create-metadata uid filename))]
     (when-success md-resp
       (let [link (get-dload-link uid (get-in md-resp [:body ::ms/id]))]
-        (is (files-match?
-             "./test-resources/metadata-one-valid.csv"
-             (dload-file-link link)))))))
-
+        (is (files-match? filename (dload-file-link link)))
+        (let [http-resp (see-file-redirect-by-id uid (get-in md-resp [:body ::ms/id]))]
+          (is (= 302 (:status http-resp)))
+          (is (get-in http-resp [:headers "Location"]))
+          (when-let [location (get-in http-resp [:headers "Location"])]
+            (if (clojure.string/starts-with? location "file:")
+              (is (files-match? filename (slurp location)))
+              (let [redirected (client/get location)]
+                (is (= (get-in redirected [:headers "Content-Disposition"])
+                       (str "attachment; filename=" filename ".csv"))) ;; extra .csv is a side effect of `send-file-and-metadata`
+                (is (= (slurp filename)
+                       (:body redirected)))))))))))

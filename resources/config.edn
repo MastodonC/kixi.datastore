@@ -41,9 +41,8 @@
                                         ;To use S3 locally, remove :local config and set some keys.
                               #_:s3 #_{:bucket "kixi-data-store-file-store"
                                        :endpoint "s3.eu-central-1.amazonaws.com"
-                                       :link-expiration-minutes 10
-                                       :access-key ""
-                                       :secret-key ""}}
+                                       :link-expiration-mins 10
+                                       :profile "witan"}}
                       :jenkins {:s3 {:bucket "kixi-data-store-file-store"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}

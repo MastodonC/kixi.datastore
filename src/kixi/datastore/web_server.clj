@@ -64,7 +64,7 @@
         (if (or ((set (keys (get-in ctx [:response]))) :error)
                 ((set (keys ctx)) :error))
           (error "Server error, error key available, but set to nil")
-          (error "Server error, no exception available"))))  
+          (error "Server error, no exception available"))))
     ctx))
 
 (defn append-error-interceptor
@@ -113,6 +113,12 @@
   (assoc (:response ctx)
          :status 401))
 
+(defn return-redirect
+  [ctx location]
+  (assoc (:response ctx)
+         :status 302
+         :headers {"Location" location}))
+
 (def server-error-resp
   {:msg "Server Error, see logs"})
 
@@ -159,6 +165,20 @@
                 (ms/retrieve metadatastore id)
                 (return-unauthorised ctx))))}}})
 
+(defn file-download
+  [metrics metadatastore filestore]
+  {:id :file-download
+   :methods
+   {:get {:produces [{:media-type #{"application/octet-stream"}}]
+          :response
+          (fn [ctx]
+            (let [id (get-in ctx [:parameters :path :id])]
+              (if (ms/authorised metadatastore ::ms/file-read id (ctx->user-groups ctx))
+                (let [md (ms/retrieve metadatastore id)
+                      filename (str (::ms/name md) "." (::ms/file-type md))]
+                  (return-redirect ctx (ds/create-link filestore id filename)))
+                (return-unauthorised ctx))))}}})
+
 (defn decode-keyword
   [kw-s]
   (apply keyword
@@ -186,7 +206,7 @@
                            (or (get-in ctx [:parameters :query "sort-by"]) ["kixi.datastore.metadatastore/provenance"
                                                                             "kixi.datastore.metadatastore/created"]))
                   sort-order (or (get-in ctx [:parameters :query "sort-order"]) "desc")]
-              (cond 
+              (cond
                 explain (return-error ctx
                                       :query-invalid
                                       explain)
@@ -197,8 +217,8 @@
                                          :query-count-invalid
                                          "Count must be positive")
                 ((complement #{"asc" "desc"}) sort-order) (return-error ctx
-                                                           :query-sort-order-invalid
-                                                           "Sort order must be either asc or desc")
+                                                                        :query-sort-order-invalid
+                                                                        "Sort order must be either asc or desc")
                 :default (ms/query metadatastore
                                    query
                                    dex cnt
@@ -271,6 +291,7 @@
   [""
    [["/file" [[["/" :id] (resource metrics request-logging? (file-entry metrics filestore metadatastore))]
               [["/" :id "/meta"] (resource metrics request-logging? (file-meta metrics metadatastore))]
+              [["/" :id "/download"] (resource metrics request-logging? (file-download metrics metadatastore filestore))]
               [["/" :id "/segmentation"] (resource metrics request-logging? (file-segmentation-create metrics communications metadatastore))]
               [["/" :id "/segmentation/" :segmentation-id] (resource metrics request-logging? (file-segmentation-entry metrics communications))]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
@@ -283,8 +304,8 @@
   "Create the URI route structure for our application."
   [metrics filestore metadatastore communications schemastore request-logging?]
   [""
-   [(service-routes metrics filestore metadatastore communications schemastore request-logging?)  
- 
+   [(service-routes metrics filestore metadatastore communications schemastore request-logging?)
+
     ["/healthcheck" healthcheck]
 
     ["/metrics" (yada/resource (:expose-metrics-resource metrics))]
