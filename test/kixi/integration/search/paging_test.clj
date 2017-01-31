@@ -26,9 +26,14 @@
   (let [total-files 56
         uid (uuid)
         metadata (create-metadata uid "./test-resources/metadata-one-valid.csv")
-        _ (doseq [i (range total-files)]
-            (send-file-and-metadata-no-wait
-             metadata))]
+        _ (->> (range total-files)
+               (map (fn [_] 
+                      (send-file-and-metadata-no-wait
+                       metadata)))
+               doall
+               (map ::ms/id)
+               (map #(wait-for-metadata-key uid % ::ms/id))
+               doall)]
     (wait-for-pred
      #(= total-files
          (get-in (search-metadata uid [::ms/meta-read])
