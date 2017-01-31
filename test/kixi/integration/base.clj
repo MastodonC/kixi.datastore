@@ -141,7 +141,7 @@
   ([]
    (str "http://" (service-url) "/file"))
   ([id]
-   (str (file-url) "/" id "/download")))
+   (str (file-url) "/" id "/link")))
 
 (defn metadata-url
   [id]

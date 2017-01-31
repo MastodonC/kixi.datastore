@@ -291,7 +291,7 @@
   [""
    [["/file" [[["/" :id] (resource metrics request-logging? (file-entry metrics filestore metadatastore))]
               [["/" :id "/meta"] (resource metrics request-logging? (file-meta metrics metadatastore))]
-              [["/" :id "/download"] (resource metrics request-logging? (file-download metrics metadatastore filestore))]
+              [["/" :id "/link"] (resource metrics request-logging? (file-download metrics metadatastore filestore))]
               [["/" :id "/segmentation"] (resource metrics request-logging? (file-segmentation-create metrics communications metadatastore))]
               [["/" :id "/segmentation/" :segmentation-id] (resource metrics request-logging? (file-segmentation-entry metrics communications))]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]
