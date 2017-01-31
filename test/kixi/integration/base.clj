@@ -2,7 +2,7 @@
   (:require [byte-streams :as bs]
             [cheshire.core :as json]
             [clj-http.client :as client]
-            [clojure data 
+            [clojure data
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
@@ -44,9 +44,9 @@
   []
   (let [conn (esr/connect (str "http://" es-host ":" es-port)
                           {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})})]
-    (esi/refresh conn 
+    (esi/refresh conn
                  kixi.datastore.metadatastore.elasticsearch/index-name)
-    (esi/refresh conn 
+    (esi/refresh conn
                  kixi.datastore.schemastore.elasticsearch/index-name)))
 
 (defmacro is-submap
@@ -77,7 +77,7 @@
 
 (defn cycle-system-fixture
   [all-tests]
-  (if run-against-staging    
+  (if run-against-staging
     (repl/start {} [:communications])
     (repl/start))
   (try (instrument-specd-functions)
@@ -136,6 +136,12 @@
    (str "http://" (service-url) "/file"))
   ([id]
    (str (file-url) "/" id)))
+
+(defn file-download-url
+  ([]
+   (str "http://" (service-url) "/file"))
+  ([id]
+   (str (file-url) "/" id "/link")))
 
 (defn metadata-url
   [id]
@@ -290,7 +296,7 @@
    (c/send-command!
     @comms
     :kixi.datastore.filestore/create-upload-link
-    "1.0.0" 
+    "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     {})))
@@ -302,7 +308,7 @@
    (c/send-command!
     @comms
     :kixi.datastore.filestore/create-download-link
-    "1.0.0" 
+    "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     {::ms/id id})))
@@ -314,7 +320,7 @@
    (c/send-command!
     @comms
     :kixi.datastore.filestore/create-file-metadata
-    "1.0.0" 
+    "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     metadata)))
@@ -326,7 +332,7 @@
    (c/send-command!
     @comms
     :kixi.datastore.metadatastore/sharing-change
-    "1.0.0" 
+    "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     {::ms/id metadata-id
@@ -360,16 +366,16 @@
   (first
    (async/alts!!
     (mapv (fn [c]
-            (async/go-loop 
+            (async/go-loop
                 [event (async/<! c)]
-                (if (and (event-for uid event)
-                         ((set event-types)
-                          (:kixi.comms.event/key event)))
-                  event
-                  (when event
-                    (recur (async/<! c))))))                  
+              (if (and (event-for uid event)
+                       ((set event-types)
+                        (:kixi.comms.event/key event)))
+                event
+                (when event
+                  (recur (async/<! c))))))
           [@event-channel
-           (async/timeout (* wait-tries 
+           (async/timeout (* wait-tries
                              wait-per-try))]))))
 
 (defn send-spec
@@ -411,7 +417,7 @@
    (get-dload-link
     user-id user-id id))
   ([user-id user-groups id]
-   (let [link-event (get-dload-link-event user-id user-groups id)]    
+   (let [link-event (get-dload-link-event user-id user-groups id)]
      (get-in link-event [:kixi.comms.event/payload ::ms/link]))))
 
 (defmulti upload-file
@@ -558,6 +564,13 @@
 (defn dload-file-by-id
   [uid id]
   (dload-file uid (file-url id)))
+
+(defn see-file-redirect-by-id
+  [uid id]
+  (let [url (file-download-url id)]
+    (client/get url {:headers {"user-id" uid
+                               "user-groups" uid}
+                     :follow-redirects false})))
 
 (defn schema->schema-id
   [schema]
