@@ -406,7 +406,7 @@
 
 (defn get-dload-link-event
   [user-id user-groups id]
-  (send-dload-link-cmd user-id user-groups id)
+  (file-redirect-by-id user-id user-groups id)
   (wait-for-events user-id
                    :kixi.datastore.filestore/download-link-created
                    :kixi.datastore.filestore/download-link-rejected))
