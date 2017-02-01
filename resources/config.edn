@@ -43,13 +43,13 @@
                                        :endpoint "s3.eu-central-1.amazonaws.com"
                                        :link-expiration-mins 10
                                        :profile "witan"}}
-                      :jenkins {:s3 {:bucket "kixi-data-store-file-store"
+                      :jenkins {:s3 {:bucket "kixi-data-store-file-store-jenkins"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
-                      :staging {:s3 {:bucket "kixi-data-store-file-store"
+                      :staging {:s3 {:bucket "kixi-data-store-file-store-staging"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
-                      :prod {:s3 {:bucket "kixi-data-store-file-store"
+                      :prod {:s3 {:bucket "production-kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
  :metadatastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]

@@ -5,7 +5,7 @@
             [com.stuartsierra.component :as component]
             [kixi.comms :as c]
             [kixi.datastore
-             [elasticsearch :as es :refer [ensure-index string-analyzed string-stored-not_analyzed]]
+             [elasticsearch :as es :refer [migrate]]
              [schema-creator :as sc]
              [schemastore :as ss :refer [SchemaStore]]
              [time :as time]]
@@ -13,26 +13,6 @@
 
 (def index-name "kixi-datastore_schema-data")
 (def doc-type "schema-data")
-
-(def doc-def
-  {::ss/id string-stored-not_analyzed
-   ::ss/name string-analyzed
-   ::ss/provenance {:properties {:kixi.user/id string-stored-not_analyzed                                 
-                                 ::ss/created es/timestamp}}
-   ::ss/schema {:properties {::ss/tag string-stored-not_analyzed
-                             ::ss/type string-stored-not_analyzed
-                             ::ss/id string-stored-not_analyzed
-                             ::ss/min es/double
-                             ::ss/max es/double
-                             ::ss/pattern string-stored-not_analyzed
-                             ::ss/elements string-stored-not_analyzed
-                             ::ss/definition {:type "nested"
-                                              :properties {::ss/type string-stored-not_analyzed
-                                                           ::ss/id string-stored-not_analyzed
-                                                           ::ss/min es/double
-                                                           ::ss/max es/double
-                                                           ::ss/pattern string-stored-not_analyzed
-                                                           ::ss/elements string-stored-not_analyzed}}}}})
 
 (def merge-data
   (partial es/merge-data index-name doc-type))
@@ -106,41 +86,41 @@
 
 (defrecord ElasticSearch
     [communications host port discover conn]
-  SchemaStore
-  (authorised
-    [_ action id user-groups]
-    (when-let [sharing (get-document-key conn id ::ss/sharing)]
-      (not-empty (clojure.set/intersection (set (get sharing action))
-                                           (set user-groups)))))
-  (exists [_ id]
-    (present? conn id))
-  (fetch-with [_ sub-spec]
-    (prn "fetching: " sub-spec)
+    SchemaStore
+    (authorised
+      [_ action id user-groups]
+      (when-let [sharing (get-document-key conn id ::ss/sharing)]
+        (not-empty (clojure.set/intersection (set (get sharing action))
+                                             (set user-groups)))))
+    (exists [_ id]
+      (present? conn id))
+    (fetch-with [_ sub-spec]
+      (prn "fetching: " sub-spec)
                                         ;      (fetch-with-sub-spec data sub-spec)
-    )
-  (retrieve [_ id]
-    (extract-tags
-     (get-document conn id)))
-  component/Lifecycle
-  (start [component]
-    (if-not conn
-      (let [[host port] (if discover (es/discover-executor discover) [host port])
-            connection (es/connect host port)]
-        (info "Starting Schema ElasticSearch Store")
-        (ensure-index index-name
-                      doc-type
-                      doc-def
-                      connection)
-        (c/attach-event-handler! communications
-                                 :kixi.datastore/schemastore
-                                 :kixi.datastore.schema/created
-                                 "1.0.0"
-                                 (comp response-event (partial persist-new-schema connection) :kixi.comms.event/payload))
-        (sc/attach-command-handler communications)
-        (assoc component :conn connection))
-      component))
-  (stop [component]
-    (if conn
-      (do (info "Destroying Schema ElasticSearch Store")
-          (dissoc component :conn))
-      component)))
+      )
+    (retrieve [_ id]
+      (extract-tags
+       (get-document conn id)))
+    component/Lifecycle
+    (start [component]
+      (if-not conn
+        (let [[host port] (if discover (es/discover-executor discover) [host port])
+              connection (es/connect host port)
+              joplin-conf {:migrators {:migrator "joplin/kixi/datastore/schemastore/migrators/"}
+                           :databases {:es {:type :es :host host :port port :migration-index "schemastore-migrations"}}
+                           :environments {:env [{:db :es :migrator :migrator}]}}]
+          (info "Starting Schema ElasticSearch Store")
+          (migrate :env joplin-conf)
+          (c/attach-event-handler! communications
+                                   :kixi.datastore/schemastore
+                                   :kixi.datastore.schema/created
+                                   "1.0.0"
+                                   (comp response-event (partial persist-new-schema connection) :kixi.comms.event/payload))
+          (sc/attach-command-handler communications)
+          (assoc component :conn connection))
+        component))
+    (stop [component]
+      (if conn
+        (do (info "Destroying Schema ElasticSearch Store")
+            (dissoc component :conn))
+        component)))

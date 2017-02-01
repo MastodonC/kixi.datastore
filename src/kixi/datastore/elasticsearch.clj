@@ -1,19 +1,27 @@
 (ns kixi.datastore.elasticsearch
-  (:require [clojurewerkz.elastisch.rest :as esr]
+  (:require [cheshire.core :as json]
+            [clojurewerkz.elastisch.rest :as esr]
             [clojurewerkz.elastisch.rest
              [document :as esd]
-             [index :as esi]]
-            [clojurewerkz.elastisch.rest.response :as esrsp]
+             [response :as esrsp]]
             [environ.core :refer [env]]
-            [taoensso.timbre :as timbre :refer [error]]
-            [cheshire.core :as json]
-            [kixi.datastore.time :as t]))
+            [joplin.repl :as jrepl]
+            [kixi.datastore.time :as t]
+            [taoensso.timbre :as timbre :refer [error info]]))
 
 (def put-opts (merge {:consistency (env :elasticsearch-consistency "default")
                       :replication (env :elasticsearch-replication "default")
                       :refresh (Boolean/parseBoolean (env :elasticsearch-refresh "false"))}
                      (when-let [s  (env :elasticsearch-wait-for-active-shards nil)]
                        {:wait-for-active-shards s})))
+
+(defn migrate
+  [env migration-conf]
+  (->>
+   (with-out-str
+     (jrepl/migrate migration-conf env))
+   (clojure.string/split-lines)
+   (run! #(info "JOPLIN:" %))))
 
 (def string-stored-not_analyzed
   {:type "string"
@@ -93,15 +101,6 @@
       :_source
       (get (keyword (kw->es-format k)))
       all-keys->kw))
-
-(defn ensure-index
-  [index-name doc-type doc-def conn]
-  (when-not (esi/exists? conn index-name)
-    (esi/create conn 
-                index-name
-                {:mappings {doc-type 
-                            {:properties (all-keys->es-format doc-def)}}
-                 :settings {}})))
 
 (def apply-attempts 10)
 

@@ -2,24 +2,22 @@
   (:require [byte-streams :as bs]
             [cheshire.core :as json]
             [clj-http.client :as client]
-            [clojure data
+            [clojure data 
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
             [clojure.spec.test :as stest]
             [clojurewerkz.elastisch.rest :as esr]
-            [clojurewerkz.elastisch.rest
-             [index :as esi]]
+            [clojurewerkz.elastisch.rest.index :as esi]
             [digest :as d]
             [environ.core :refer [env]]
-            [kixi
-             [comms :as c]
-             [repl :as repl]]
+            [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
+             [filestore :as fs]
              [metadatastore :as ms]
-             [schemastore :as ss]
-             [filestore :as fs]])
+             [schemastore :as ss]]
+            [user :as user])
   (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
@@ -79,12 +77,12 @@
 (defn cycle-system-fixture
   [all-tests]
   (if run-against-staging
-    (repl/start {} [:communications])
-    (repl/start))
+    (user/start {} [:communications])
+    (user/start))
   (try (instrument-specd-functions)
        (all-tests)
        (finally
-         (repl/stop))))
+         (user/stop))))
 
 (defn uuid
   []
@@ -275,7 +273,7 @@
 
 (defn extract-comms
   [all-tests]
-  (reset! comms (:communications @repl/system))
+  (reset! comms (:communications @user/system))
   (let [_ (reset! event-channel (async/chan 100))
         handler (c/attach-event-with-key-handler!
                  @comms
