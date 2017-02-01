@@ -40,6 +40,11 @@
           (clojure.string/split #",")
           vec-if-not))
 
+(defn ctx->user
+  [ctx]
+  {:kixi.user/id (ctx->user-id ctx)
+   :kixi.user/groups (ctx->user-groups ctx)})
+
 (defn ctx->request-log
   [ctx]
   (let [req (:request ctx)]
@@ -165,19 +170,40 @@
                 (ms/retrieve metadatastore id)
                 (return-unauthorised ctx))))}}})
 
+(defn link-created-event
+  [ctx link file-id]
+  {::cs/event :kixi.datastore.filestore/download-link-created
+   ::cs/version "1.0.0"
+   ::ms/id file-id
+   :kixi/user (ctx->user ctx)
+   ::ds/link link})
+
+(defn link-rejected-event
+  [ctx file-id]
+  {::cs/event :kixi.datastore.filestore/download-link-rejected
+   ::cs/version "1.0.0"
+   :reason :unauthorised
+   ::ms/id file-id
+   :kixi/user (ctx->user ctx)})
+
 (defn file-download
-  [metrics metadatastore filestore]
+  [metrics metadatastore filestore communications]
   {:id :file-download
    :methods
    {:get {:produces [{:media-type #{"application/octet-stream"}}]
           :response
           (fn [ctx]
-            (let [id (get-in ctx [:parameters :path :id])]
-              (if (ms/authorised metadatastore ::ms/file-read id (ctx->user-groups ctx))
-                (let [md (ms/retrieve metadatastore id)
-                      filename (str (::ms/name md) "." (::ms/file-type md))]
-                  (return-redirect ctx (ds/create-link filestore id filename)))
-                (return-unauthorised ctx))))}}})
+            (let [file-id (get-in ctx [:parameters :path :id])]
+              (if (ms/authorised metadatastore ::ms/file-read file-id (ctx->user-groups ctx))
+                (let [metadata (ms/retrieve metadatastore file-id)
+                      link (ds/create-link
+                            filestore
+                            file-id
+                            (str (::ms/name metadata) "." (::ms/file-type metadata)))]
+                  (cs/send-event! communications (link-created-event ctx link file-id))
+                  (return-redirect ctx link))
+                (do (cs/send-event! communications (link-rejected-event ctx file-id))
+                    (return-unauthorised ctx)))))}}})
 
 (defn decode-keyword
   [kw-s]
@@ -291,7 +317,7 @@
   [""
    [["/file" [[["/" :id] (resource metrics request-logging? (file-entry metrics filestore metadatastore))]
               [["/" :id "/meta"] (resource metrics request-logging? (file-meta metrics metadatastore))]
-              [["/" :id "/link"] (resource metrics request-logging? (file-download metrics metadatastore filestore))]
+              [["/" :id "/link"] (resource metrics request-logging? (file-download metrics metadatastore filestore communications))]
               [["/" :id "/segmentation"] (resource metrics request-logging? (file-segmentation-create metrics communications metadatastore))]
               [["/" :id "/segmentation/" :segmentation-id] (resource metrics request-logging? (file-segmentation-entry metrics communications))]
                                         ;              [["/" :id "/segment/" :segment-type "/" :segment-value] (file-segment-entry metrics filestore)]

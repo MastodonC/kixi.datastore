@@ -42,7 +42,7 @@
     (when-success md-resp
       (let [link (get-dload-link uid (get-in md-resp [:body ::ms/id]))]
         (is (files-match? filename (dload-file-link link)))
-        (let [http-resp (see-file-redirect-by-id uid (get-in md-resp [:body ::ms/id]))]
+        (let [http-resp (file-redirect-by-id uid (get-in md-resp [:body ::ms/id]))]
           (is (= 302 (:status http-resp)))
           (is (get-in http-resp [:headers "Location"]))
           (when-let [location (get-in http-resp [:headers "Location"])]

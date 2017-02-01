@@ -18,7 +18,8 @@
             [kixi.datastore
              [communication-specs :as cs]
              [metadatastore :as ms]
-             [schemastore :as ss]])
+             [schemastore :as ss]
+             [filestore :as fs]])
   (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
@@ -301,18 +302,6 @@
      :kixi.user/groups (vec-if-not ugroup)}
     {})))
 
-(defn send-dload-link-cmd
-  ([uid id]
-   (send-dload-link-cmd uid uid id))
-  ([uid ugroup id]
-   (c/send-command!
-    @comms
-    :kixi.datastore.filestore/create-download-link
-    "1.0.0"
-    {:kixi.user/id uid
-     :kixi.user/groups (vec-if-not ugroup)}
-    {::ms/id id})))
-
 (defn send-metadata-cmd
   ([uid metadata]
    (send-metadata-cmd uid uid metadata))
@@ -394,6 +383,16 @@
   [metadata]
   (get-in metadata [::ms/provenance :kixi.user/id]))
 
+(defn file-redirect-by-id
+  ([uid id]
+   (file-redirect-by-id uid uid id))
+  ([uid user-groups id]
+   (let [url (file-download-url id)]
+     (client/get url {:headers {"user-id" uid
+                                "user-groups" (vec-if-not user-groups)}
+                      :follow-redirects false
+                      :throw-exceptions false}))))
+
 (defn get-upload-link-event
   [user-id]
   (send-upload-link-cmd user-id)
@@ -407,7 +406,7 @@
 
 (defn get-dload-link-event
   [user-id user-groups id]
-  (send-dload-link-cmd user-id user-groups id)
+  (file-redirect-by-id user-id user-groups id)
   (wait-for-events user-id
                    :kixi.datastore.filestore/download-link-created
                    :kixi.datastore.filestore/download-link-rejected))
@@ -418,7 +417,7 @@
     user-id user-id id))
   ([user-id user-groups id]
    (let [link-event (get-dload-link-event user-id user-groups id)]
-     (get-in link-event [:kixi.comms.event/payload ::ms/link]))))
+     (get-in link-event [:kixi.comms.event/payload ::fs/link]))))
 
 (defmulti upload-file
   (fn [^String target file-name]
@@ -564,13 +563,6 @@
 (defn dload-file-by-id
   [uid id]
   (dload-file uid (file-url id)))
-
-(defn see-file-redirect-by-id
-  [uid id]
-  (let [url (file-download-url id)]
-    (client/get url {:headers {"user-id" uid
-                               "user-groups" uid}
-                     :follow-redirects false})))
 
 (defn schema->schema-id
   [schema]
