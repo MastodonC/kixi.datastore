@@ -4,12 +4,15 @@
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]
-             [segmentation :as seg]]))
+             [segmentation :as seg]
+             [filestore :as fs]]))
 
 (s/def ::event #{:kixi.datastore/file-created
                  :kixi.datastore/file-metadata-updated
                  :kixi.datastore/file-segmentation-created
-                 :kixi.datastore.schema/created})
+                 :kixi.datastore.schema/created
+                 :kixi.datastore.filestore/download-link-created
+                 :kixi.datastore.filestore/download-link-rejected})
 
 (s/def ::version (s/and string? #(re-matches #"\d+\.\d+\.\d+" %)))
 
@@ -29,7 +32,7 @@
   [_]
   (s/keys :req [::file-metadata-update-type ::ms/structural-validation ::ms/id]))
 
-(s/def ::file-metadata-updated 
+(s/def ::file-metadata-updated
   (s/multi-spec file-metadata-updated-type ::file-metadata-update-type))
 
 
@@ -50,6 +53,17 @@
 (defmethod payloads :kixi.datastore.schema/created
   [_]
   ::ss/create-schema-request)
+
+(defmethod payloads :kixi.datastore.filestore/download-link-created
+  [_]
+  (s/keys :req [::ms/id
+                :kixi/user
+                ::fs/link]))
+
+(defmethod payloads :kixi.datastore.filestore/download-link-rejected
+  [_]
+  (s/keys :req [::ms/id
+                :kixi/user]))
 
 (s/def ::payloads
   (s/multi-spec payloads ::event))

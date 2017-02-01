@@ -3,6 +3,7 @@
             [kixi.comms :as c]))
 
 (s/def ::id string?)
+(s/def ::link string?)
 
 (defn uuid
   []

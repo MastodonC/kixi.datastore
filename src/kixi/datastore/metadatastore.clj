@@ -23,6 +23,10 @@
 (s/def :kixi.user-group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
+(s/def :kixi/user
+  (s/keys :req [:kixi.user/id
+                :kixi.user/groups]))
+
 (def activities
   [::file-read ::meta-visible ::meta-read ::meta-update])
 
