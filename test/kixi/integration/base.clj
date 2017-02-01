@@ -302,18 +302,6 @@
      :kixi.user/groups (vec-if-not ugroup)}
     {})))
 
-(defn send-dload-link-cmd
-  ([uid id]
-   (send-dload-link-cmd uid uid id))
-  ([uid ugroup id]
-   (c/send-command!
-    @comms
-    :kixi.datastore.filestore/create-download-link
-    "1.0.0"
-    {:kixi.user/id uid
-     :kixi.user/groups (vec-if-not ugroup)}
-    {::ms/id id})))
-
 (defn send-metadata-cmd
   ([uid metadata]
    (send-metadata-cmd uid uid metadata))
