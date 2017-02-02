@@ -10,5 +10,8 @@
     (.addShutdownHook
      (Runtime/getRuntime)
      (Thread. #(component/stop-system system)))
-    (component/start-system system)
-    (.. (Thread/currentThread) join)))
+    (try
+      (component/start-system system)
+      (.. (Thread/currentThread) join)
+      (catch Throwable t
+                 (log/error t "Top level exception caught")))))
