@@ -1,6 +1,7 @@
 (ns kixi.datastore.bootstrap
   (:require [kixi.datastore.system]
-           [com.stuartsierra.component :as component])
+            [com.stuartsierra.component :as component]
+            [taoensso.timbre :as log])
   (:gen-class))
 
 (defn -main 
