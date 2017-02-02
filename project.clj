@@ -33,6 +33,8 @@
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
                  [kixi/kixi.comms "0.1.22"]
+                 [joplin.core "0.3.9"]
+                 [joplin.elasticsearch "0.3.9"]
                  [manifold "0.1.6-alpha1"]
                  [medley "0.8.3"]
                  [metrics-clojure ~metrics-version]
@@ -50,6 +52,8 @@
 
   :jvm-opts ["-Xmx2g"]
 
+  :repl-options {:init-ns user}
+
   :exclusions [cheshire]
 
   :test-selectors {:default (complement :integration)
@@ -58,7 +62,8 @@
   :global-vars {*warn-on-reflection* true
                 *assert* false}
 
-  :profiles {:dev {:dependencies [[org.clojure/math.combinatorics "0.1.3"]
+  :profiles {:dev {:source-paths ["dev"]
+                   :dependencies [[org.clojure/math.combinatorics "0.1.3"]
                                   [com.gfredericks/test.chuck "0.2.7"]
                                   [criterium "0.4.4"]]}
              :uberjar {:aot [kixi.datastore.bootstrap]

@@ -4,32 +4,12 @@
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
-             [elasticsearch :as es :refer [ensure-index string-stored-not_analyzed string-analyzed]]
-             [metadatastore :as ms :refer [MetaDataStore]]
-             [schemastore :as ss]
-             [segmentation :as seg]]
-            [taoensso.timbre :as timbre :refer [info error]]))
+             [elasticsearch :as es :refer [migrate]]
+             [metadatastore :as ms :refer [MetaDataStore]]]
+            [taoensso.timbre :as timbre :refer [info]]))
 
 (def index-name "kixi-datastore_file-metadata")
 (def doc-type "file-metadata")
-
-(def doc-def
-  {::ms/id string-stored-not_analyzed
-   ::ms/type string-stored-not_analyzed
-   ::ms/name string-analyzed
-   ::ms/description string-analyzed
-   ::ms/schema {:properties {::ss/id string-stored-not_analyzed
-                             ::ms/added es/timestamp}}
-   ::ms/provenance {:properties {::ms/source string-stored-not_analyzed
-                                 :kixi.user/id string-stored-not_analyzed
-                                 ::ms/parent-id string-stored-not_analyzed
-                                 ::ms/created es/timestamp}}
-   ::ms/segmentation {:type "nested"
-                      :properties {::seg/type string-stored-not_analyzed
-                                   ::seg/line-count es/long
-                                   ::seg/value string-stored-not_analyzed}}
-   ::ms/sharing {:properties (zipmap ms/activities
-                                     (repeat string-stored-not_analyzed))}})
 
 (s/fdef update-metadata-processor
         :args (s/cat :conn #(instance? clojurewerkz.elastisch.rest.Connection %)
@@ -115,42 +95,42 @@
                           (repeat groups))}))
 
 (defrecord ElasticSearch
-    [communications host port discover conn]
-  MetaDataStore
-  (authorised
-    [this action id user-groups]
-    (when-let [sharing (get-document-key conn id ::ms/sharing)]
-      (not-empty (clojure.set/intersection (set (get sharing action))
-                                           (set user-groups)))))
-  (exists [this id]
-    (present? conn id))
-  (retrieve [this id]
-    (get-document conn id))
-  (query [this criteria from-index count sort-by sort-order]
-    (search conn
-            (query-criteria->es-query criteria)
-            from-index count
-            sort-by sort-order))
+    [communications host port discover migrators-dir conn]
+    MetaDataStore
+    (authorised
+      [this action id user-groups]
+      (when-let [sharing (get-document-key conn id ::ms/sharing)]
+        (not-empty (clojure.set/intersection (set (get sharing action))
+                                             (set user-groups)))))
+    (exists [this id]
+      (present? conn id))
+    (retrieve [this id]
+      (get-document conn id))
+    (query [this criteria from-index count sort-by sort-order]
+      (search conn
+              (query-criteria->es-query criteria)
+              from-index count
+              sort-by sort-order))
 
-  component/Lifecycle
-  (start [component]
-    (if-not conn
-      (let [[host port] (if discover (es/discover-executor discover) [host port])
-            connection (es/connect host port)]
-        (info "Starting File Metadata ElasticSearch Store")
-        (ensure-index index-name
-                      doc-type
-                      doc-def
-                      connection)
-        (c/attach-event-handler! communications
-                                 :kixi.datastore/metadatastore
-                                 :kixi.datastore.file-metadata/updated
-                                 "1.0.0"
-                                 (comp response-event (partial update-metadata-processor connection) :kixi.comms.event/payload))
-        (assoc component :conn connection))
-      component))
-  (stop [component]
-    (if conn
-      (do (info "Destroying File Metadata ElasticSearch Store")
-          (dissoc component :conn))
-      component)))
+    component/Lifecycle
+    (start [component]
+      (if-not conn
+        (let [[host port] (if discover (es/discover-executor discover) [host port])
+              connection (es/connect host port)
+              joplin-conf {:migrators {:migrator "joplin/kixi/datastore/metadatastore/migrators/"}
+                           :databases {:es {:type :es :host host :port port :migration-index "metadatastore-migrations"}}
+                           :environments {:env [{:db :es :migrator :migrator}]}}]
+          (info "Starting File Metadata ElasticSearch Store")
+          (migrate :env joplin-conf)
+          (c/attach-event-handler! communications
+                                   :kixi.datastore/metadatastore
+                                   :kixi.datastore.file-metadata/updated
+                                   "1.0.0"
+                                   (comp response-event (partial update-metadata-processor connection) :kixi.comms.event/payload))
+          (assoc component :conn connection))
+        component))
+    (stop [component]
+      (if conn
+        (do (info "Destroying File Metadata ElasticSearch Store")
+            (dissoc component :conn))
+        component)))
