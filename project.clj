@@ -32,7 +32,7 @@
                  [digest "1.4.4"]
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.22"]
+                 [kixi/kixi.comms "0.1.24"]
                  [joplin.core "0.3.9"]
                  [joplin.elasticsearch "0.3.9"]
                  [manifold "0.1.6-alpha1"]
