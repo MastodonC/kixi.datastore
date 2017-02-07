@@ -12,7 +12,7 @@
 (def doc-type "file-metadata")
 
 (s/fdef update-metadata-processor
-        :args (s/cat :conn #(instance? clojurewerkz.elastisch.rest.Connection %)
+        :args (s/cat :conn #(instance? org.elasticsearch.client.Client)
                      :update-req ::cs/file-metadata-updated))
 
 (def merge-data
@@ -94,8 +94,10 @@
     {::ms/sharing (zipmap activities
                           (repeat groups))}))
 
+(def sfirst (comp second first))
+
 (defrecord ElasticSearch
-    [communications host port discover migrators-dir conn]
+    [communications host port native-port cluster discover migrators-dir conn]
     MetaDataStore
     (authorised
       [this action id user-groups]
@@ -115,10 +117,16 @@
     component/Lifecycle
     (start [component]
       (if-not conn
-        (let [[host port] (if discover (es/discover-executor discover) [host port])
-              connection (es/connect host port)
+        (let [{:keys [native-host-ports http-host-ports]} (if discover
+                                                            (es/discover-executor discover) 
+                                                            {:native-host-ports [[host native-port]]
+                                                             :http-host-ports [[host port]]})
+              connection (es/connect native-host-ports cluster)
               joplin-conf {:migrators {:migrator "joplin/kixi/datastore/metadatastore/migrators/"}
-                           :databases {:es {:type :es :host host :port port :migration-index "metadatastore-migrations"}}
+                           :databases {:es {:type :es :host (ffirst http-host-ports) 
+                                            :port (sfirst http-host-ports) 
+                                            :native-port (sfirst native-host-ports) 
+                                            :migration-index "metadatastore-migrations"}}
                            :environments {:env [{:db :es :migrator :migrator}]}}]
           (info "Starting File Metadata ElasticSearch Store")
           (migrate :env joplin-conf)
@@ -132,5 +140,6 @@
     (stop [component]
       (if conn
         (do (info "Destroying File Metadata ElasticSearch Store")
+            (.close (:conn component))
             (dissoc component :conn))
         component)))

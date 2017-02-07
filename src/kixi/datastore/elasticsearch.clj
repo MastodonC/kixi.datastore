@@ -1,7 +1,7 @@
 (ns kixi.datastore.elasticsearch
   (:require [cheshire.core :as json]
-            [clojurewerkz.elastisch.rest :as esr]
-            [clojurewerkz.elastisch.rest
+            [clojurewerkz.elastisch.native :as esr]
+            [clojurewerkz.elastisch.native
              [document :as esd]
              [response :as esrsp]]
             [environ.core :refer [env]]
@@ -169,16 +169,22 @@
 
 (defn discover-executor
   [url]
-  (->> (json/parse-string (slurp url) keyword)
-       (map :http_address)
-       (rand-nth)
-       (re-find #"([0-9\.]+):([0-9]+)")
-       (rest)))
+  (let [cluster-info (json/parse-string (slurp url) keyword)]
+    {:native-host-ports (->> cluster-info
+                             (map :transport_address)
+                             (map (comp rest #(re-find #"([0-9\.]+):([0-9]+)" %)))
+                             (map (fn [[h p]] [h (Integer/parseInt p)])))
+     :http-host-ports  (->> cluster-info
+                            (map :http_address)
+                            (map (comp rest #(re-find #"([0-9\.]+):([0-9]+)" %)))
+                            (map (fn [[h p]] [h (Integer/parseInt p)])))}))
 
 (defn connect
-  [host port]
-  (esr/connect (str "http://" host ":" port)
-               {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})}))
+  [host-ports cluster]
+  (esr/connect host-ports
+               (merge {} 
+                      (when cluster
+                        {:cluster.name cluster}))))
 
 (def collapse-keys ["terms"])
 
