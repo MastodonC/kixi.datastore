@@ -10,7 +10,8 @@
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
-(s/def ::name string?)
+(s/def ::name (s/and string?
+                     #(re-matches #"^[\p{Digit}\p{IsAlphabetic}].{1,30}[\p{Digit}\p{IsAlphabetic}]$" %)))
 (s/def ::description string?)
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})

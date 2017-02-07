@@ -34,10 +34,21 @@
     (catch AmazonS3Exception e
       nil)))
 
+(def unallowed-chars #"[^\p{Digit}\p{IsAlphabetic}]")
+(def multi-hyphens #"-{2,}")
+
+(def hyphen (clojure.string/re-quote-replacement "-"))
+
+(defn sanitize-filename
+  [f-name]
+  (-> f-name
+      (clojure.string/replace unallowed-chars hyphen)
+      (clojure.string/replace multi-hyphens hyphen)))
+
 (defn create-dload-link
   [creds bucket id file-name expiry]
   (let [header-overrides (com.amazonaws.services.s3.model.ResponseHeaderOverrides.)
-        _ (when file-name (.setContentDisposition header-overrides (str "attachment; filename=" file-name)))]
+        _ (when file-name (.setContentDisposition header-overrides (str "attachment; filename=" (sanitize-filename file-name))))]
     (-> (s3/generate-presigned-url creds
                                    :bucket-name bucket 
                                    :key id
