@@ -39,11 +39,20 @@
 
 (def hyphen (clojure.string/re-quote-replacement "-"))
 
-(defn sanitize-filename
-  [f-name]
-  (-> f-name
+(defn clean
+  [s]
+  (-> s
       (clojure.string/replace unallowed-chars hyphen)
       (clojure.string/replace multi-hyphens hyphen)))
+
+(defn sanitize-filename
+  [f-name]
+  (let [extension-dex (clojure.string/last-index-of f-name ".")
+        extension (subs f-name (inc extension-dex))]
+    (-> f-name
+        (subs 0 extension-dex)
+        clean
+        (str "." (clean extension)))))
 
 (defn create-dload-link
   [creds bucket id file-name expiry]

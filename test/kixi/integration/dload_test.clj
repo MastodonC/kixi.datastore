@@ -50,6 +50,6 @@
               (is (files-match? filename (slurp location)))
               (let [redirected (client/get location)]
                 (is (= (get-in redirected [:headers "Content-Disposition"])
-                       (str "attachment; filename=" filename ".csv"))) ;; extra .csv is a side effect of `send-file-and-metadata`
+                       (str "attachment; filename=metadata-one-valid.csv"))) ;; extra .csv is a side effect of `send-file-and-metadata`
                 (is (= (slurp filename)
                        (:body redirected)))))))))))

@@ -300,6 +300,14 @@
      :kixi.user/groups (vec-if-not ugroup)}
     {})))
 
+(defn trim-file-name
+  [md]
+  (update md
+          ::ms/name
+          #(subs %
+                 (inc (clojure.string/last-index-of % "/"))
+                 (clojure.string/last-index-of % "."))))
+
 (defn send-metadata-cmd
   ([uid metadata]
    (send-metadata-cmd uid uid metadata))
@@ -310,7 +318,7 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    metadata)))
+    (trim-file-name metadata))))
 
 (defn send-metadata-sharing-change-cmd
   ([uid metadata-id change-type activity target-group]
