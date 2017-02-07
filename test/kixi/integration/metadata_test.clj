@@ -47,7 +47,7 @@
                               :kixi.user/id uid}
                  ::ms/type "stored"
                  ::ms/file-type "csv"
-                 ::ms/name "./test-resources/metadata-one-valid.csv"
+                 ::ms/name "metadata-one-valid"
                  ::ms/header true
                  ::ms/size-bytes 14
                  ::ms/provenance {:kixi.user/id uid
@@ -67,7 +67,7 @@
         :body {::ms/id (extract-id metadata-response)
                ::ms/type "stored"
                ::ms/file-type "csv"
-               ::ms/name "./test-resources/metadata-one-valid.csv"
+               ::ms/name "metadata-one-valid"
                ::ms/header true
                ::ms/size-bytes 14
                ::ms/provenance {:kixi.user/id uid
@@ -88,7 +88,7 @@
         :body {::ms/id (extract-id metadata-response)
                ::ms/type "stored"
                ::ms/file-type "csv"
-               ::ms/name "./test-resources/metadata-one-valid.csv"
+               ::ms/name "metadata-one-valid"
                ::ms/description description
                ::ms/header true
                ::ms/size-bytes 14
@@ -114,7 +114,7 @@
                               :kixi.user/id uid}
                  ::ms/type "stored"
                  ::ms/file-type "csv"
-                 ::ms/name "./test-resources/metadata-one-valid-no-header.csv"
+                 ::ms/name "metadata-one-valid-no-header"
                  ::ms/header false
                  ::ms/size-bytes 4
                  ::ms/provenance {:kixi.user/id uid
@@ -164,7 +164,7 @@
                               ::ss/id schema-id}
                  ::ms/type "stored"
                  ::ms/file-type "csv"
-                 ::ms/name "./test-resources/metadata-one-invalid.csv"
+                 ::ms/name "metadata-one-invalid"
                  ::ms/size-bytes 14,
                  ::ms/provenance {:kixi.user/id uid
                                   ::ms/source "upload"}
