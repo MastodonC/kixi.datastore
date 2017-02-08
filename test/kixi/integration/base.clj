@@ -6,15 +6,16 @@
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
-            [clojure.spec.test :as stest]
-            [clojurewerkz.elastisch.rest :as esr]
-            [clojurewerkz.elastisch.rest.index :as esi]
+            [clojure.spec.test :as stest]            
+            [clojurewerkz.elastisch.native :as esr]
+            [clojurewerkz.elastisch.native.index :as esi]
             [digest :as d]
             [environ.core :refer [env]]
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
              [filestore :as fs]
+             [elasticsearch :as es]
              [metadatastore :as ms]
              [schemastore :as ss]]
             [user :as user])
@@ -25,7 +26,9 @@
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 (def es-host (env :es-host "localhost"))
-(def es-port (Integer/parseInt (env :es-port "9200")))
+(def es-port (Integer/parseInt (env :es-native-port "9300")))
+(def es-discover-url (env :es-discover-url))
+(def es-cluster (env :es-cluster))
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
@@ -41,12 +44,17 @@
 
 (defn refresh-indexes
   []
-  (let [conn (esr/connect (str "http://" es-host ":" es-port)
-                          {:connection-manager (clj-http.conn-mgr/make-reusable-conn-manager {:timeout 10})})]
-    (esi/refresh conn
-                 kixi.datastore.metadatastore.elasticsearch/index-name)
-    (esi/refresh conn
-                 kixi.datastore.schemastore.elasticsearch/index-name)))
+  (let [{:keys [native-host-ports]} (if es-discover-url
+                                      (es/discover-executor es-discover-url) 
+                                      {:native-host-ports [[es-host es-port]]})]
+    (with-open [conn (esr/connect native-host-ports
+                          (merge {}
+                                 (when es-cluster
+                                   {:cluster.name es-cluster})))]
+      (esi/refresh conn
+                   kixi.datastore.metadatastore.elasticsearch/index-name)
+      (esi/refresh conn
+                   kixi.datastore.schemastore.elasticsearch/index-name))))
 
 (defmacro is-submap
   [expected actual & [msg]]
