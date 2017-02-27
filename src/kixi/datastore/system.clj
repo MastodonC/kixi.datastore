@@ -29,7 +29,8 @@
              [elasticsearch :as ss-es]]
             [kixi.datastore.segmentation
              [inmemory :as segementation-inmemory]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [kixi.log :as kixi-log]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -100,8 +101,10 @@
 (defn configure-logging
   [config]
   (let [level-config {:level (get-in config [:logging :level])
-                      :ns-blacklist (get-in config [:logging :ns-blacklist])}]
-    (log/merge-config! level-config)
+                      :ns-blacklist (get-in config [:logging :ns-blacklist])
+                      :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
+                      :appenders {:direct-json (kixi-log/timbre-appender-logstash "kixi.datastore")}}]
+    (log/set-config! level-config)
     (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
        (log/error throwable (str "Unhandled exception on " (.getName thread)))))))
