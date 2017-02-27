@@ -23,7 +23,7 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  [cheshire "5.6.3"]
                  [com.cognitect/transit-clj "0.8.288"]
-                 [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic 
+                 [com.izettle/dropwizard-metrics-influxdb "1.1.6" :exclusions [ch.qos.logback/logback-classic
                                                                                com.fasterxml.jackson.core/jackson-core
                                                                                joda-time]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
@@ -32,7 +32,8 @@
                  [digest "1.4.4"]
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.25"]
+                 [kixi/kixi.comms "0.1.27"]
+                 [kixi/kixi.log "0.1.1"]
                  [joplin.core "0.3.9"]
                  [joplin.elasticsearch "0.3.9"]
                  [manifold "0.1.6-alpha1"]
@@ -50,7 +51,7 @@
                  [org.clojure/test.check "0.9.0"]
                  [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
 
-  :jvm-opts ["-Xmx2g"]
+  :jvm-opts ["-Xmx2g" "-Dorg.slf4j.simpleLogger.defaultLogLevel=info"]
 
   :repl-options {:init-ns user}
 

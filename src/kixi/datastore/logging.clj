@@ -3,33 +3,6 @@
             [com.stuartsierra.component :as component]
             [taoensso.timbre :as log]))
 
-(def logback-timestamp-opts
-  {:pattern  "yyyy-MM-dd HH:mm:ss,SSS"
-   :locale   :jvm-default
-   :timezone :utc})
-
-(def upper-name 
-  (memoize 
-   (fn [level]
-     (str/upper-case (name level)))))
-
-(defn output-fn
-  "Default (fn [data]) -> string output fn.
-  Use`(partial default-output-fn <opts-map>)` to modify default opts."
-  ([data] (output-fn nil data))
-  ([opts data] ; For partials
-   (let [{:keys [surpress-stacktrace? stack-fonts]} opts
-         {:keys [level ?err #_vargs msg_ ?ns-str hostname_
-                 timestamp_ ?line]} data]
-     (str
-      (force timestamp_)  " "
-      (upper-name level)  " "
-      "[" (or ?ns-str "?") ":" (or ?line "?") "] - "
-      (force msg_)
-      (when-not surpress-stacktrace?
-        (when-let [err ?err]
-          (str "\n" (log/stacktrace err opts))))))))
-
 (defn log-metrics
   [meter-mark!]
   (fn [data]
@@ -37,20 +10,16 @@
     data))
 
 (defrecord Log
-    [level ns-blacklist metrics full-config]
-    component/Lifecycle
-    (start [component]
-      (if-not full-config
-        (let [full-config {:timestamp-opts logback-timestamp-opts ; iso8601 timestamps
-                           :output-fn (partial output-fn {:stacktrace-fonts {}})
-                           :middleware [(log-metrics (:meter-mark metrics))]}]
-          (log/merge-config! full-config)
-          (log/handle-uncaught-jvm-exceptions! 
-           (fn [throwable ^Thread thread]
-             (log/error throwable (str "Unhandled exception on " (.getName thread)))))
-          (assoc component :full-config full-config))
-        component))
-    (stop [component]
-      (if full-config
-        (dissoc component :full-config)
-        component)))
+    [level ns-blacklist metrics logstash-appender?
+     full-config]
+  component/Lifecycle
+  (start [component]
+    (if-not full-config
+      (let [full-config {:middleware [(log-metrics (:meter-mark metrics))]}]
+        (log/merge-config! full-config)
+        (assoc component :full-config full-config))
+      component))
+  (stop [component]
+    (if full-config
+      (dissoc component :full-config)
+      component)))
