@@ -51,7 +51,7 @@
                  [org.clojure/test.check "0.9.0"]
                  [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
 
-  :jvm-opts ["-Xmx2g" "-Dorg.slf4j.simpleLogger.defaultLogLevel=info"]
+  :jvm-opts ["-Xmx2g"]
 
   :repl-options {:init-ns user}
 
