@@ -6,7 +6,7 @@
              [histograms :refer [histogram update!]]
              [meters :refer [mark! meter]]]
             [metrics.jvm.core :as jvm]
-            [metrics.reporters.influxdb :as influxdb]
+            [kixi.metrics.reporters.json-console :as reporter]
             [metrics.ring.expose :as expose]
             [taoensso.timbre :as log]))
 
@@ -115,10 +115,9 @@
               reg (:registry with-reg)]
           (-> with-reg
               (update :reporter #(or %
-                                     (let [reporter (influxdb/reporter reg 
-                                                                       influx-reporter)]
-                                       (log/info "Starting InfluxDb Metrics Reporter")
-                                       (influxdb/start reporter (:seconds influx-reporter))
+                                     (let [reporter (reporter/reporter reg {})]
+                                       (log/info "Starting JSON Metrics Reporter")
+                                       (reporter/start reporter (:seconds influx-reporter))
                                        reporter)))
               (update :meter-mark #(or %
                                        (meter-mark! reg)))
@@ -133,8 +132,8 @@
       (if registry
         (-> component
             (update :reporter #(when %
-                                 (log/info "Stopping InfluxDb Reporting")
-                                 (influxdb/stop %)
+                                 (log/info "Stopping JSON Reporting")
+                                 (reporter/stop %)
                                  nil))
             (dissoc :meter-mark)
             (dissoc :insert-time-in-ctx)
