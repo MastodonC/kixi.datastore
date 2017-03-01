@@ -33,7 +33,7 @@
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
                  [kixi/kixi.comms "0.1.27"]
-                 [kixi/kixi.log "0.1.2"]
+                 [kixi/kixi.log "0.1.3"]
                  [kixi/kixi.metrics "0.3.3"]
                  [joplin.core "0.3.9"]
                  [joplin.elasticsearch "0.3.9"]
