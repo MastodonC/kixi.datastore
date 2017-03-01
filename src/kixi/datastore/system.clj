@@ -103,7 +103,7 @@
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])
                       :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
-                      :appenders {:direct-json (kixi-log/timbre-appender-logstash "kixi.datastore")}}]
+                      :appenders {:direct-json (kixi-log/timbre-appender-logstash)}}]
     (log/set-config! level-config)
     (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
