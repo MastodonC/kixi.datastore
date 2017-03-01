@@ -8,15 +8,6 @@ kafka:
           - zookeeper:zookeeper
         ports:
           - "9092:9092"
-influxdb:
-        image: 'tutum/influxdb:0.13'
-        environment: 
-          - ADMIN_USER="root"
-          - INFLUXDB_INIT_PWD="somepassword"
-          - PRE_CREATE_DB="metrics"
-        ports:
-          - "8086:8086"
-          - "8083:8083"
 elasticsearch:
         image: 'elasticsearch:2.4.1'
         ports:

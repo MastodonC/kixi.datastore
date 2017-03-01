@@ -46,14 +46,20 @@
 
 (def default-aggregations [replace-guid replace-number replace-territory])
 
+(defn safe-name
+  [unsafe-name]
+  (when unsafe-name
+    (-> unsafe-name
+        clean-metric-name
+        (apply-aggregations default-aggregations))))
+
 (def uri-method-status->metric-name
   (memoize 
    (fn [uri method status]
      (let [name (-> (str "." (upper-name method))
-                    (apply-aggregations default-aggregations)
-                    clean-metric-name
+                    safe-name
                     (str "." status))]
-       ["resources" (clean-metric-name uri) name]))))
+       ["resources" (safe-name uri) name]))))
 
 (defn request-ctx->metric-name
   [ctx]
@@ -100,11 +106,11 @@
 (defn meter-mark!
   [registry]
   (fn [meter-name]
-    (let [met (meter registry meter-name)]
+    (let [met (meter registry (mapv safe-name meter-name))]
       (mark! met))))
 
 (defrecord Metrics
-    [influx-reporter registry]  
+    [json-reporter registry]  
     component/Lifecycle
     (start [component]
       (if-not registry
@@ -114,11 +120,11 @@
                                                           reg)))
               reg (:registry with-reg)]
           (-> with-reg
-              (update :reporter #(or %
-                                     (let [reporter (reporter/reporter reg {})]
-                                       (log/info "Starting JSON Metrics Reporter")
-                                       (reporter/start reporter (:seconds influx-reporter))
-                                       reporter)))
+              (update :json-reporter-inst #(or %
+                                               (let [reporter (reporter/reporter reg {})]
+                                                 (log/info "Starting JSON Metrics Reporter")
+                                                 (reporter/start reporter (:seconds json-reporter))
+                                                 reporter)))
               (update :meter-mark #(or %
                                        (meter-mark! reg)))
               (update :insert-time-in-ctx #(or %
@@ -131,10 +137,10 @@
     (stop [component]
       (if registry
         (-> component
-            (update :reporter #(when %
-                                 (log/info "Stopping JSON Reporting")
-                                 (reporter/stop %)
-                                 nil))
+            (update :json-reporter-inst #(when %
+                                           (log/info "Stopping JSON Reporting")
+                                           (reporter/stop %)
+                                           nil))
             (dissoc :meter-mark)
             (dissoc :insert-time-in-ctx)
             (dissoc :record-ctx-metrics)
