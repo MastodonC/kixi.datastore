@@ -34,7 +34,7 @@
                  [environ "1.1.0"]
                  [kixi/kixi.comms "0.1.27"]
                  [kixi/kixi.log "0.1.3"]
-                 [kixi/kixi.metrics "0.3.3"]
+                 [kixi/kixi.metrics "0.4.0"]
                  [joplin.core "0.3.9"]
                  [joplin.elasticsearch "0.3.9"]
                  [manifold "0.1.6-alpha1"]
