@@ -1,12 +1,13 @@
 (ns kixi.datastore.metrics
   (:require [clojure.string :as str]
             [com.stuartsierra.component :as component]
+            [kixi.metrics.name-safety :refer [safe-name]]
+            [kixi.metrics.reporters.json-console :as reporter]
             [metrics
              [core :refer [new-registry]]
              [histograms :refer [histogram update!]]
              [meters :refer [mark! meter]]]
             [metrics.jvm.core :as jvm]
-            [kixi.metrics.reporters.json-console :as reporter]
             [metrics.ring.expose :as expose]
             [taoensso.timbre :as log]))
 
@@ -14,44 +15,6 @@
   (memoize 
    (fn [level]
      (str/upper-case (name level)))))
-
-;; Lifted all this from silcon-gorge/radix
-
-(def replace-guid
-  [#"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" "GUID"])
-
-(def replace-number
-  [#"[0-9][0-9]+" "NUMBER"])
-
-(def replace-territory
-  [#"/[a-z]{2}/" "/TERRITORIES/"])
-
-(defn- apply-regex
-  [path [pattern replacement]]
-  (str/replace path pattern replacement))
-
-(defn- apply-aggregations
-  [path aggregations]
-  (reduce apply-regex path aggregations))
-
-(defn clean-metric-name
-  [name]
-  (-> name
-      (str/replace " " ".")
-      (str/replace "./" ".")
-      (str/replace "/" ".")
-      (str/replace #"\p{Cntrl}" "")
-      (str/replace #"^\.+" "")
-      (str/replace #"\.+$" "")))
-
-(def default-aggregations [replace-guid replace-number replace-territory])
-
-(defn safe-name
-  [unsafe-name]
-  (when unsafe-name
-    (-> unsafe-name
-        clean-metric-name
-        (apply-aggregations default-aggregations))))
 
 (def uri-method-status->metric-name
   (memoize 
