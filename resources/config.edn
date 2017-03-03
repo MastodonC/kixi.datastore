@@ -9,7 +9,7 @@
                                  :port 18080
                                  :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
-                                              :local 1
+                                              :local 300
                                               :jenkins 30}}}
  :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
