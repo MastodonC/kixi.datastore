@@ -99,11 +99,13 @@
                   (raise-first :segmentation))))
 
 (defn configure-logging
-  [config]
+  [config profile]
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])
                       :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
-                      :appenders {:direct-json (kixi-log/timbre-appender-logstash)}}]
+                      :appenders (if (= profile :local)
+                                   {:println (log/println-appender)}
+                                   {:direct-json (kixi-log/timbre-appender-logstash)})}]
     (log/set-config! level-config)
     (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
@@ -112,7 +114,7 @@
 (defn new-system
   [profile]
   (let [config (config profile)]
-    (configure-logging config)
+    (configure-logging config profile)
     (-> (new-system-map config)
         (configure-components config)
         (system-using component-dependencies))))
