@@ -17,6 +17,7 @@
              [s3 :as s3]]
             [kixi.datastore.communications
              [coreasync :as coreasync]]
+            [kixi.comms :as comms]
             [kixi.comms.components
              [kafka :as kafka]]
             [kixi.datastore.metadatastore
@@ -109,7 +110,10 @@
     (log/set-config! level-config)
     (log/handle-uncaught-jvm-exceptions!
      (fn [throwable ^Thread thread]
-       (log/error throwable (str "Unhandled exception on " (.getName thread)))))))
+       (log/error throwable (str "Unhandled exception on " (.getName thread)))))
+    (when (get-in config [:logging :kixi-comms-verbose-logging])
+      (log/info "Switching on Kixi Comms verbose logging...")
+      (comms/set-verbose-logging! true))))
 
 (defn new-system
   [profile]
