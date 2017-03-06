@@ -10,15 +10,17 @@
                                  :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
                                               :local 300
-                                              :jenkins 30}}}
+                                              :jenkins 600}}}
  :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
-           :ns-blacklist ["org.eclipse.jetty"]}
+           :ns-blacklist ["org.eclipse.jetty"]
+           :kixi-comms-verbose-logging #profile {:local true
+                                                 :staging true}}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
-                              #_:s3 #_{:bucket "kixi-data-store-file-store"
+                              #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
                                        :endpoint "s3.eu-central-1.amazonaws.com"
                                        :link-expiration-mins 10
                                        :profile "witan"}}
