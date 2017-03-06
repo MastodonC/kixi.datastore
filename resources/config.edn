@@ -10,7 +10,7 @@
                                  :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
                                               :local 300
-                                              :jenkins 60}}}
+                                              :jenkins 600}}}
  :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
