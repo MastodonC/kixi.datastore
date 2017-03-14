@@ -48,24 +48,22 @@
                                         :staging {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"
                                                   :cluster "mesos-ha"}}}
  :segmentation {:inmemory {}}
- :communications {:kafka #profile {:local {:host #or [#env ZOOKEEPER "127.0.0.1"]
-                                           :port 2181
-                                           :consumer-config {:session.timeout.ms 6000
-                                                             :auto.commit.interval.ms 1500
-                                                             :max.poll.records 1
-                                                             :poll-timeout 10}}
-                                   :jenkins {:host "master.mesos"
-                                             :port 2181
-                                             :zk-path "/dcos-service-kafka/"
-                                             :topics {:command "command-datastore-testing"
-                                                      :event "event-datastore-testing"}
-                                             :consumer-config {:session.timeout.ms 6000
-                                                               :auto.commit.interval.ms 1500
-                                                               :max.poll.records 1
-                                                               :poll-timeout 10}}
-                                   :staging {:host "master.mesos"
-                                             :zk-path "/dcos-service-kafka/"
-                                             :port 2181
-                                             :consumer-config {:session.timeout.ms 6000
-                                                               :auto.commit.interval.ms 1500
-                                                               :poll-timeout 10}}}}}
+ :communications {:kinesis #profile {:local {:app "kixi.datastore"
+                                             :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                             :dynamodb-endpoint "http://localhost:8000"
+                                             :profile "local"
+                                             :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
+                                                       :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
+                                             :metric-level :NONE}
+                                     :jenkins {:app "kixi.datastore"
+                                               :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                               :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                               :profile "jenkins"
+                                               :streams {:event "kixi-datastore-jenkins-event"
+                                                         :command "kixi-datastore-jenkins-command"}}
+                                     :staging {:app "kixi.datastore"
+                                               :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                               :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                               :profile "staging"
+                                               :streams {:event "witan-staging-event"
+                                                         :command "witan-staging-command"}}}}}
