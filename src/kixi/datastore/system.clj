@@ -104,7 +104,7 @@
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])
                       :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
-                      :appenders (if (= profile :local)
+                      :appenders (if (#{:local :jenkins} profile)
                                    {:println (log/println-appender)}
                                    {:direct-json (kixi-log/timbre-appender-logstash)})}]
     (log/set-config! level-config)
