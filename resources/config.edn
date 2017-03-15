@@ -52,6 +52,7 @@
                                              :endpoint "kinesis.eu-central-1.amazonaws.com"
                                              :dynamodb-endpoint "http://localhost:8000"
                                              :profile "local"
+                                             :teardown true
                                              :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
                                                        :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                              :metric-level :NONE}
@@ -59,6 +60,7 @@
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "jenkins"
+                                               :teardown true
                                                :streams {:event "kixi-datastore-jenkins-event"
                                                          :command "kixi-datastore-jenkins-command"}}
                                      :staging {:app "kixi.datastore"

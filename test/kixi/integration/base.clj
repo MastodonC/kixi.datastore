@@ -116,9 +116,10 @@
        (finally
          (let [kinesis-conf (select-keys (:communications @user/system)
                                          [:endpoint :dynamodb-endpoint :streams
-                                          :profile :app])]
+                                          :profile :app :teardown])]
            (user/stop)
-           (tear-down-kinesis kinesis-conf)))))
+           (when (:teardown kinesis-conf)
+             (tear-down-kinesis kinesis-conf))))))
 
 (defn uuid
   []
