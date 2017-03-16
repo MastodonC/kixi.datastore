@@ -19,7 +19,7 @@
              [coreasync :as coreasync]]
             [kixi.comms :as comms]
             [kixi.comms.components
-             [kafka :as kafka]]
+             [kinesis :as kinesis]]
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [elasticsearch :as md-es]]
@@ -75,7 +75,7 @@
    :segmentation (case (first (keys (:segmentation config)))
                    :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
-                     :kafka (kafka/map->Kafka {}))
+                     :kinesis (kinesis/map->Kinesis {}))
                                         ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 
@@ -104,7 +104,7 @@
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])
                       :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
-                      :appenders (if (= profile :local)
+                      :appenders (if (#{:local :jenkins} profile)
                                    {:println (log/println-appender)}
                                    {:direct-json (kixi-log/timbre-appender-logstash)})}]
     (log/set-config! level-config)

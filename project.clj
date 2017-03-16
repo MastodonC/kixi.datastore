@@ -7,7 +7,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[aero "1.0.0"]
                  [aleph "0.4.2-alpha8"]
-                 [amazonica "0.3.74" :exclusions [ch.qos.logback/logback-classic
+                 [amazonica "0.3.92" :exclusions [ch.qos.logback/logback-classic
                                                   com.amazonaws/aws-java-sdk
                                                   com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                                   commons-logging
@@ -28,11 +28,11 @@
                                                                                joda-time]]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
                  [com.stuartsierra/component "0.3.1"]
-                 [com.taoensso/timbre "4.7.0"]
+                 [com.taoensso/timbre "4.8.0"]
                  [digest "1.4.4"]
                  [clojurewerkz/elastisch "3.0.0-beta1"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.1.28"]
+                 [kixi/kixi.comms "0.2.1"]
                  [kixi/kixi.log "0.1.3"]
                  [kixi/kixi.metrics "0.4.0"]
                  [joplin.core "0.3.9"]

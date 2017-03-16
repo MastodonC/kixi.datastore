@@ -1,5 +1,6 @@
 (ns kixi.integration.base
-  (:require [byte-streams :as bs]
+  (:require [amazonica.aws.dynamodbv2 :as ddb]
+            [byte-streams :as bs]
             [cheshire.core :as json]
             [clj-http.client :as client]
             [clojure data 
@@ -12,6 +13,7 @@
             [digest :as d]
             [environ.core :refer [env]]
             [kixi.comms :as c]
+            [kixi.comms.components.kinesis :as kinesis]            
             [kixi.datastore
              [communication-specs :as cs]
              [filestore :as fs]
@@ -22,7 +24,7 @@
   (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
-(def wait-per-try (Integer/parseInt (env :wait-per-try "100")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "1000")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 (def es-host (env :es-host "localhost"))
@@ -82,6 +84,28 @@
                      'kixi.datastore.transport-specs/schema-transport->internal
                      'kixi.datastore.metadatastore.elasticsearch/query-criteria->es-query]))
 
+(defn table-exists?
+  [endpoint table]
+  (try
+    (ddb/describe-table {:endpoint endpoint} table)
+    (catch Exception e false)))
+
+(defn delete-tables
+  [endpoint table-names]
+  (doseq [sub-table-names (partition-all 10 table-names)]
+    (doseq [table-name sub-table-names]
+      (ddb/delete-table {:endpoint endpoint} :table-name table-name))
+    (loop [tables sub-table-names]
+      (when (not-empty tables)
+        (recur (doall (filter (partial table-exists? endpoint) tables)))))))
+
+(defn tear-down-kinesis
+  [{:keys [endpoint dynamodb-endpoint streams
+           profile app]}]
+  (delete-tables dynamodb-endpoint [(kinesis/event-worker-app-name app profile)
+                                    (kinesis/command-worker-app-name app profile)])
+  (kinesis/delete-streams! endpoint (vals streams)))
+
 (defn cycle-system-fixture
   [all-tests]
   (if run-against-staging
@@ -90,7 +114,12 @@
   (try (instrument-specd-functions)
        (all-tests)
        (finally
-         (user/stop))))
+         (let [kinesis-conf (select-keys (:communications @user/system)
+                                         [:endpoint :dynamodb-endpoint :streams
+                                          :profile :app :teardown])]
+           (user/stop)
+           (when (:teardown kinesis-conf)
+             (tear-down-kinesis kinesis-conf))))))
 
 (defn uuid
   []
