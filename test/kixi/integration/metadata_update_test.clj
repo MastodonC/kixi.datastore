@@ -39,7 +39,7 @@
         (when-event-key event :kixi.datastore.file-metadata/updated
           (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                             (= #{uid new-group}
-                               (set (get-in metadata [:body ::ms/sharing ::ms/file-read])))))
+                               (set (get-in metadata [:body ::ms/sharing ::ms/meta-read])))))
           (let [updated-metadata (get-metadata uid meta-id)]
             (is (= #{uid new-group}
                    (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
