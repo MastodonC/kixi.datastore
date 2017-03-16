@@ -2,6 +2,9 @@
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080
                                :request-logging? true}
+                       :test-staging {:vhost #or [#env VHOST "localhost"]
+                                      :port 8080
+                                      :request-logging? true}
                        :jenkins {:vhost "localhost"
                                  :port 8080
                                  :request-logging? true}
@@ -17,7 +20,12 @@
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:local true
-                                                 :staging true}}
+                                                 :test-staging true
+                                                 :staging true}
+           :appender #profile {:local :println
+                               :jenkins :println
+                               :test-staging :println
+                               :staging :json}}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
                               #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
@@ -27,6 +35,7 @@
                       :jenkins {:s3 {:bucket "kixi-data-store-file-store-jenkins"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
+                      :test-staging {:local {:base-dir "/kixi-datastore"}}
                       :staging {:s3 {:bucket "kixi-data-store-file-store-staging"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
@@ -50,7 +59,7 @@
  :segmentation {:inmemory {}}
  :communications {:kinesis #profile {:local {:app "kixi.datastore"
                                              :endpoint "kinesis.eu-central-1.amazonaws.com"
-                                             :dynamodb-endpoint "http://localhost:8000"
+                                             :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                              :profile "local"
                                              :teardown true
                                              :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
@@ -68,4 +77,10 @@
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"
                                                :streams {:event "witan-staging-event"
-                                                         :command "witan-staging-command"}}}}}
+                                                         :command "witan-staging-command"}}
+                                     :test-staging {:app "kixi.datastore-staging-test"
+                                                    :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                                    :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                                    :profile "test-staging"
+                                                    :streams {:event "witan-staging-event"
+                                                              :command "witan-staging-command"}}}}}
