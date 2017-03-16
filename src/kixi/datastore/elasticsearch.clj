@@ -7,7 +7,10 @@
             [environ.core :refer [env]]
             [joplin.repl :as jrepl]
             [kixi.datastore.time :as t]
-            [taoensso.timbre :as timbre :refer [error info]]))
+            [taoensso.timbre :as timbre :refer [error info warn]])
+  (:import [org.elasticsearch.index.engine 
+            VersionConflictEngineException
+            DocumentAlreadyExistsException]))
 
 (def put-opts (merge {:consistency (env :elasticsearch-consistency "default")
                       :replication (env :elasticsearch-replication "default")
@@ -102,34 +105,42 @@
       (get (keyword (kw->es-format k)))
       all-keys->kw))
 
-(def apply-attempts 10)
-
-(defn version-conflict?
+(defn recoverable-error?
   [resp]
-  (some
-   #(= "version_conflict_engine_exception"
-       (:type %))
-   ((comp :root_cause :error) resp)))
+  (#{:version-conflict
+     :document-already-exists}
+   (:type resp)))
 
 (defn error?
   [resp]
   (:error resp))
 
+(def recoverable-error-attempts 11)
+
+(def recoverable-error-wait 100)
+
 (defn apply-func
   ([index-name doc-type conn id f]   
-   (loop [tries apply-attempts]
+   (loop [tries recoverable-error-attempts]
      (let [curr (get-document-raw index-name doc-type conn id)
-           resp (esd/put conn
-                         index-name
-                         doc-type
-                         id
-                         (f curr) 
-                         (merge put-opts
-                                (when (:_version curr)
-                                  {:version (:_version curr)})))]
-       (if (and (version-conflict? resp)
+           resp (try
+                  (esd/upsert conn
+                              index-name
+                              doc-type
+                              id
+                              (f curr))
+                  (catch VersionConflictEngineException e
+                    {:type :version-conflict
+                     :error e})
+                  (catch DocumentAlreadyExistsException e
+                    {:type :document-already-exists
+                     :error e}))]
+       (if (and (recoverable-error? resp)
                 (pos? tries))
-         (recur (dec tries))
+         (do
+           (warn (str "ES exception encountered type: " (:type resp) ", id: " id))
+           (Thread/sleep recoverable-error-attempts)
+           (recur (dec tries)))
          resp)))))
 
 (defn merge-data

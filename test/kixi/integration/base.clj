@@ -44,19 +44,29 @@
     x
     (vector x)))
 
-(defn refresh-indexes
+(def es-connection (atom nil))
+
+(defn create-es-conn
   []
   (let [{:keys [native-host-ports]} (if es-discover-url
                                       (es/discover-executor es-discover-url) 
                                       {:native-host-ports [[es-host es-port]]})]
-    (with-open [conn (esr/connect native-host-ports
-                          (merge {}
-                                 (when es-cluster
-                                   {:cluster.name es-cluster})))]
-      (esi/refresh conn
-                   kixi.datastore.metadatastore.elasticsearch/index-name)
-      (esi/refresh conn
-                   kixi.datastore.schemastore.elasticsearch/index-name))))
+    (reset! es-connection
+            (esr/connect native-host-ports
+                         (merge {}
+                                (when es-cluster
+                                  {:cluster.name es-cluster}))))))
+
+(defn close-es-conn
+  []
+  (.close @es-connection))
+
+(defn refresh-indexes
+  []
+  (esi/refresh @es-connection
+               kixi.datastore.metadatastore.elasticsearch/index-name)
+  (esi/refresh @es-connection
+               kixi.datastore.schemastore.elasticsearch/index-name))
 
 (defmacro is-submap
   [expected actual & [msg]]
@@ -112,12 +122,14 @@
     (user/start {} [:communications])
     (user/start))
   (try (instrument-specd-functions)
+       (create-es-conn)
        (all-tests)
        (finally
          (let [kinesis-conf (select-keys (:communications @user/system)
                                          [:endpoint :dynamodb-endpoint :streams
                                           :profile :app :teardown])]
            (user/stop)
+           (close-es-conn)
            (when (:teardown kinesis-conf)
              (tear-down-kinesis kinesis-conf))))))
 
