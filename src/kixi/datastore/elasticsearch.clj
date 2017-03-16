@@ -139,7 +139,7 @@
                 (pos? tries))
          (do
            (warn (str "ES exception encountered type: " (:type resp) ", id: " id))
-           (Thread/sleep recoverable-error-attempts)
+           (Thread/sleep recoverable-error-wait)
            (recur (dec tries)))
          resp)))))
 
