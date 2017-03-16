@@ -101,7 +101,6 @@
 
 (defn configure-logging
   [config]
-  (prn config)
   (let [level-config {:level (get-in config [:logging :level])
                       :ns-blacklist (get-in config [:logging :ns-blacklist])
                       :timestamp-opts kixi-log/default-timestamp-opts ; iso8601 timestamps
