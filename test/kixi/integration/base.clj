@@ -59,13 +59,13 @@
 
 (defn close-es-conn
   []
-  (.close @es-connection))
+  #_(.close @es-connection))
 
 (defn refresh-indexes
   []
-  (esi/refresh @es-connection
+  #_(esi/refresh @es-connection
                kixi.datastore.metadatastore.elasticsearch/index-name)
-  (esi/refresh @es-connection
+  #_(esi/refresh @es-connection
                kixi.datastore.schemastore.elasticsearch/index-name))
 
 (defmacro is-submap
@@ -131,7 +131,7 @@
            (user/stop)
            (close-es-conn)
            (when (:teardown kinesis-conf)
-             (tear-down-kinesis kinesis-conf))))))
+             #_(tear-down-kinesis kinesis-conf))))))
 
 (defn uuid
   []
@@ -165,7 +165,7 @@
   (get-in metadata-response [:body ::ms/id]))
 
 (defn extract-id-location
-  [resp]
+ [resp]
   (when-let [locat (get-in resp [:headers "Location"])]
     (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
@@ -252,6 +252,8 @@
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
   ([group-ids activities index count]
+   (search-metadata group-ids activities index count nil))
+  ([group-ids activities index count order]
    (refresh-indexes)
    (update (client/get (metadata-query-url)
                        {:query-params (merge (zipmap (repeat :activity)
@@ -259,7 +261,9 @@
                                              (when index
                                                {:index index})
                                              (when count
-                                               {:count count}))
+                                               {:count count})
+                                             (when order
+                                               {:sort-order order}))
                         :accept :json
                         :throw-exceptions false
                         :headers {"user-id" (uuid)

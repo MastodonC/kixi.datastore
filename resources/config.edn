@@ -42,7 +42,13 @@
                       :prod {:s3 {:bucket "production-kixi-data-store-file-store"
                                   :endpoint "s3.eu-central-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
- :metadatastore {:elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
+ :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                             :profile "local"}
+                                     :jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                               :profile "jenkins"}
+                                     :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                               :profile "staging"}}
+                 :elasticsearch #profile {:local {:host #or [#env ELASTICSEARCH "localhost"]
                                                   :port 9200
                                                   :native-port 9300}
                                           :jenkins {:discover "http://staging-masters.sandpit-vpc.kixi/service/elasticsearch/v1/tasks"

@@ -38,6 +38,14 @@
                   :body {:items [{::ms/sharing {::ms/meta-read [uid]}}]}}
                  (search-metadata uid [])))))
 
+(defn first-item
+  [resp]
+  (first (get-in resp [:body :items])))
+
+(defn shares
+  [item activity]
+  (set (get-in item [::ms/sharing activity])))
+
 (deftest multiple-groups-can-have-read
   (let [uid (uuid)
         group1 (uuid)
@@ -47,12 +55,14 @@
                                conj group1)
                               send-file-and-metadata)]
     (when-success metadata-response
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid group1]}}]}}
-                 (search-metadata uid []))
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid group1]}}]}}
-                 (search-metadata group1 [])))))
+      (let [resp (search-metadata uid [])]
+        (when-success resp
+          (is (= #{uid group1}
+                 (shares (first-item resp) ::ms/meta-read)))))
+      (let [resp (search-metadata group1 [])]
+        (when-success resp
+          (is (= #{uid group1}
+                 (shares (first-item resp) ::ms/meta-read))))))))
 
 (deftest novel-user-finds-nothing-when-there-is-something
   (let [uid (uuid)
@@ -63,6 +73,32 @@
       (is-submap {:status 200
                   :body {:items []}}
                  (search-metadata novel-group [])))))
+
+(deftest search-uses-and-for-multiple-activities
+  (let [uid (uuid)
+        only-read-group (uuid)
+        metadata-response (-> (create-metadata uid)
+                              (update-in
+                               [::ms/sharing ::ms/meta-read]
+                               conj only-read-group)
+                              send-file-and-metadata)]
+    (when-success metadata-response
+      (let [resp (search-metadata uid [::ms/meta-read ::ms/file-read])]
+        (when-success resp
+          (is (= #{uid only-read-group}
+                 (shares (first-item resp) ::ms/meta-read)))
+          (is (= #{uid}
+                 (shares (first-item resp) ::ms/file-read)))))
+      (let [resp (search-metadata only-read-group [::ms/meta-read])]
+        (when-success resp
+          (is (= #{uid only-read-group}
+                 (shares (first-item resp) ::ms/meta-read)))
+          (is (= #{uid}
+                 (shares (first-item resp) ::ms/file-read)))))
+      (is-submap {:status 200
+                  :body {:items []}}
+                 (search-metadata only-read-group [::ms/meta-read ::ms/file-read])
+                 "activities should be AND'd together"))))
 
 (deftest search-returns-metadata-when-the-user-has-meta-read-and-uses-it-when-searching
   (doseq [activities (map set (subsets ms/activities))]
@@ -95,26 +131,3 @@
                           :body {:paging {:total 0 :count 0 :index 0}}}
                          search-result
                          (str "Found metadata with " search-activities " when meta has " activities)))))))))
-
-(deftest search-uses-and-for-multiple-activities
-  (let [uid (uuid)
-        only-read-group (uuid)
-        metadata-response (-> (create-metadata uid)
-                              (update-in
-                               [::ms/sharing ::ms/meta-read]
-                               conj only-read-group)
-                              send-file-and-metadata)]
-    (when-success metadata-response
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid only-read-group]
-                                                ::ms/file-read [uid]}}]}}
-                 (search-metadata uid [::ms/meta-read ::ms/file-read])
-                 "multiple activities in query should be supported")
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid only-read-group]
-                                                ::ms/file-read [uid]}}]}}
-                 (search-metadata only-read-group [::ms/meta-read]))
-      (is-submap {:status 200
-                  :body {:items []}}
-                 (search-metadata only-read-group [::ms/meta-read ::ms/file-read])
-                 "activities should be AND'd together"))))

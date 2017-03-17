@@ -9,11 +9,25 @@
 (def formatter
   (tf/formatters format))
 
+(defn to-str
+  [dt]
+  (tf/unparse
+   formatter
+   dt))
+
+(defn from-str
+  [s]
+  (tf/parse
+   formatter
+   s))
+
 (defn timestamp
   []
   (tf/unparse
    formatter
    (t/now)))
+
+(def now t/now)
 
 (defn minutes-from-now
   [mins]

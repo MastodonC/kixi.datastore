@@ -92,8 +92,7 @@
    [[:file :sharing ::ms/meta-read]] [get-metadata]
    [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read]
    [[:schema :sharing ::ss/read]] [get-spec]
-   [[:schema :sharing ::ss/use]] [post-file-using-schema]
-   })
+   [[:schema :sharing ::ss/use]] [post-file-using-schema]})
 
 (def all-shares
   (vec (reduce (partial apply conj) #{} (keys shares->authorised-actions))))
