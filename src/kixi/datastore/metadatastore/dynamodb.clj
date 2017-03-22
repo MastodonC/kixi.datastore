@@ -4,8 +4,7 @@
             [kixi.datastore
              [communication-specs :as cs]
              [dynamodb :as db :refer [migrate]]
-             [metadatastore :as md :refer [MetaDataStore]]
-             [metadatastore :as ms ]]
+             [metadatastore :as md :refer [MetaDataStore]]]
             [taoensso
              [encore :refer [get-subvector]]
              [timbre :as timbre :refer [info error]]]))
@@ -69,19 +68,19 @@
         (error e "Failed to insert activity row: " id projection)))))
 
 (defn remove-activity-row
-  [conn group-id activity metadata]
+  [conn group-id activity md-id]
   (let [id (activity-table-id group-id activity)]
     (try  
       (db/delete-item conn
                       (activity-metadata-table (:profile conn))
                       {activity-table-pk id
-                       id-col (::md/id metadata)})
+                       id-col md-id})
       (catch Exception e
         (error e "Failed to delete activity row: " id)))))
 
 (defmethod update-metadata-processor ::cs/file-metadata-created
   [conn update-event]
-  (let [metadata (::ms/file-metadata update-event)]
+  (let [metadata (::md/file-metadata update-event)]
     (info "Create: " metadata)
     (db/merge-data conn
                    (primary-metadata-table (:profile conn))
@@ -102,7 +101,7 @@
                  id-col
                  (::md/id update-event)
                  (select-keys update-event
-                              [::ms/structural-validation])))
+                              [::md/structural-validation])))
 
 (defmethod update-metadata-processor ::cs/file-metadata-segmentation-add
   [conn update-event]
@@ -110,33 +109,32 @@
   (db/append-list conn
                   (primary-metadata-table (:profile conn))
                   id-col
-                  (::ms/id update-event)
+                  (::md/id update-event)
                   :add
-                  [::ms/segmentations]
+                  [::md/segmentations]
                   (:kixi.group/id update-event)))
 
 (defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
   [conn update-event]
   (info "Update Share: " update-event)
-  (let [update-fn (case (::ms/sharing-update update-event)
-                    ::ms/sharing-conj :add
-                    ::ms/sharing-disj :delete)]
+  (let [update-fn (case (::md/sharing-update update-event)
+                    ::md/sharing-conj :add
+                    ::md/sharing-disj :delete)
+        metadata-id (::md/id update-event)]
     (db/update-set conn
                    (primary-metadata-table (:profile conn))
                    id-col
-                   (::ms/id update-event)
+                   metadata-id
                    update-fn
-                   [::ms/sharing (::ms/activity update-event)]
+                   [::md/sharing (::md/activity update-event)]
                    (:kixi.group/id update-event))
-    (let [metadata (db/get-item conn
-                                (primary-metadata-table (:profile conn))
-                                id-col
-                                (::ms/id update-event) 
-                                (map db/dynamo-col activity-table-projection))]
-      ((case (::ms/sharing-update update-event)
-         ::ms/sharing-conj insert-activity-row
-         ::ms/sharing-disj remove-activity-row)
-       conn (:kixi.group/id update-event) (::ms/activity update-event) metadata))))
+    (case (::md/sharing-update update-event)
+      ::md/sharing-conj (let [metadata (db/get-item conn
+                                                    (primary-metadata-table (:profile conn))
+                                                    id-col
+                                                    metadata-id)]
+                          (insert-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata))
+      ::md/sharing-disj (remove-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata-id))))
 
 (def sort-order->dynamo-comp
   {"asc" :asc
@@ -215,8 +213,8 @@
 (defn criteria->activities
   [criteria]
   (->> criteria
-       ::ms/activities
-       (cons ::ms/meta-read)
+       ::md/activities
+       (cons ::md/meta-read)
        set))
 
 (defn response-event
@@ -229,9 +227,8 @@
     MetaDataStore
     (authorised
       [this action id user-groups]
-      (when-let [item (get-item id
-                                {:projection all-sharing-columns})]
-        (not-empty (clojure.set/intersection (set (get-in item [::ms/sharing action]))
+      (when-let [item (get-item id {:projection all-sharing-columns})]
+        (not-empty (clojure.set/intersection (set (get-in item [::md/sharing action]))
                                              (set user-groups)))))
     (exists [this id]
       (get-item id {:projection [id-col]}))

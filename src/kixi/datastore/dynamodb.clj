@@ -87,10 +87,7 @@
      (cons (inflate-kw (subs s dex nxt))
            (lazy-seq (split-to-kws s (inc nxt))))
      [(inflate-kw (subs s dex))])))
-(defn prn-t
-  [x]
-  (prn "XXXXXXXX: " x)
-  x)
+
 (defn inflate-map
   [m]
   (reduce-kv
