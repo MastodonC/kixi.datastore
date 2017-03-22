@@ -154,7 +154,7 @@
 
 (def sort-order->knit-comp
   {"asc" comp-id-created-maps
-   "desc" (fn [a b] 
+   "desc" (fn [a b]
             (comp-id-created-maps b a))})
 
 (defn keep-if-at-least
@@ -164,11 +164,13 @@
           (process [remaining acc candidate]
             (if (enough? acc)
               (cons candidate
-                    (when (first remaining)
-                      (lazy-seq
-                       (process (rest remaining) 1 (first remaining)))))
+                    (let [remain (drop-while #{candidate} remaining)
+                          new-candidate (first remain)]
+                      (when new-candidate
+                        (lazy-seq
+                         (process (rest remain) 1 new-candidate)))))
               (when-let [t (first remaining)]                   
-                (if (= t candidate) 
+                (if (= t candidate)
                   (recur (rest remaining) (inc acc) candidate)
                   (recur (rest remaining) 1 t)))))]
     (when (first coll)
@@ -271,14 +273,12 @@
                                    :kixi.datastore.file-metadata/updated
                                    "1.0.0"
                                    (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
-          (-> component
-              (assoc :client client)
-              (assoc :get-item (partial db/get-item client (primary-metadata-table profile) id-col))))
+          (assoc component 
+                 :client client
+                 :get-item (partial db/get-item client (primary-metadata-table profile) id-col)))
         component))
     (stop [component]
       (if client
         (do (info "Destroying File Metadata DynamoDb Store")
-            (-> component
-                (dissoc :client)
-                (dissoc :get-item)))
+            (dissoc component :client :get-item))
         component)))

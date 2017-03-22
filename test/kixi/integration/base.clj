@@ -17,7 +17,8 @@
              [filestore :as fs]
              [metadatastore :as ms]
              [schemastore :as ss]]
-            [user :as user])
+            [user :as user]
+            [kixi.datastore.metadatastore :as md])
   (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
@@ -53,6 +54,28 @@
      (catch Throwable t#
        (clojure.test/do-report {:type :error :message "Exception diffing"
                                 :expected nil :actual t#}))))
+
+(defmacro is-match
+  [expected actual & [msg]]
+  `(try
+     (let [act# ~actual
+           exp# ~expected
+           [only-in-ac# only-in-ex# shared#] (clojure.data/diff act# exp#)]
+       (cond
+         only-in-ex#
+         (clojure.test/do-report {:type :fail
+                                  :message (or ~msg "Missing expected elements.")
+                                  :expected only-in-ex# :actual act#})
+         only-in-ac#
+         (clojure.test/do-report {:type :fail
+                                  :message (or ~msg "Has extra elements.")
+                                  :expected {} :actual only-in-ac#})
+         :else (clojure.test/do-report {:type :pass
+                                        :message "Matched"
+                                        :expected exp# :actual act#})))
+     (catch Throwable t#
+       (clojure.test/do-report {:type :error :message "Exception diffing"
+                                :expected ~expected :actual t#}))))
 
 (defn instrument-specd-functions
   []
@@ -98,7 +121,7 @@
                                           :profile :app :teardown])]
            (user/stop)
            (when (:teardown kinesis-conf)
-             #_(tear-down-kinesis kinesis-conf))))))
+             (tear-down-kinesis kinesis-conf))))))
 
 (defn uuid
   []
@@ -214,6 +237,17 @@
        "_"
        (name kw)))
 
+(defn wait-for-pred
+  ([p]
+   (wait-for-pred p wait-tries))
+  ([p tries]
+   (wait-for-pred p tries wait-per-try))
+  ([p tries ms]
+   (loop [try tries]
+     (when (and (pos? try) (not (p)))
+       (Thread/sleep ms)
+       (recur (dec try))))))
+
 (defn search-metadata
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
@@ -251,16 +285,22 @@
          md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
-(defn wait-for-pred
-  ([p]
-   (wait-for-pred p wait-tries))
-  ([p tries]
-   (wait-for-pred p tries wait-per-try))
-  ([p tries ms]
-   (loop [try tries]
-     (when (and (pos? try) (not (p)))
-       (Thread/sleep ms)
-       (recur (dec try))))))
+(defn wait-for-metadata-to-be-searchable
+  ([ugroup id]
+   (wait-for-metadata-to-be-searchable ugroup id wait-tries 1 nil))
+  ([ugroup id tries cnt lr]
+   (if (<= cnt tries)
+     (let [md (wait-for-metadata-key ugroup id ::md/id)
+           search-resp (search-metadata ugroup [::md/meta-read])]
+       (if-not (first (get-in search-resp
+                              [:body :items]))
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for " id " to be searchable using: " (keys (get-in md [:body ::md/sharing])) ". Getting: " search-resp))
+           (Thread/sleep wait-per-try)
+           (recur ugroup id tries (inc cnt) md))
+         md))
+     (throw (Exception. (str "Search never worked for: " id ". Response: " lr))))))
 
 (defn file-size
   [^String file-name]
@@ -525,11 +565,10 @@
    (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
      (if (= :kixi.datastore.file-metadata/updated
             (:kixi.comms.event/key event))
-       (wait-for-metadata-key ugroup
-                              (get-in event [:kixi.comms.event/payload
-                                             ::ms/file-metadata
-                                             ::ms/id])
-                              ::ms/id)
+       (wait-for-metadata-to-be-searchable ugroup
+                                           (get-in event [:kixi.comms.event/payload
+                                                          ::ms/file-metadata
+                                                          ::ms/id]))
        event))))
 
 (defn update-metadata-sharing

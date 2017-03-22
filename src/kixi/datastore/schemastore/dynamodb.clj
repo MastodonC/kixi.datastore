@@ -24,14 +24,14 @@
    ss/activities))
 
 (defn inject-tag
-  [def]
+  [definition]
   (reduce
-   (fn [acc [tag def]]
+   (fn [acc [tag d]]
      (conj acc
-           (assoc def
+           (assoc d
                   ::ss/tag tag)))
    []
-   (partition 2 def)))
+   (partition 2 definition)))
 
 (defn inject-tags
   [schema]
@@ -54,9 +54,9 @@
 (defn extract-tag
   [stored-def]
   (mapcat
-   (fn [def]
-     [(::ss/tagdef def)
-      (dissoc def
+   (fn [d]
+     [(::ss/tag d)
+      (dissoc d
               ::ss/tag)])
    stored-def))
 

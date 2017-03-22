@@ -8,27 +8,25 @@
             [kixi.datastore.metadatastore.dynamodb :refer :all]))
 
 (defn slow-keep-if-count
-  "Expensive implementation, should take advantage of ordering"  
+  "Expensive implementation, should take advantage of ordering."  
   [target-cnt ids]
   (->> ids
        (group-by identity)
        vals
        (filter #(>= (count %) target-cnt))
-       (mapcat (fn [wants]
-                 (if (>= target-cnt
-                        (count wants))
-                   (repeat (quot target-cnt
-                                 (count wants))
-                           (first wants))
-                   wants)))
+       (map first)
+       (sort >)
        seq))
 
 (deftest enforce-and-sematics-works
-  (doseq [cnt [1 2]]
-    (doseq [subject [[1 2 3] [1 2 2 3]]]
-      (is (= (slow-keep-if-count cnt subject)
-             (keep-if-at-least cnt subject))
-          (str "With " cnt subject)))))
+  (checking ""
+            1000
+            [cnt (gen/choose 1 10)
+             subject (gen/vector (gen/choose 1 100) 0 50)]
+            (let [ss (sort > subject)]
+              (is (= (slow-keep-if-count cnt ss)
+                     (keep-if-at-least cnt ss))
+                  (str "With " cnt ss)))))
 
 (deftest knit-ordered-data-works
   (let [one [1 2 4 5]

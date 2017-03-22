@@ -39,7 +39,7 @@
   `(try
      (let [act# ~actual
            exp# ~expected
-           [only-in-ex# only-in-ac# shared#] (clojure.data/diff exp# act#)]
+           [only-in-ac# only-in-ex# shared#] (clojure.data/diff act# exp#)]
        (cond
          only-in-ex#
          (clojure.test/do-report {:type :fail
@@ -47,15 +47,14 @@
                                   :expected only-in-ex# :actual act#})
          only-in-ac#
          (clojure.test/do-report {:type :fail
-                                  :message (or ~msg "Missing actual elements.")
-                                  :expected only-in-ac# :actual act#})
+                                  :message (or ~msg "Has extra elements.")
+                                  :expected {} :actual only-in-ac#})
          :else (clojure.test/do-report {:type :pass
                                         :message "Matched"
                                         :expected exp# :actual act#})))
      (catch Throwable t#
        (clojure.test/do-report {:type :error :message "Exception diffing"
                                 :expected ~expected :actual t#}))))
-
 
 (deftest flatten-is-reflected-by-inflate-for-metadata
   (checking ""

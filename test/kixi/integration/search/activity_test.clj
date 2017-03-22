@@ -120,20 +120,23 @@
     (when-success metadata-response
       (let [resp (search-metadata uid [::ms/meta-read ::ms/meta-update])]
         (when-success resp
+          (is (first-item resp))
           (is (= #{uid}
                  (shares (first-item resp) ::ms/meta-read)))
           (is (= #{uid}
                  (shares (first-item resp) ::ms/meta-update)))))
       
-      (when-success (add-meta-read (::ms/id (:body metadata-response)) uid only-read-group)    
+      (when-success (add-meta-read (::ms/id (:body metadata-response)) uid only-read-group)
         
         (let [resp (search-metadata uid [::ms/meta-read])]
           (when-success resp
+            (is (first-item resp))
             (is (= #{uid only-read-group}
                    (shares (first-item resp) ::ms/meta-read)))))
 
         (let [resp (search-metadata only-read-group [::ms/meta-read])]
           (when-success resp
+            (is (first-item resp))
             (is (= #{uid only-read-group}
                    (shares (first-item resp) ::ms/meta-read)))))))))
 
