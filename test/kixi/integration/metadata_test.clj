@@ -36,8 +36,8 @@
         metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
-                            "./test-resources/metadata-one-valid.csv"
-                            schema-id))]
+                            "./test-resources/metadata-one-valid.csv" 
+                           schema-id))]
     (when-success metadata-response
       (let [metadata-response (wait-for-metadata-key uid (extract-id metadata-response) ::ms/structural-validation)]
         (is-submap

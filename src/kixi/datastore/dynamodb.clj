@@ -4,7 +4,8 @@
             [medley.core :refer [map-keys map-vals]]
             [taoensso
              [faraday :as far]
-             [timbre :as timbre :refer [info]]]))
+             [timbre :as timbre :refer [info]]]
+            [kixi.datastore.metadatastore :as md]))
 
 (defn migrate
   [env migration-conf]
@@ -62,13 +63,19 @@
   ([prefix m]
    (reduce-kv
     (fn [acc k v]
-      (if (and (map? v)
-               (not-empty v))
+      (cond
+        (and (map? v)
+             (not-empty v)) 
         (merge acc
                (flatten-map 
                 (str prefix (flat-kw k) map-depth-seperator)
                 v))
-        (assoc acc (str prefix (flat-kw k)) v)))
+        (and (sequential? v)
+             (not-empty v)
+             (every? map? v))
+        (assoc acc (str prefix (flat-kw k)) 
+               (mapv (partial flatten-map nil) v))
+        :else (assoc acc (str prefix (flat-kw k)) v)))
     {}
     m)))
 
@@ -80,15 +87,25 @@
      (cons (inflate-kw (subs s dex nxt))
            (lazy-seq (split-to-kws s (inc nxt))))
      [(inflate-kw (subs s dex))])))
-
+(defn prn-t
+  [x]
+  (prn "XXXXXXXX: " x)
+  x)
 (defn inflate-map
   [m]
   (reduce-kv
    (fn [acc k v]
-     (assoc-in            
-      acc
-      (split-to-kws k)
-      v))
+     (cond
+       (and (sequential? v)
+            (every? map? v))
+       (assoc-in            
+        acc
+        (split-to-kws k)
+        (mapv #(inflate-map (map-keys name %)) v))
+       :else (assoc-in
+              acc
+              (split-to-kws k)
+              v)))
    {}
    m))
 
@@ -99,7 +116,8 @@
     [v]))
 
 (def freeze-column-names
-  #{(dynamo-col [:kixi.datastore.metadatastore/structural-validation :kixi.datastore.metadatastore/explain])})
+  #{(dynamo-col [:kixi.datastore.metadatastore/structural-validation :kixi.datastore.metadatastore/explain])
+    (dynamo-col [:kixi.datastore.metadatastore/segmentations])})
 
 (defn freeze-columns
   [data]

@@ -8,7 +8,7 @@
              [metadatastore :as ms ]]
             [taoensso
              [encore :refer [get-subvector]]
-             [timbre :as timbre :refer [info warn]]]))
+             [timbre :as timbre :refer [info error]]]))
 
 (def dynamodb-client-kws
   #{:endpoint})
@@ -66,7 +66,7 @@
                    (activity-metadata-table (:profile conn))
                    projection)
       (catch Exception e
-        (warn e "Failed to insert activity row: " id projection)))))
+        (error e "Failed to insert activity row: " id projection)))))
 
 (defn remove-activity-row
   [conn group-id activity metadata]
@@ -77,7 +77,7 @@
                       {activity-table-pk id
                        id-col (::md/id metadata)})
       (catch Exception e
-        (warn e "Failed to delete activity row: " id)))))
+        (error e "Failed to delete activity row: " id)))))
 
 (defmethod update-metadata-processor ::cs/file-metadata-created
   [conn update-event]
@@ -234,7 +234,7 @@
         (not-empty (clojure.set/intersection (set (get-in item [::ms/sharing action]))
                                              (set user-groups)))))
     (exists [this id]
-      (get-item id {:projection id-col}))
+      (get-item id {:projection [id-col]}))
     (retrieve [this id]
       (get-item id))
     (query [this criteria from-index cnt sort-cols sort-order]

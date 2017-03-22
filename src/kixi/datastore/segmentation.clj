@@ -9,7 +9,7 @@
                      :str string?))
 (s/def ::created boolean?)
 (s/def ::reason #{:unknown-file-type :file-not-found :invalid-column})
-(s/def ::cause anything)
+(s/def ::cause string?)
 (s/def ::type #{::group-rows-by-column})
 
 (s/def ::error
