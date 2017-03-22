@@ -7,17 +7,14 @@
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
-            [clojure.spec.test :as stest]            
-            [clojurewerkz.elastisch.native :as esr]
-            [clojurewerkz.elastisch.native.index :as esi]
+            [clojure.spec.test :as stest]
             [digest :as d]
             [environ.core :refer [env]]
             [kixi.comms :as c]
-            [kixi.comms.components.kinesis :as kinesis]            
+            [kixi.comms.components.kinesis :as kinesis]
             [kixi.datastore
              [communication-specs :as cs]
              [filestore :as fs]
-             [elasticsearch :as es]
              [metadatastore :as ms]
              [schemastore :as ss]]
             [user :as user])
@@ -27,10 +24,6 @@
 (def wait-per-try (Integer/parseInt (env :wait-per-try "1000")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
-(def es-host (env :es-host "localhost"))
-(def es-port (Integer/parseInt (env :es-native-port "9300")))
-(def es-discover-url (env :es-discover-url))
-(def es-cluster (env :es-cluster))
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
@@ -43,30 +36,6 @@
   (if (vector? x)
     x
     (vector x)))
-
-(def es-connection (atom nil))
-
-(defn create-es-conn
-  []
-  (let [{:keys [native-host-ports]} (if es-discover-url
-                                      (es/discover-executor es-discover-url) 
-                                      {:native-host-ports [[es-host es-port]]})]
-    (reset! es-connection
-            (esr/connect native-host-ports
-                         (merge {}
-                                (when es-cluster
-                                  {:cluster.name es-cluster}))))))
-
-(defn close-es-conn
-  []
-  #_(.close @es-connection))
-
-(defn refresh-indexes
-  []
-  #_(esi/refresh @es-connection
-               kixi.datastore.metadatastore.elasticsearch/index-name)
-  #_(esi/refresh @es-connection
-               kixi.datastore.schemastore.elasticsearch/index-name))
 
 (defmacro is-submap
   [expected actual & [msg]]
@@ -122,14 +91,12 @@
     (user/start {} [:communications])
     (user/start))
   (try (instrument-specd-functions)
-       (create-es-conn)
        (all-tests)
        (finally
          (let [kinesis-conf (select-keys (:communications @user/system)
                                          [:endpoint :dynamodb-endpoint :streams
                                           :profile :app :teardown])]
            (user/stop)
-           (close-es-conn)
            (when (:teardown kinesis-conf)
              #_(tear-down-kinesis kinesis-conf))))))
 
@@ -232,7 +199,6 @@
 
 (defn get-metadata
   [ugroup id]
-  (refresh-indexes)
   (update (client/get (metadata-url id)
                       {:as :json
                        :accept :json
@@ -254,7 +220,6 @@
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
-   (refresh-indexes)
    (update (client/get (metadata-query-url)
                        {:query-params (merge (zipmap (repeat :activity)
                                                      (map encode-kw activities))
@@ -432,10 +397,8 @@
   (let [event (wait-for-events uid :kixi.datastore.schema/rejected :kixi.datastore.schema/created)]
     (if (= :kixi.datastore.schema/created
            (:kixi.comms.event/key  event))
-      (do
-        (refresh-indexes)
-        (wait-for-url uid (schema-url
-                             (get-in event [:kixi.comms.event/payload ::ss/id]))))
+      (wait-for-url uid (schema-url
+                         (get-in event [:kixi.comms.event/payload ::ss/id])))
       event)))
 
 (defn metadata->user-id

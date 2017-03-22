@@ -72,11 +72,6 @@
   [r]
   nil)
 
-(defn prn-t
-  [x]
-  (prn "XXXXXXXX: " x)
-  x)
-
 (defrecord DynamoDb
     [communications profile endpoint
      client get-item]
@@ -93,8 +88,8 @@
                                         ;      (fetch-with-sub-spec data sub-spec)
       )
     (retrieve [_ id]
-      (prn-t (extract-tags
-              (get-item id))))
+      (extract-tags
+       (get-item id)))
     component/Lifecycle
     (start [component]
       (if-not client

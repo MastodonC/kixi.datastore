@@ -146,7 +146,8 @@
   [options]
   {:proj-expr (projection->proj-expr (:projection options))
    :expr-attr-names (zipmap (map validify-name (:projection options))
-                            (:projection options))})
+                            (:projection options))
+   :consistent? true})
 
 (defn put-item
   [conn table item]
@@ -163,7 +164,8 @@
    (let [result (if options
                   (far/get-item conn table {id-column id} 
                                 (options->db-opts options))
-                  (far/get-item conn table {id-column id}))]
+                  (far/get-item conn table {id-column id}
+                                {:consistent? true}))]
      (inflate-map
       (map-keys name result)))))
 
