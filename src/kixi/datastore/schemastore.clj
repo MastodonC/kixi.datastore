@@ -16,8 +16,8 @@
 (s/def ::pattern string?)
 (s/def ::elements (s/with-gen vector?
                     #(gen/vector (gen/string)
-                              {:min-elements 1
-                               :max-elements 10})))
+                              1
+                              10)))
 (s/def ::source #{"upload"})
 
 

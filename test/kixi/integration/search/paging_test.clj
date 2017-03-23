@@ -1,15 +1,10 @@
 (ns kixi.integration.search.paging-test
-  (:require [clojure.test :refer :all]
-            [clojure.spec.test :refer [with-instrument-disabled]]
-            [clojure.core.async :as async]
-            [clojure.spec.gen :as gen]
-            [environ.core :refer [env]]
-            [clj-http.client :as client]
+  (:require [clojure.spec.gen :as gen]
+            [clojure.test :refer :all]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
+            [environ.core :refer [env]]
             [kixi.datastore
-             [metadata-creator :as mdc]
              [metadatastore :as ms]
-             [schemastore :as ss]
              [web-server :as ws]]
             [kixi.integration.base :as base :refer :all]))
 

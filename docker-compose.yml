@@ -4,8 +4,3 @@ services:
     image: rajatvig/dynalite-alpine
     ports:
       - '8000:8000'
-  elasticsearch:
-    image: 'elasticsearch:2.4.1'
-    ports:
-      - "9200:9200"
-      - "9300:9300"

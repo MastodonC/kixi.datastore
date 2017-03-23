@@ -7,30 +7,24 @@
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
-            [clojure.spec.test :as stest]            
-            [clojurewerkz.elastisch.native :as esr]
-            [clojurewerkz.elastisch.native.index :as esi]
+            [clojure.spec.test :as stest]
             [digest :as d]
             [environ.core :refer [env]]
             [kixi.comms :as c]
-            [kixi.comms.components.kinesis :as kinesis]            
+            [kixi.comms.components.kinesis :as kinesis]
             [kixi.datastore
              [communication-specs :as cs]
              [filestore :as fs]
-             [elasticsearch :as es]
              [metadatastore :as ms]
              [schemastore :as ss]]
-            [user :as user])
+            [user :as user]
+            [kixi.datastore.metadatastore :as md])
   (:import [java.io File FileNotFoundException]))
 
 (def wait-tries (Integer/parseInt (env :wait-tries "80")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "1000")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
-(def es-host (env :es-host "localhost"))
-(def es-port (Integer/parseInt (env :es-native-port "9300")))
-(def es-discover-url (env :es-discover-url))
-(def es-cluster (env :es-cluster))
 
 (def every-count-tries-emit (int (/ wait-emit-msg wait-per-try)))
 
@@ -43,30 +37,6 @@
   (if (vector? x)
     x
     (vector x)))
-
-(def es-connection (atom nil))
-
-(defn create-es-conn
-  []
-  (let [{:keys [native-host-ports]} (if es-discover-url
-                                      (es/discover-executor es-discover-url) 
-                                      {:native-host-ports [[es-host es-port]]})]
-    (reset! es-connection
-            (esr/connect native-host-ports
-                         (merge {}
-                                (when es-cluster
-                                  {:cluster.name es-cluster}))))))
-
-(defn close-es-conn
-  []
-  (.close @es-connection))
-
-(defn refresh-indexes
-  []
-  (esi/refresh @es-connection
-               kixi.datastore.metadatastore.elasticsearch/index-name)
-  (esi/refresh @es-connection
-               kixi.datastore.schemastore.elasticsearch/index-name))
 
 (defmacro is-submap
   [expected actual & [msg]]
@@ -84,6 +54,28 @@
      (catch Throwable t#
        (clojure.test/do-report {:type :error :message "Exception diffing"
                                 :expected nil :actual t#}))))
+
+(defmacro is-match
+  [expected actual & [msg]]
+  `(try
+     (let [act# ~actual
+           exp# ~expected
+           [only-in-ac# only-in-ex# shared#] (clojure.data/diff act# exp#)]
+       (cond
+         only-in-ex#
+         (clojure.test/do-report {:type :fail
+                                  :message (or ~msg "Missing expected elements.")
+                                  :expected only-in-ex# :actual act#})
+         only-in-ac#
+         (clojure.test/do-report {:type :fail
+                                  :message (or ~msg "Has extra elements.")
+                                  :expected {} :actual only-in-ac#})
+         :else (clojure.test/do-report {:type :pass
+                                        :message "Matched"
+                                        :expected exp# :actual act#})))
+     (catch Throwable t#
+       (clojure.test/do-report {:type :error :message "Exception diffing"
+                                :expected ~expected :actual t#}))))
 
 (defn instrument-specd-functions
   []
@@ -122,14 +114,12 @@
     (user/start {} [:communications])
     (user/start))
   (try (instrument-specd-functions)
-       (create-es-conn)
        (all-tests)
        (finally
          (let [kinesis-conf (select-keys (:communications @user/system)
                                          [:endpoint :dynamodb-endpoint :streams
                                           :profile :app :teardown])]
            (user/stop)
-           (close-es-conn)
            (when (:teardown kinesis-conf)
              (tear-down-kinesis kinesis-conf))))))
 
@@ -165,7 +155,7 @@
   (get-in metadata-response [:body ::ms/id]))
 
 (defn extract-id-location
-  [resp]
+ [resp]
   (when-let [locat (get-in resp [:headers "Location"])]
     (subs locat (inc (clojure.string/last-index-of locat "/")))))
 
@@ -232,7 +222,6 @@
 
 (defn get-metadata
   [ugroup id]
-  (refresh-indexes)
   (update (client/get (metadata-url id)
                       {:as :json
                        :accept :json
@@ -248,18 +237,32 @@
        "_"
        (name kw)))
 
+(defn wait-for-pred
+  ([p]
+   (wait-for-pred p wait-tries))
+  ([p tries]
+   (wait-for-pred p tries wait-per-try))
+  ([p tries ms]
+   (loop [try tries]
+     (when (and (pos? try) (not (p)))
+       (Thread/sleep ms)
+       (recur (dec try))))))
+
 (defn search-metadata
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
   ([group-ids activities index count]
-   (refresh-indexes)
+   (search-metadata group-ids activities index count nil))
+  ([group-ids activities index count order]
    (update (client/get (metadata-query-url)
                        {:query-params (merge (zipmap (repeat :activity)
                                                      (map encode-kw activities))
                                              (when index
                                                {:index index})
                                              (when count
-                                               {:count count}))
+                                               {:count count})
+                                             (when order
+                                               {:sort-order order}))
                         :accept :json
                         :throw-exceptions false
                         :headers {"user-id" (uuid)
@@ -282,16 +285,22 @@
          md))
      (throw (Exception. (str "Metadata key never appeared: " k ". Response: " lr))))))
 
-(defn wait-for-pred
-  ([p]
-   (wait-for-pred p wait-tries))
-  ([p tries]
-   (wait-for-pred p tries wait-per-try))
-  ([p tries ms]
-   (loop [try tries]
-     (when (and (pos? try) (not (p)))
-       (Thread/sleep ms)
-       (recur (dec try))))))
+(defn wait-for-metadata-to-be-searchable
+  ([ugroup id]
+   (wait-for-metadata-to-be-searchable ugroup id wait-tries 1 nil))
+  ([ugroup id tries cnt lr]
+   (if (<= cnt tries)
+     (let [md (wait-for-metadata-key ugroup id ::md/id)
+           search-resp (search-metadata ugroup [::md/meta-read])]
+       (if-not (first (get-in search-resp
+                              [:body :items]))
+         (do
+           (when (zero? (mod cnt every-count-tries-emit))
+             (println "Waited" cnt "times for " id " to be searchable using: " (keys (get-in md [:body ::md/sharing])) ". Getting: " search-resp))
+           (Thread/sleep wait-per-try)
+           (recur ugroup id tries (inc cnt) md))
+         md))
+     (throw (Exception. (str "Search never worked for: " id ". Response: " lr))))))
 
 (defn file-size
   [^String file-name]
@@ -428,10 +437,8 @@
   (let [event (wait-for-events uid :kixi.datastore.schema/rejected :kixi.datastore.schema/created)]
     (if (= :kixi.datastore.schema/created
            (:kixi.comms.event/key  event))
-      (do
-        (refresh-indexes)
-        (wait-for-url uid (schema-url
-                             (get-in event [:kixi.comms.event/payload ::ss/id]))))
+      (wait-for-url uid (schema-url
+                         (get-in event [:kixi.comms.event/payload ::ss/id])))
       event)))
 
 (defn metadata->user-id
@@ -558,11 +565,10 @@
    (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
      (if (= :kixi.datastore.file-metadata/updated
             (:kixi.comms.event/key event))
-       (wait-for-metadata-key ugroup
-                              (get-in event [:kixi.comms.event/payload
-                                             ::ms/file-metadata
-                                             ::ms/id])
-                              ::ms/id)
+       (wait-for-metadata-to-be-searchable ugroup
+                                           (get-in event [:kixi.comms.event/payload
+                                                          ::ms/file-metadata
+                                                          ::ms/id]))
        event))))
 
 (defn update-metadata-sharing

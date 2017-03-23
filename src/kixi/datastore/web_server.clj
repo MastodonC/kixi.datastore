@@ -21,7 +21,8 @@
             [yada
              [resource :as yr]
              [yada :as yada]]
-            [yada.resources.webjar-resource :refer [new-webjar-resource]]))
+            [yada.resources.webjar-resource :refer [new-webjar-resource]]
+            [kixi.datastore.metadatastore :as md]))
 
 (defn ctx->user-id
   [ctx]
@@ -229,8 +230,7 @@
                   dex (Integer/parseInt (or (get-in ctx [:parameters :query "index"]) "0"))
                   cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))
                   sort-by (vec-if-not
-                           (or (get-in ctx [:parameters :query "sort-by"]) ["kixi.datastore.metadatastore/provenance"
-                                                                            "kixi.datastore.metadatastore/created"]))
+                           (or (get-in ctx [:parameters :query "sort-by"]) [::md/provenance ::md/created]))
                   sort-order (or (get-in ctx [:parameters :query "sort-order"]) "desc")]
               (cond
                 explain (return-error ctx

@@ -22,12 +22,12 @@
              [kinesis :as kinesis]]
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
-             [elasticsearch :as md-es]]
+             [dynamodb :as md-dd]]
             [kixi.datastore.metadata-creator
              :as md-creator]
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]
-             [elasticsearch :as ss-es]]
+             [dynamodb :as ss-dd]]
             [kixi.datastore.segmentation
              [inmemory :as segementation-inmemory]]
             [taoensso.timbre :as log]
@@ -68,10 +68,10 @@
                 :s3 (s3/map->S3 {}))
    :metadatastore (case (first (keys (:metadatastore config)))
                     :inmemory (md-inmemory/map->InMemory {})
-                    :elasticsearch (md-es/map->ElasticSearch {}))
+                    :dynamodb (md-dd/map->DynamoDb {}))
    :schemastore (case (first (keys (:schemastore config)))
                   :inmemory (ss-inmemory/map->InMemory {})
-                  :elasticsearch (ss-es/map->ElasticSearch {}))
+                  :dynamodb (ss-dd/map->DynamoDb {}))
    :segmentation (case (first (keys (:segmentation config)))
                    :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
@@ -89,7 +89,7 @@
   "Merge configuration to its corresponding component (prior to the
   system starting). This is a pattern described in
   https://juxt.pro/blog/posts/aero.html"
-  [system config]
+  [system config profile]
   (merge-with merge
               system
               (-> config
@@ -115,10 +115,13 @@
       (log/info "Switching on Kixi Comms verbose logging...")
       (comms/set-verbose-logging! true))))
 
+(def system-profile (atom nil))
+
 (defn new-system
   [profile]
+  (reset! system-profile profile)
   (let [config (config profile)]
     (configure-logging config)
     (-> (new-system-map config)
-        (configure-components config)
+        (configure-components config profile)
         (system-using component-dependencies))))

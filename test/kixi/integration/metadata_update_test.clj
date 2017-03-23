@@ -3,7 +3,8 @@
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]]
-            [kixi.integration.base :as base :refer :all]))
+            [kixi.integration.base :as base :refer :all]            
+            [medley.core :refer [dissoc-in]]))
 
 (defn metadata-file-schema
   [uid]
@@ -48,6 +49,34 @@
             (is (= #{uid}
                    (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
 
+(deftest small-file-add-group-to-new-file-read
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (dissoc-in
+                            (create-metadata
+                             uid
+                             "./test-resources/metadata-one-valid.csv")
+                            [::ms/sharing ::ms/file-read]))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing
+                   uid meta-id
+                   ::ms/sharing-conj 
+                   ::ms/file-read
+                   new-group)]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= #{new-group}
+                                             (set (get-in metadata [:body ::ms/sharing ::ms/file-read])))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (= #{new-group}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
+
 (deftest small-file-remove-group-from-file-read
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
@@ -64,12 +93,12 @@
                    uid)]
         (when-event-key event :kixi.datastore.file-metadata/updated
           (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
-                            (= []
+                            (nil?
                                (get-in metadata [:body ::ms/sharing ::ms/file-read]))))
           (let [updated-metadata (get-metadata uid meta-id)]
             (is (= #{uid}
                    (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
             (is (= #{uid}
                    (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
-            (is (= []
+            (is (nil?
                    (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
