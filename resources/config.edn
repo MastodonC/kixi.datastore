@@ -59,7 +59,6 @@
                                              :endpoint "kinesis.eu-central-1.amazonaws.com"
                                              :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                              :profile "local"
-                                             :teardown true
                                              :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
                                                        :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                              :metric-level :NONE
@@ -67,8 +66,7 @@
                                      :jenkins {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "jenkins"
-                                               :teardown true
+                                               :profile "jenkins"                                               
                                                :streams {:event "kixi-datastore-jenkins-event"
                                                          :command "kixi-datastore-jenkins-command"}
                                                :idle-time-between-reads-in-millis 100}
