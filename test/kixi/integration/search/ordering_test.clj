@@ -50,8 +50,8 @@
       (success desc-resp)
       (let [ts-asc (map timestamp (get-in asc-resp [:body :items]))
             ts-desc (map timestamp (get-in desc-resp [:body :items]))]
-        (is (apply < (map tc/to-long (map t/from-str ts-asc))))
-        (is (apply > (map tc/to-long (map t/from-str ts-desc))))          
+        (is (apply <= (map tc/to-long (map t/from-str ts-asc))))
+        (is (apply >= (map tc/to-long (map t/from-str ts-desc))))          
         (is (= ts-asc
                (reverse ts-desc)))))))
 
