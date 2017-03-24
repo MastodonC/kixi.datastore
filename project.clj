@@ -32,7 +32,7 @@
                  [digest "1.4.4"]
                  [environ "1.1.0"]
                  [kixi/kixi.comms "0.2.2"]
-                 [kixi/kixi.log "0.1.3"]
+                 [kixi/kixi.log "0.1.4"]
                  [kixi/kixi.metrics "0.4.0"]
                  [kixi/joplin.core "0.3.10-SNAPSHOT"]
                  [kixi/joplin.dynamodb "0.3.10-SNAPSHOT"]
