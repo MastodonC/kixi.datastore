@@ -1,7 +1,7 @@
 (ns kixi.datastore.dynamodb
   (:require [environ.core :refer [env]]
             [joplin.repl :as jrepl]
-            [medley.core :refer [map-keys map-vals]]
+            [medley.core :refer [map-keys map-vals remove-vals]]
             [taoensso
              [faraday :as far]
              [timbre :as timbre :refer [info]]]
@@ -79,6 +79,11 @@
     {}
     m)))
 
+(def remove-empty-str-vals 
+  (partial remove-vals #(and (string? %) (empty? %))))
+
+(def serialize (comp remove-empty-str-vals flatten-map))
+
 (defn split-to-kws
   ([s]
    (split-to-kws s 0))
@@ -151,7 +156,7 @@
 
 (defn put-item
   [conn table item]
-  (far/put-item conn table (flatten-map item)))
+  (far/put-item conn table (serialize item)))
 
 (defn delete-item
   [conn table pks]
@@ -211,11 +216,11 @@
   [conn table rows]
   (let [targets (vec-if-not rows)]
     (far/batch-write-item conn
-                          {table {:put (mapv flatten-map targets)}})))
+                          {table {:put (mapv serialize targets)}})))
 
 (defn map->update-map
   [data]
-  (let [flat (freeze-columns (flatten-map data))]
+  (let [flat (freeze-columns (serialize data))]
     (zipmap (map keyword (keys flat))
             (map #(vector :put %) (vals flat)))))
 

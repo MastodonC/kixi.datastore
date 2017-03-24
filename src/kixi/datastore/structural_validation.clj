@@ -48,7 +48,7 @@
                                     (take max-errors)) lines)]
         (if (first invalids)
           {::ms/valid false
-           ::ms/explain (map #(s/explain-data schema %) invalids)}
+           ::ms/explain (map #(s/explain-str schema %) invalids)}
           {::ms/valid true})))
     (catch Exception e
       {::ms/valid false
