@@ -49,7 +49,7 @@
   [table-name {:keys [read-provision write-provision
                       threshold-percentage alarm-period]
                :or {threshold-percentage default-threshold-percentage
-                    alarm-period default-alarm-period}:as opts}]
+                    alarm-period default-alarm-period} :as opts}]
   (let [read-threshold (int (Math/ceil (* threshold-percentage alarm-period read-provision)))
         write-threshold (int (Math/ceil (* threshold-percentage alarm-period write-provision)))]
     (read-dynamo-alarm (assoc opts
