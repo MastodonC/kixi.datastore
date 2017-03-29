@@ -2,8 +2,7 @@
  :alerts {:region "eu-central-1"
           :sns  "arn:aws:sns:eu-central-1:165664414043:witan-to-slack"
           :alerts? #profile {:staging true
-                             :production true
-                             :local true}}
+                             :production true}}
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080
                                :request-logging? true}
