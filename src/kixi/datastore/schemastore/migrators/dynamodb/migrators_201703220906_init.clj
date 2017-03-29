@@ -5,7 +5,11 @@
              [system :refer [system-profile config]]]
             [kixi.datastore.schemastore.dynamodb :as ssdb]
             [kixi.datastore.cloudwatch :refer [table-dynamo-alarms]]
-            [taoensso.faraday :as far]))
+            [taoensso.faraday :as far]
+            [taoensso.timbre :as log]))
+
+(def schemastore-write-provision 10)
+(def schemastore-read-provision 10)
 
 (defn get-db-config
   [db]
@@ -24,11 +28,15 @@
     (far/create-table conn
                       (ssdb/primary-schemastore-table profile)
                       [(db/dynamo-col ::ss/id) :s]
-                      {:throughput {:read 10 :write 10}
+                      {:throughput {:read schemastore-read-provision
+                                    :write schemastore-write-provision}
                        :block? true})
     (when (:alerts? alert-conf)
       (try
-        (table-dynamo-alarms (ssdb/primary-schemastore-table profile) alert-conf)
+        (table-dynamo-alarms (ssdb/primary-schemastore-table profile)
+                             (assoc alert-conf
+                                    :read-provision schemastore-read-provision
+                                    :write-provision schemastore-write-provision))
         (catch Exception e
           (log/error e "Failed to create cloudwatch alarm"))))))
 

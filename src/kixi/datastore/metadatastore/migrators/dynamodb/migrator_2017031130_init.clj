@@ -7,6 +7,11 @@
             [taoensso.faraday :as far]
             [taoensso.timbre :as log]))
 
+(def metadatastore-write-provision 10)
+(def metadatastore-read-provision 10)
+(def metadatastore-activity-write-provision 10)
+(def metadatastore-activity-read-provision 10)
+
 (defn get-db-config
   [db]
   (select-keys db [:endpoint]))
@@ -23,22 +28,30 @@
     (far/create-table conn
                       (mdb/primary-metadata-table profile)
                       [(db/dynamo-col ::md/id) :s]
-                      {:throughput {:read 10 :write 10}
+                      {:throughput {:read metadatastore-read-provision
+                                    :write metadatastore-write-provision}
                        :block? true})
 
     (far/create-table conn
                       (mdb/activity-metadata-table profile)
                       [:groupid-activity :s]
                       {:range-keydef [(db/dynamo-col ::md/id) :s]
-                       :throughput {:read 10 :write 10}
+                       :throughput {:read metadatastore-activity-read-provision
+                                    :write metadatastore-activity-write-provision}
                        :lsindexes [{:name (mdb/activity-metadata-created-index)
                                     :range-keydef [(db/dynamo-col [::md/provenance ::md/created]) :s]
                                     :projection :all}]
                        :block? true})
     (when (:alerts? alert-conf)
       (try
-        (table-dynamo-alarms (mdb/primary-metadata-table profile) alert-conf)
-        (table-dynamo-alarms (mdb/activity-metadata-table profile) alert-conf)
+        (table-dynamo-alarms (mdb/primary-metadata-table profile)
+                             (assoc alert-conf
+                                    :read-provision metadatastore-read-provision
+                                    :write-provision metadatastore-write-provision))
+        (table-dynamo-alarms (mdb/activity-metadata-table profile)
+                             (assoc alert-conf
+                                    :read-provision metadatastore-activity-read-provision
+                                    :write-provision metadatastore-activity-write-provision))
         (catch Exception e
           (log/error e "Failed to create cloudwatch alarm"))))))
 
