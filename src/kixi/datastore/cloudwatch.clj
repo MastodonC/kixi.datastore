@@ -23,7 +23,7 @@
                                :alarm-description description
                                :namespace "AWS/DynamoDB"
                                :metric-name metric
-                               ;;                   :dimensions ["Tablename" table-name] ;;(str "name=TableName,value=" table-name)
+                               :dimensions [{:name "TableName" :value table-name}]
                                :statistic "Sum"
                                :threshold threshold
                                :comparison-operator "GreaterThanOrEqualToThreshold"
