@@ -1,4 +1,9 @@
 {:service-name "kixi.datastore"
+ :alerts {:region "eu-central-1"
+          :sns  "arn:aws:sns:eu-central-1:165664414043:witan-to-slack"
+          :alerts? #profile {:staging true
+                             :production true
+                             :local true}}
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080
                                :request-logging? true}
@@ -62,15 +67,15 @@
                                              :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
                                                        :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                              :metric-level :NONE
-                                             ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                              }
                                      :jenkins {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "jenkins"                                               
+                                               :profile "jenkins"
                                                :streams {:event "kixi-datastore-jenkins-event"
                                                          :command "kixi-datastore-jenkins-command"}
-                                               ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                }
                                      :staging {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
@@ -78,7 +83,7 @@
                                                :profile "staging"
                                                :streams {:event "witan-staging-event"
                                                          :command "witan-staging-command"}
-                                               ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                }
                                      :test-staging {:app "kixi.datastore-staging-test"
                                                     :endpoint "kinesis.eu-central-1.amazonaws.com"
@@ -86,5 +91,5 @@
                                                     :profile "test-staging"
                                                     :streams {:event "witan-staging-event"
                                                               :command "witan-staging-command"}
-                                               ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                     }}}}
