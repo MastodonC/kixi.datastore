@@ -24,6 +24,7 @@
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:local true
+                                                 :jenkins true
                                                  :test-staging true
                                                  :staging true}
            :appender #profile {:local :println
