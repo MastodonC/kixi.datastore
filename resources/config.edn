@@ -9,26 +9,26 @@
                        :test-staging {:vhost #or [#env VHOST "localhost"]
                                       :port 8080
                                       :request-logging? true}
-                       :jenkins {:vhost "localhost"
-                                 :port 8080
-                                 :request-logging? true}
+                       :staging-jenkins {:vhost "localhost"
+                                         :port 8080
+                                         :request-logging? true}
                        :staging {:vhost "kixi.datastore.marathon.mesos"
                                  :port 18080
                                  :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
                                               :local 300
-                                              :jenkins 600}}}
+                                              :staging-jenkins 600}}}
  :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:local true
-                                                 :jenkins true
+                                                 :staging-jenkins true
                                                  :test-staging true
                                                  :staging true}
            :appender #profile {:local :println
-                               :jenkins :println
+                               :staging-jenkins :println
                                :test-staging :println
                                :staging :json}}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
@@ -37,9 +37,9 @@
                                        :endpoint "s3.eu-central-1.amazonaws.com"
                                        :link-expiration-mins 10
                                        :profile "witan"}}
-                      :jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
-                                     :endpoint "s3.eu-central-1.amazonaws.com"
-                                     :link-expiration-mins 10}}
+                      :staging-jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
+                                             :endpoint "s3.eu-central-1.amazonaws.com"
+                                             :link-expiration-mins 10}}
                       :test-staging {:local {:base-dir "/kixi-datastore"}}
                       :staging {:s3 {:bucket "staging-witan-kixi-datastore-filestore"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
@@ -49,14 +49,14 @@
                                   :link-expiration-mins 10}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                              :profile "local"}
-                                     :jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "jenkins"}
+                                     :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                                       :profile "staging-jenkins"}
                                      :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"}}}
  :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                            :profile "local"}
-                                   :jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                             :profile "jenkins"}
+                                   :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                                     :profile "staging-jenkins"}
                                    :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                              :profile "staging"}}}
  :segmentation {:inmemory {}}
@@ -69,14 +69,14 @@
                                              :metric-level :NONE
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                              }
-                                     :jenkins {:app "kixi.datastore"
-                                               :endpoint "kinesis.eu-central-1.amazonaws.com"
-                                               :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "jenkins"
-                                               :streams {:event "staging-jenkins-kixi-datastore-event"
-                                                         :command "staging-jenkins-kixi-datastore-command"}
+                                     :staging-jenkins {:app "kixi.datastore"
+                                                       :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                                       :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                                       :profile "staging-jenkins"
+                                                       :streams {:event "staging-jenkins-kixi-datastore-event"
+                                                                 :command "staging-jenkins-kixi-datastore-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
-                                               }
+                                                       }
                                      :staging {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
