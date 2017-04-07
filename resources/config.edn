@@ -37,14 +37,14 @@
                                        :endpoint "s3.eu-central-1.amazonaws.com"
                                        :link-expiration-mins 10
                                        :profile "witan"}}
-                      :jenkins {:s3 {:bucket "kixi-data-store-file-store-jenkins"
+                      :jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
                       :test-staging {:local {:base-dir "/kixi-datastore"}}
-                      :staging {:s3 {:bucket "kixi-data-store-file-store-staging"
+                      :staging {:s3 {:bucket "staging-witan-kixi-datastore-filestore"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
-                      :prod {:s3 {:bucket "production-kixi-data-store-file-store"
+                      :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
                                   :endpoint "s3.eu-central-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
@@ -73,23 +73,23 @@
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "jenkins"
-                                               :streams {:event "kixi-datastore-jenkins-event"
-                                                         :command "kixi-datastore-jenkins-command"}
+                                               :streams {:event "staging-jenkins-kixi-datastore-event"
+                                                         :command "staging-jenkins-kixi-datastore-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                }
                                      :staging {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"
-                                               :streams {:event "witan-staging-event"
-                                                         :command "witan-staging-command"}
+                                               :streams {:event "staging-witan-event"
+                                                         :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                }
                                      :test-staging {:app "kixi.datastore-staging-test"
                                                     :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                     :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                     :profile "test-staging"
-                                                    :streams {:event "witan-staging-event"
-                                                              :command "witan-staging-command"}
+                                                    :streams {:event "staging-witan-event"
+                                                              :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                     }}}}

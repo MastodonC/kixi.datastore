@@ -21,11 +21,11 @@
 
 (defn primary-metadata-table
   [profile]
-  (str "kixi.datastore-" profile "-metadatastore"))
+  (str profile "-kixi.datastore-metadatastore"))
 
 (defn activity-metadata-table
   [profile]
-  (str "kixi.datastore-" profile "-metadatastore.activity"))
+  (str profile "-kixi.datastore-metadatastore.activity"))
 
 (defn activity-metadata-created-index 
   []
@@ -263,7 +263,7 @@
               joplin-conf {:migrators {:migrator "joplin/kixi/datastore/metadatastore/migrators/dynamodb"}
                            :databases {:dynamodb (merge
                                                   {:type :dynamo
-                                                   :migration-table (str "kixi.datastore-" profile "-metadatastore.migrations")}
+                                                   :migration-table (str profile "-kixi.datastore-metadatastore.migrations")}
                                                   client)}
                            :environments {:env [{:db :dynamodb :migrator :migrator}]}}]
           (info "Starting File Metadata DynamoDb Store")
