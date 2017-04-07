@@ -99,7 +99,7 @@
               joplin-conf {:migrators {:migrator "joplin/kixi/datastore/schemastore/migrators/dynamodb"}
                            :databases {:dynamodb (merge
                                                   {:type :dynamo
-                                                   :migration-table (str profile "kixi.datastore-schemastore.migrations")}
+                                                   :migration-table (str profile "-kixi.datastore-schemastore.migrations")}
                                                   client)}
                            :environments {:env [{:db :dynamodb :migrator :migrator}]}}]
           (info "Starting Schema DynamoDb Store")
