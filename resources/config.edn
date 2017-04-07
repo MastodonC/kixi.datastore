@@ -6,9 +6,9 @@
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080
                                :request-logging? true}
-                       :test-staging {:vhost #or [#env VHOST "localhost"]
-                                      :port 8080
-                                      :request-logging? true}
+                       :staging-integration {:vhost #or [#env VHOST "localhost"]
+                                             :port 8080
+                                             :request-logging? true}
                        :staging-jenkins {:vhost "localhost"
                                          :port 8080
                                          :request-logging? true}
@@ -25,11 +25,11 @@
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:local true
                                                  :staging-jenkins true
-                                                 :test-staging true
+                                                 :staging-integration true
                                                  :staging true}
            :appender #profile {:local :println
                                :staging-jenkins :println
-                               :test-staging :println
+                               :staging-integration :println
                                :staging :json}}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
@@ -40,7 +40,7 @@
                       :staging-jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
                                              :endpoint "s3.eu-central-1.amazonaws.com"
                                              :link-expiration-mins 10}}
-                      :test-staging {:local {:base-dir "/kixi-datastore"}}
+                      :staging-integration {:local {:base-dir "/kixi-datastore"}}
                       :staging {:s3 {:bucket "staging-witan-kixi-datastore-filestore"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
@@ -85,11 +85,11 @@
                                                          :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                }
-                                     :test-staging {:app "kixi.datastore-staging-test"
-                                                    :endpoint "kinesis.eu-central-1.amazonaws.com"
-                                                    :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                                    :profile "test-staging"
-                                                    :streams {:event "staging-witan-event"
-                                                              :command "staging-witan-command"}
+                                     :staging-integration {:app "kixi.datastore-staging-test"
+                                                           :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                                           :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
+                                                           :profile "test"
+                                                           :streams {:event "staging-witan-event"
+                                                                     :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
-                                                    }}}}
+                                                           }}}}
