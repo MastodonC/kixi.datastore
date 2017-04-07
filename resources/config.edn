@@ -72,7 +72,7 @@
                                      :jenkins {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "jenkins"
+                                               :profile "staging-jenkins"
                                                :streams {:event "staging-jenkins-kixi-datastore-event"
                                                          :command "staging-jenkins-kixi-datastore-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
