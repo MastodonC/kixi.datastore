@@ -81,15 +81,15 @@
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"
-                                               :streams {:event "witan-staging-event"
-                                                         :command "witan-staging-command"}
+                                               :streams {:event "staging-witan-event"
+                                                         :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                }
                                      :test-staging {:app "kixi.datastore-staging-test"
                                                     :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                     :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                     :profile "test-staging"
-                                                    :streams {:event "witan-staging-event"
-                                                              :command "witan-staging-command"}
+                                                    :streams {:event "staging-witan-event"
+                                                              :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                     }}}}
