@@ -1,8 +1,6 @@
 FROM phusion/baseimage:0.9.19
 MAINTAINER Tom Coupland <tom.coupland@mastodonc.com>
 
-ARG environment
-
 CMD ["/sbin/my_init"]
 
 RUN apt-get install software-properties-common
