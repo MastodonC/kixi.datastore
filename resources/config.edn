@@ -51,7 +51,7 @@
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
-                                  :endpoint "s3.eu-west-1.amazonaws.com"
+                                  :endpoint "s3-eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                              :profile "local"}
