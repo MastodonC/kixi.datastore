@@ -1,8 +1,11 @@
 {:service-name "kixi.datastore"
- :alerts {:region "eu-central-1"
-          :sns  "arn:aws:sns:eu-central-1:165664414043:witan-to-slack"
-          :alerts? #profile {:staging true
-                             :production true}}
+ :alerts #profile {:default {:alerts? false}
+                   :staging {:region "eu-central-1"
+                             :sns  "arn:aws:sns:eu-central-1:165664414043:witan-to-slack"
+                             :alerts? true}
+                   :prod {:region "eu-west-1"
+                          :sns  "arn:aws:sns:eu-west-1:720433613167:witan-to-slack"
+                          :alerts? true}}
  :web-server #profile {:local {:vhost #or [#env VHOST "localhost"]
                                :port 8080
                                :request-logging? true}
@@ -14,23 +17,26 @@
                                          :request-logging? true}
                        :staging {:vhost "kixi.datastore.marathon.mesos"
                                  :port 18080
-                                 :request-logging? true}}
+                                 :request-logging? true}
+                       :prod {:vhost "kixi.datastore.marathon.mesos"
+                              :port 18080
+                              :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
+                                              :prod 60
                                               :local 300
                                               :staging-jenkins 600}}}
- :logging {:level :info ; e/o #{:trace :debug :info :warn :error :fatal :report}
+ :logging {:level #profile {:default :info
+                            :prod :error} ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
-           :kixi-comms-verbose-logging #profile {:local true
-                                                 :staging-jenkins true
-                                                 :staging-integration true
-                                                 :staging true}
-           :appender #profile {:local :println
-                               :staging-jenkins :println
-                               :staging-integration :println
-                               :staging :json}}
+           :kixi-comms-verbose-logging #profile {:default true
+                                                 :staging true
+                                                 :prod true}
+           :appender #profile {:default :println
+                               :staging :json
+                               :prod :json}}
  :filestore #profile {:local {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
                               #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
@@ -45,20 +51,24 @@
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
-                                  :endpoint "s3.eu-central-1.amazonaws.com"
+                                  :endpoint "s3.eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                              :profile "local"}
                                      :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                        :profile "staging-jenkins"}
                                      :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "staging"}}}
+                                               :profile "staging"}
+                                     :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
+                                            :profile "prod"}}}
  :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                            :profile "local"}
                                    :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                      :profile "staging-jenkins"}
                                    :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                             :profile "staging"}}}
+                                             :profile "staging"}
+                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
+                                          :profile "prod"}}}
  :segmentation {:inmemory {}}
  :communications {:kinesis #profile {:local {:app "kixi.datastore"
                                              :endpoint "kinesis.eu-central-1.amazonaws.com"
@@ -92,4 +102,12 @@
                                                            :streams {:event "staging-witan-event"
                                                                      :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
-                                                           }}}}
+                                                           }
+                                     :prod {:app "kixi.datastore"
+                                            :endpoint "kinesis.eu-west-1.amazonaws.com"
+                                            :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
+                                            :profile "prod"
+                                            :streams {:event "prod-witan-event"
+                                                      :command "prod-witan-command"}
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
+                                            }}}}
