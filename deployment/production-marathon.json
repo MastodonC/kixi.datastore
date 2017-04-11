@@ -1,0 +1,37 @@
+{
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "mastodonc/kixi.datastore:@@TAG@@",
+      "privileged": true,
+      "parameters": [
+         {"key": "env", "value": "ENVIRONMENT=prod"},
+         {"key": "env", "value": "JAVA_OPTS=-Xmx512M"},
+         {"key": "label", "value": "cluster=prod"},
+         {"key": "label", "value": "application=kixi.datastore"}
+      ],
+      "network": "BRIDGE",
+      "portMappings": [
+          {
+              "containerPort": 18080,
+              "hostPort": 18080,
+              "protocol": "tcp"
+          }
+      ]
+    }
+  },
+  "id": "kixi.datastore",
+  "constraints": [["hostname", "UNIQUE"]],
+  "instances": 2,
+  "cpus": 0.2,
+  "mem": 1024,
+  "healthChecks": [{
+        "protocol": "TCP",
+        "path": "/healthcheck",
+        "gracePeriodSeconds": 600,
+        "intervalSeconds": 30,
+        "portIndex": 0,
+        "timeoutSeconds": 10,
+        "maxConsecutiveFailures": 3
+  }]
+}
