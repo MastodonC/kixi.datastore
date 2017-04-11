@@ -2,7 +2,7 @@
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "mastodonc/kixi.datastore:@@TAG@@",
+      "image": "OVERRIDDEN_BY_JENKINS",
       "privileged": true,
       "parameters": [
          {"key": "env", "value": "ENVIRONMENT=prod"},
@@ -20,7 +20,7 @@
       ]
     }
   },
-  "id": "kixi.datastore",
+  "id": "OVERRIDDEN_BY_JENKINS",
   "constraints": [["hostname", "UNIQUE"]],
   "instances": 2,
   "cpus": 0.2,
