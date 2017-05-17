@@ -448,10 +448,14 @@
    (file-redirect-by-id uid uid id))
   ([uid user-groups id]
    (let [url (file-download-url id)]
-     (client/get url {:headers {"user-id" uid
-                                "user-groups" (vec-if-not user-groups)}
-                      :follow-redirects false
-                      :throw-exceptions false}))))
+     (try (client/get url {:headers {"user-id" uid
+                                     "user-groups" (vec-if-not user-groups)}
+                           :follow-redirects false
+                           :throw-exceptions false})
+          (catch org.apache.http.ProtocolException e
+            (if (clojure.string/starts-with? (.getMessage e) "Redirect URI does not specify a valid host name: file:///")
+              nil
+              (throw e)))))))
 
 (defn get-upload-link-event
   [user-id]
