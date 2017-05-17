@@ -58,7 +58,7 @@
               [dex (gen/such-that (partial (complement (set (range total-files))))
                                   (gen/int)
                                   such-that-size)]
-              (let [resp (search-metadata uid [::ms/meta-read] dex nil)]
+              (let [resp (search-metadata uid [::ms/meta-read] dex nil nil {:coerce :exceptional})]
                 (if (pos? dex)
                   (is-submap {:body {:items []
                                      :paging {:total total-files
@@ -71,10 +71,10 @@
 
     (checking "over counting is fine, negative gets 400'd"
               sample-size
-              [cnt (gen/such-that (partial (complement (set (range total-files)))) 
-                                  (gen/int) 
+              [cnt (gen/such-that (partial (complement (set (range total-files))))
+                                  (gen/int)
                                   such-that-size)]
-              (let [resp (search-metadata uid [::ms/meta-read] nil cnt)]
+              (let [resp (search-metadata uid [::ms/meta-read] nil cnt nil {:coerce :exceptional})]
                 (if (pos? cnt)
                   (is-submap {:body {:paging {:total total-files
                                               :index 0

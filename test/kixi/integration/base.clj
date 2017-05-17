@@ -253,20 +253,23 @@
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
+   (search-metadata group-ids activities index count nil nil))
+  ([group-ids activities index count order opts]
    (client/get (metadata-query-url)
-               {:query-params (merge (zipmap (repeat :activity)
-                                             (map encode-kw activities))
-                                     (when index
-                                       {:index index})
-                                     (when count
-                                       {:count count})
-                                     (when order
-                                       {:sort-order order}))
-                :accept :transit+json
-                :as :transit+json
-                :throw-exceptions false
-                :headers {"user-id" (uuid)
-                          "user-groups" (vec-if-not group-ids)}})))
+               (merge {:query-params (merge (zipmap (repeat :activity)
+                                                    (map encode-kw activities))
+                                            (when index
+                                              {:index index})
+                                            (when count
+                                              {:count count})
+                                            (when order
+                                              {:sort-order order}))
+                       :accept :transit+json
+                       :as :transit+json
+                       :throw-exceptions false
+                       :headers {"user-id" (uuid)
+                                 "user-groups" (vec-if-not group-ids)}}
+                      opts))))
 
 (defn wait-for-metadata-key
   ([ugroup id k]
