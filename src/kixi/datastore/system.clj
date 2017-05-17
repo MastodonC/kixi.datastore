@@ -97,7 +97,7 @@
                   (raise-first :metadatastore)
                   (raise-first :communications)
                   (raise-first :schemastore)
-                  (raise-first :segmentation))))3
+                  (raise-first :segmentation))))
 
 (defn configure-logging
   [config]
