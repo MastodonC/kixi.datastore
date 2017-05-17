@@ -66,7 +66,7 @@
                                               :count 0}}}
                              resp)
                   (is-submap {:status 400
-                              :body {::ws/error "query-index-invalid"}}
+                              :body {::ws/error :query-index-invalid}}
                              resp))))
 
     (checking "over counting is fine, negative gets 400'd"
@@ -81,5 +81,5 @@
                                               :count total-files}}}
                              resp)
                   (is-submap {:status 400
-                              :body {::ws/error "query-count-invalid"}}
+                              :body {::ws/error :query-count-invalid}}
                              resp))))))

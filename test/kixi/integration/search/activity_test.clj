@@ -26,7 +26,7 @@
 
 (deftest unknown-activity-errors-nicely
   (is-submap {:status 400
-              :body {:kixi.datastore.web-server/error "query-invalid"}}
+              :body {:kixi.datastore.web-server/error :query-invalid}}
              (search-metadata (uuid) [::ms/Xfile-readX])))
 
 (deftest meta-read-activity-added-to-queries-by-default
@@ -34,8 +34,7 @@
         metadata-response (send-file-and-metadata
                            (create-metadata uid))]
     (when-success metadata-response
-      (is-submap {:status 200
-                  :body {:items [{::ms/sharing {::ms/meta-read [uid]}}]}}
+      (is-submap {:body {:items [{::ms/sharing {::ms/meta-read #{uid}}}]}}
                  (search-metadata uid [])))))
 
 (defn first-item
