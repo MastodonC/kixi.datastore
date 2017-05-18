@@ -250,6 +250,8 @@
 (defn search-metadata
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
+  ([group-ids activities index]
+   (search-metadata group-ids activities index nil nil))
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
