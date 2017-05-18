@@ -454,6 +454,7 @@
      (try (client/get url {:headers {"user-id" uid
                                      "user-groups" (vec-if-not user-groups)}
                            :follow-redirects false
+                           :redirect-strategy :none
                            :throw-exceptions false})
           (catch org.apache.http.ProtocolException e
             (if (clojure.string/starts-with? (.getMessage e) "Redirect URI does not specify a valid host name: file:///")
