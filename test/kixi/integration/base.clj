@@ -253,23 +253,21 @@
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
-   (search-metadata group-ids activities index count nil nil))
-  ([group-ids activities index count order opts]
    (client/get (metadata-query-url)
-               (merge {:query-params (merge (zipmap (repeat :activity)
-                                                    (map encode-kw activities))
-                                            (when index
-                                              {:index index})
-                                            (when count
-                                              {:count count})
-                                            (when order
-                                              {:sort-order order}))
-                       :accept :transit+json
-                       :as :transit+json
-                       :throw-exceptions false
-                       :headers {"user-id" (uuid)
-                                 "user-groups" (vec-if-not group-ids)}}
-                      opts))))
+               {:query-params (merge (zipmap (repeat :activity)
+                                             (map encode-kw activities))
+                                     (when index
+                                       {:index index})
+                                     (when count
+                                       {:count count})
+                                     (when order
+                                       {:sort-order order}))
+                :accept :transit+json
+                :as :transit+json
+                :throw-exceptions false
+                :coerce :always
+                :headers {"user-id" (uuid)
+                          "user-groups" (vec-if-not group-ids)}})))
 
 (defn wait-for-metadata-key
   ([ugroup id k]
@@ -457,7 +455,11 @@
                            :throw-exceptions false})
           (catch org.apache.http.ProtocolException e
             (if (clojure.string/starts-with? (.getMessage e) "Redirect URI does not specify a valid host name: file:///")
-              nil
+              {:status 302
+               :headers {"Location" (subs (.getMessage e) 
+                                          (clojure.string/index-of 
+                                           (.getMessage e)
+                                           "file://"))}}
               (throw e)))))))
 
 (defn get-upload-link-event

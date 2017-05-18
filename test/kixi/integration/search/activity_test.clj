@@ -27,7 +27,7 @@
 (deftest unknown-activity-errors-nicely
   (is-submap {:status 400
               :body {:kixi.datastore.web-server/error :query-invalid}}
-             (search-metadata (uuid) [::ms/Xfile-readX] nil nil nil {:coerce :exceptional})))
+             (search-metadata (uuid) [::ms/Xfile-readX])))
 
 (deftest meta-read-activity-added-to-queries-by-default
   (let [uid (uuid)
