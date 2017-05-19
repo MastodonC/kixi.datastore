@@ -58,7 +58,7 @@
               [dex (gen/such-that (partial (complement (set (range total-files))))
                                   (gen/int)
                                   such-that-size)]
-              (let [resp (search-metadata uid [::ms/meta-read] dex nil)]
+              (let [resp (search-metadata uid [::ms/meta-read] dex)]
                 (if (pos? dex)
                   (is-submap {:body {:items []
                                      :paging {:total total-files
@@ -66,13 +66,13 @@
                                               :count 0}}}
                              resp)
                   (is-submap {:status 400
-                              :body {::ws/error "query-index-invalid"}}
+                              :body {::ws/error :query-index-invalid}}
                              resp))))
 
     (checking "over counting is fine, negative gets 400'd"
               sample-size
-              [cnt (gen/such-that (partial (complement (set (range total-files)))) 
-                                  (gen/int) 
+              [cnt (gen/such-that (partial (complement (set (range total-files))))
+                                  (gen/int)
                                   such-that-size)]
               (let [resp (search-metadata uid [::ms/meta-read] nil cnt)]
                 (if (pos? cnt)
@@ -81,5 +81,5 @@
                                               :count total-files}}}
                              resp)
                   (is-submap {:status 400
-                              :body {::ws/error "query-count-invalid"}}
+                              :body {::ws/error :query-count-invalid}}
                              resp))))))

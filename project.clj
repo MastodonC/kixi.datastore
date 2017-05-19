@@ -18,7 +18,7 @@
                  [com.amazonaws/aws-java-sdk "1.11.53" :exclusions [joda-time]]
                  [bidi "2.0.12"]
                  [byte-streams "0.2.2"]
-                 [clj-http "2.2.0"]
+                 [kixi/clj-http "3.5.1-SNAPSHOT"]
                  [clj-time "0.12.0"]
                  [clojure-csv/clojure-csv "2.0.1"]
                  [cheshire "5.6.3"]

@@ -206,7 +206,8 @@
   ([uid url tries cnt last-result]
    (if (<= cnt tries)
      (let [md (client/get url
-                          {:accept :json
+                          {:accept :transit+json
+                           :as :transit+json
                            :throw-exceptions false
                            :headers {:user-id uid
                                      :user-groups (vec-if-not uid)}})]
@@ -222,14 +223,12 @@
 
 (defn get-metadata
   [ugroup id]
-  (update (client/get (metadata-url id)
-                      {:as :json
-                       :accept :json
-                       :throw-exceptions false
-                       :headers {"user-id" (uuid)
-                                 "user-groups" (vec-if-not ugroup)}})
-          :body
-          parse-json))
+  (client/get (metadata-url id)
+              {:as :transit+json
+               :accept :transit+json
+               :throw-exceptions false
+               :headers {"user-id" (uuid)
+                         "user-groups" (vec-if-not ugroup)}}))
 
 (defn encode-kw
   [kw]
@@ -251,24 +250,26 @@
 (defn search-metadata
   ([group-ids activities]
    (search-metadata group-ids activities nil nil))
+  ([group-ids activities index]
+   (search-metadata group-ids activities index nil nil))
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
-   (update (client/get (metadata-query-url)
-                       {:query-params (merge (zipmap (repeat :activity)
-                                                     (map encode-kw activities))
-                                             (when index
-                                               {:index index})
-                                             (when count
-                                               {:count count})
-                                             (when order
-                                               {:sort-order order}))
-                        :accept :json
-                        :throw-exceptions false
-                        :headers {"user-id" (uuid)
-                                  "user-groups" (vec-if-not group-ids)}})
-           :body
-           parse-json)))
+   (client/get (metadata-query-url)
+               {:query-params (merge (zipmap (repeat :activity)
+                                             (map encode-kw activities))
+                                     (when index
+                                       {:index index})
+                                     (when count
+                                       {:count count})
+                                     (when order
+                                       {:sort-order order}))
+                :accept :transit+json
+                :as :transit+json
+                :throw-exceptions false
+                :coerce :always
+                :headers {"user-id" (uuid)
+                          "user-groups" (vec-if-not group-ids)}})))
 
 (defn wait-for-metadata-key
   ([ugroup id k]
@@ -450,10 +451,19 @@
    (file-redirect-by-id uid uid id))
   ([uid user-groups id]
    (let [url (file-download-url id)]
-     (client/get url {:headers {"user-id" uid
-                                "user-groups" (vec-if-not user-groups)}
-                      :follow-redirects false
-                      :throw-exceptions false}))))
+     (try (client/get url {:headers {"user-id" uid
+                                     "user-groups" (vec-if-not user-groups)}
+                           :follow-redirects false
+                           :redirect-strategy :none
+                           :throw-exceptions false})
+          (catch org.apache.http.ProtocolException e
+            (if (clojure.string/starts-with? (.getMessage e) "Redirect URI does not specify a valid host name: file:///")
+              {:status 302
+               :headers {"Location" (subs (.getMessage e) 
+                                          (clojure.string/index-of 
+                                           (.getMessage e)
+                                           "file://"))}}
+              (throw e)))))))
 
 (defn get-upload-link-event
   [user-id]
@@ -591,7 +601,8 @@
 (defn get-spec
   [ugroup id]
   (client/get (schema-url id)
-              {:accept :json
+              {:accept :transit+json
+               :as :transit+json
                :headers {"user-id" (uuid)
                          "user-groups" ugroup}
                :throw-exceptions false}))
@@ -599,9 +610,7 @@
 (defn extract-schema
   [r-g]
   (when (= 200 (:status r-g))
-    (-> r-g
-        :body
-        parse-json)))
+    (:body r-g)))
 
 (defn get-file
   [uid ugroups id]
@@ -636,11 +645,8 @@
 
 (defmacro has-status
   [status resp]
-  `(let [parsed# (if (= "application/json" (get-in ~resp [:headers "Content-Type"]))
-                   (update ~resp :body parse-json)
-                   ~resp)]
-     (is-submap {:status ~status}
-                parsed#)))
+  `(is-submap {:status ~status}
+              ~resp))
 
 (defmacro success
   [resp]

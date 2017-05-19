@@ -89,7 +89,8 @@
                     :unknown-schema :file-upload-failed
                     :query-invalid :query-index-invalid
                     :query-count-invalid
-                    :query-sort-order-invalid})
+                    :query-sort-order-invalid
+                    :unauthorised})
 
 (spec/def ::msg (spec/or :error-map (spec/keys :req []
                                     :opts [])
@@ -132,7 +133,7 @@
   [metrics request-logging? model]
   (-> model
       (assoc :logger (yada-timbre-logger request-logging?))
-      (assoc :responses {500 {:produces "application/json"
+      (assoc :responses {500 {:produces "application/transit+json"
                               :response server-error-resp}})
       yada/resource
       (yr/insert-interceptor
@@ -163,7 +164,7 @@
   [metrics metadatastore]
   {:id :file-meta
    :methods
-   {:get {:produces "application/json"
+   {:get {:produces "application/transit+json"
           :response
           (fn [ctx]
             (let [id (get-in ctx [:parameters :path :id])]
@@ -217,7 +218,7 @@
   [metrics metadatastore]
   {:id :file-meta
    :methods
-   {:get {:produces "application/json"
+   {:get {:produces "application/transit+json"
           :response
           (fn [ctx]
             (let [user-groups (ctx->user-groups ctx)
@@ -254,7 +255,7 @@
   [metrics communications metadatastore]
   {:id :file-segmentation
    :methods
-   {:post {:consumes "application/json"
+   {:post {:consumes "application/transit+json"
            :response
            (fn [ctx]
              (let [id (uuid)
@@ -284,7 +285,7 @@
   [metrics filestore]
   {:id :file-segmentation-entry
    :methods
-   {:get {:produces "application/json"
+   {:get {:produces "application/transit+json"
           :response
           (fn [ctx]
                                         ;get all the segmentation information (each segment is a FILE!)
@@ -296,7 +297,7 @@
   [metrics schemastore]
   {:id :schema-id-entry
    :methods
-   {:get {:produces "application/json"
+   {:get {:produces "application/transit+json"
           :response
           (fn [ctx]
             (let [id (get-in ctx [:parameters :path :id])]

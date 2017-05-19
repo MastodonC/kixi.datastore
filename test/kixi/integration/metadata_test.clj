@@ -32,7 +32,7 @@
 
 (deftest small-file
   (let [uid (uuid)
-        schema-id (get-schema-id uid)
+        schema-id (get-schema-id uid)        
         metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
