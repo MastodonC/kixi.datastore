@@ -1,9 +1,13 @@
 (ns kixi.datastore.metadatastore
   (:require [clojure.spec :as s]
-            [kixi.datastore.schemastore :as schemastore]
-            [kixi.datastore.segmentation :as seg]
-            [kixi.datastore.schemastore.conformers :as sc]
-            [clojure.spec.gen :as gen]))
+            [kixi.datastore
+             [schemastore :as schemastore]
+             [segmentation :as seg]]
+            [kixi.datastore.metadatastore
+             [geography :as geo]
+             [license :as l]
+             [time :as t]]
+            [kixi.datastore.schemastore.conformers :as sc]))
 
 (s/def ::type #{"stored"})
 (s/def ::file-type string?)
@@ -20,6 +24,10 @@
 (s/def :kixi.user/id sc/uuid)
 (s/def ::created sc/timestamp)
 (s/def ::added sc/timestamp)
+
+(s/def ::maintainer string?)
+(s/def ::author string?)
+(s/def ::source string?)
 
 (s/def :kixi.user-group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
@@ -95,10 +103,15 @@
 
 (defmulti file-metadata ::type)
 
+(s/def ::tags
+  (s/coll-of string? :distinct true :into #{}))
+
 (defmethod file-metadata "stored"
   [_]
   (s/keys :req [::type ::file-type ::id ::name ::provenance ::size-bytes ::sharing]
-          :opt [::schema ::segmentations ::segment ::structural-validation ::description]))
+          :opt [::schema ::segmentations ::segment ::structural-validation ::description
+                ::tags ::geo/geography ::t/temporal-coverage 
+                ::maintainer ::author ::source ::l/license]))
 
 (s/def ::file-metadata (s/multi-spec file-metadata ::type))
 
