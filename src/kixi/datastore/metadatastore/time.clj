@@ -2,8 +2,8 @@
   (:require  [clojure.spec :as s]
              [kixi.datastore.schemastore.conformers :as sc]))
 
-(s/def ::from sc/timestamp)
-(s/def ::to sc/timestamp)
+(s/def ::from (s/nilable sc/timestamp))
+(s/def ::to (s/nilable sc/timestamp))
 
 (s/def ::temporal-coverage
-  (s/keys :req [::from ::to]))
+  (s/keys :opt [::from ::to]))
