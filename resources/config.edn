@@ -73,6 +73,15 @@
  :communications #profile {:local {:coreasync {:app "kixi.datastore"
                                                :metric-level :NONE
                                                :profile "local"}}
+                           :local-kinesis {:app "kixi.datastore"
+                                           :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                           :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                           :profile "local"
+                                           :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
+                                                     :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
+                                           :metric-level :NONE
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
+                                           }
                            :staging-jenkins {:coreasync {:app "kixi.datastore"
                                                          :profile "staging-jenkins"}}
                            :staging {:kinesis {:app "kixi.datastore"
