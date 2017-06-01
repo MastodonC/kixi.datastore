@@ -163,6 +163,9 @@
 (def time-parser   
   (partial tf/parse time/formatter))
 
+(def date-parser   
+  (partial tf/parse time/date-formatter))
+
 (defn timestamp?
   [x]
   (if (instance? org.joda.time.DateTime x)
@@ -178,6 +181,23 @@
   (s/with-gen
     (s/conformer timestamp?)
     #(gen/return (t/now))))
+
+(defn date?
+  [x]
+  (if (or (instance? org.joda.time.DateMidnight x)
+          (time/midnight-timestamp? x))
+    x
+    (try
+      (if (string? x)
+        (date-parser x)
+        :clojure.spec/invalid)
+      (catch IllegalArgumentException e
+        :clojure.spec/invalid))))
+
+(def date
+  (s/with-gen
+    (s/conformer date?)
+    #(gen/return (t/today-at-midnight))))
 
 (def uuid?
   (-regex? #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
