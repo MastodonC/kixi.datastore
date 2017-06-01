@@ -70,40 +70,28 @@
                                    :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
                                           :profile "prod"}}}
  :segmentation {:inmemory {}}
- :communications {:kinesis #profile {:local {:app "kixi.datastore"
-                                             :endpoint "kinesis.eu-central-1.amazonaws.com"
-                                             :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                             :profile "local"
-                                             :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
-                                                       :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
-                                             :metric-level :NONE
-                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
-                                             }
-                                     :staging-jenkins {:app "kixi.datastore"
-                                                       :endpoint "kinesis.eu-central-1.amazonaws.com"
-                                                       :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                                       :profile "staging-jenkins"
-                                                       :streams {:event "staging-jenkins-kixi-datastore-event"
-                                                                 :command "staging-jenkins-kixi-datastore-command"}
-                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
-                                                       }
-                                     :staging {:app "kixi.datastore"
+ :communications #profile {:local {:coreasync {:app "kixi.datastore"
+                                               :metric-level :NONE
+                                               :profile "local"}}
+                           :staging-jenkins {:coreasync {:app "kixi.datastore"
+                                                         :profile "staging-jenkins"}}
+                           :staging {:kinesis {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"
                                                :streams {:event "staging-witan-event"
                                                          :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
-                                               }
-                                     :staging-integration {:app "kixi.datastore-staging-test"
+                                               }}
+                           :staging-integration {:kinesis {:app "kixi.datastore-staging-test"
                                                            :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                            :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                            :profile "staging-integration"
                                                            :streams {:event "staging-witan-event"
                                                                      :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
-                                                           }
-                                     :prod {:app "kixi.datastore"
+                                                           }}
+                           :prod {:kinesis {:app "kixi.datastore"
                                             :endpoint "kinesis.eu-west-1.amazonaws.com"
                                             :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
                                             :profile "prod"
