@@ -15,11 +15,10 @@
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
-            [kixi.datastore.communications
-             [coreasync :as coreasync]]
             [kixi.comms :as comms]
             [kixi.comms.components
-             [kinesis :as kinesis]]
+             [kinesis :as kinesis]
+             [coreasync :as coreasync]]
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [dynamodb :as md-dd]]
@@ -75,7 +74,8 @@
    :segmentation (case (first (keys (:segmentation config)))
                    :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
-                     :kinesis (kinesis/map->Kinesis {}))
+                     :kinesis (kinesis/map->Kinesis {})
+                     :coreasync (coreasync/map->CoreAsync {}))
                                         ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 
