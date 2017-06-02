@@ -9,10 +9,12 @@
   ([]
    (start {} nil))
   ([overrides component-subset]
+   (start "local" overrides component-subset))
+  ([profile overrides component-subset]
    (when-not @system
      (try
        (prn "Starting system")
-       (->> (system/new-system (keyword (env :system-profile "local")))
+       (->> (system/new-system (keyword (env :system-profile profile)))
             (#(merge % overrides))
             (#(if component-subset
                 (select-keys % component-subset)

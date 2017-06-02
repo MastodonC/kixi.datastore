@@ -229,3 +229,8 @@
   (s/with-gen
     (s/conformer ns-keyword?)
     #(gen/such-that namespace (gen/keyword-ns))))
+
+(defn not-empty-string?
+  [x]
+  (and (string? x)
+       (not-empty x)))
