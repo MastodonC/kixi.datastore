@@ -33,10 +33,10 @@
                                :prod :json}}
  :filestore #profile {:default {:local {:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
-                              #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
-                                       :endpoint "s3.eu-central-1.amazonaws.com"
-                                       :link-expiration-mins 10
-                                       :profile "witan"}}
+                                #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
+                                         :endpoint "s3.eu-central-1.amazonaws.com"
+                                         :link-expiration-mins 10
+                                         :profile "witan"}}
                       :staging-jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
                                              :endpoint "s3.eu-central-1.amazonaws.com"
                                              :link-expiration-mins 10}}
@@ -46,16 +46,20 @@
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
                                   :endpoint "s3-eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
- :metadatastore {:dynamodb #profile {:default {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                               :profile "local"}
+ :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                             :profile "local"}
+                                     :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                                     :profile "local-kinesis"}
                                      :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                        :profile "staging-jenkins"}
                                      :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"}
                                      :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
                                             :profile "prod"}}}
- :schemastore {:dynamodb #profile {:default {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                             :profile "local"}
+ :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                           :profile "local"}
+                                   :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
+                                                   :profile "local-kinesis"}
                                    :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                      :profile "staging-jenkins"}
                                    :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
