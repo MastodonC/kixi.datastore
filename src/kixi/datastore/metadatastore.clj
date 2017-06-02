@@ -10,13 +10,13 @@
             [kixi.datastore.schemastore.conformers :as sc]))
 
 (s/def ::type #{"stored"})
-(s/def ::file-type sc/not-empty-string?)
+(s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
-(s/def ::name (s/and sc/not-empty-string?
+(s/def ::name (s/and sc/not-empty-string
                      #(re-matches #"^[\p{Digit}\p{IsAlphabetic}].{1,512}[\p{Digit}\p{IsAlphabetic}]$" %)))
-(s/def ::description sc/not-empty-string?)
+(s/def ::description sc/not-empty-string)
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})
 (s/def ::line-count int?)
@@ -25,9 +25,9 @@
 (s/def ::created sc/timestamp)
 (s/def ::added sc/timestamp)
 
-(s/def ::maintainer sc/not-empty-string?)
-(s/def ::author sc/not-empty-string?)
-(s/def ::source sc/not-empty-string?)
+(s/def ::maintainer sc/not-empty-string)
+(s/def ::author sc/not-empty-string)
+(s/def ::source sc/not-empty-string)
 
 (s/def :kixi.user-group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
@@ -104,7 +104,7 @@
 (defmulti file-metadata ::type)
 
 (s/def ::tags
-  (s/coll-of sc/not-empty-string? :distinct true :into #{}))
+(s/coll-of sc/not-empty-string :distinct true :into #{}))
 
 (defmethod file-metadata "stored"
   [_]
