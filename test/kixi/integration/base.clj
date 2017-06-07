@@ -13,7 +13,6 @@
             [kixi.comms :as c]
             [kixi.comms.components.kinesis :as kinesis]
             [kixi.datastore
-             [communication-specs :as cs]
              [filestore :as fs]
              [metadatastore :as ms]
              [schemastore :as ss]]
@@ -702,7 +701,8 @@
   [event k & rest]
   `(let [k-val# (:kixi.comms.event/key ~event)]
      (is (= ~k
-            k-val#))
+            k-val#)
+         ~event)
      (when (= ~k
             k-val#)
         ~@rest)))
