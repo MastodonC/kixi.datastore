@@ -1,4 +1,4 @@
-(ns kixi.datastore.metadata-creator
+(ns kixi.datastore.metadatastore.command.handler
   (:require [com.stuartsierra.component :as component]
             [clojure.spec :as spec]
             [kixi.comms :as c]
@@ -68,24 +68,34 @@
                                               ::cs/file-metadata-update-type
                                               ::cs/file-metadata-created}}]))))
 
+(spec/def ::sharing-change-cmd-payload
+  (spec/keys :req [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))
+
 (defn create-sharing-change-handler
   [metadatastore]
   (fn [{:keys [kixi.comms.command/payload] :as cmd}]
-    (let [user-id (get-user-id cmd)
-          user-groups (get-user-groups cmd)
-          metadata-id (::ms/id payload)]
-      (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
-        {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
-         :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload (merge {::cs/file-metadata-update-type
-                                           ::cs/file-metadata-sharing-updated
-                                           :kixi/user (:kixi.comms.command/user cmd)}
-                                          payload)}
-        {:kixi.comms.event/key :kixi.datastore.metadatastore/sharing-change-rejected
-         :kixi.comms.event/version "1.0.0"
-         :kixi.comms.event/payload {:reason :unauthorised
-                                    ::ms/id metadata-id
-                                    :kixi/user (:kixi.comms.command/user cmd)}}))))
+    (if (spec/valid? ::sharing-change-cmd-payload payload)      
+      (let [user-id (get-user-id cmd)
+            user-groups (get-user-groups cmd)
+            metadata-id (::ms/id payload)]
+        (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
+          (let [event-payload (merge {::cs/file-metadata-update-type
+                                      ::cs/file-metadata-sharing-updated
+                                      :kixi/user (:kixi.comms.command/user cmd)}
+                                     payload)]
+            {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
+             :kixi.comms.event/version "1.0.0"
+             :kixi.comms.event/payload event-payload})
+          {:kixi.comms.event/key :kixi.datastore.metadatastore/sharing-change-rejected
+           :kixi.comms.event/version "1.0.0"
+           :kixi.comms.event/payload {:reason :unauthorised
+                                      ::ms/id metadata-id
+                                      :kixi/user (:kixi.comms.command/user cmd)}}))
+      {:kixi.comms.event/key :kixi.datastore.metadatastore/sharing-change-rejected
+       :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/payload {:reason :invalid
+                                  :explanation (spec/explain-data ::sharing-change-cmd-payload payload)
+                                  :kixi/user (:kixi.comms.command/user cmd)}})))
 
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore

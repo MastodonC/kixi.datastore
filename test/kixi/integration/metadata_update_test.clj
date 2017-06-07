@@ -23,6 +23,26 @@
   cycle-system-fixture
   extract-comms)
 
+(deftest small-file-add-group-to-meta-read-command-validated
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (dissoc-in
+                            (create-metadata
+                             uid
+                             "./test-resources/metadata-one-valid.csv")
+                            [::ms/sharing ::ms/file-read]))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing
+                   uid "Invalid-Meta-ID"
+                   ::ms/sharing-conj 
+                   ::ms/file-read
+                   new-group)]
+        (when-event-key event :kixi.datastore.metadatastore/sharing-change-rejected
+                        (is (= :invalid
+                               (get-in event [:kixi.comms.event/payload :reason]))))))))
+
 (deftest small-file-add-group-to-meta-read
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
@@ -102,3 +122,4 @@
                    (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
             (is (nil?
                    (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
+

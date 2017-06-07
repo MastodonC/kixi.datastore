@@ -30,6 +30,7 @@
 (s/def ::source sc/not-empty-string)
 
 (s/def :kixi.user-group/id sc/uuid)
+(s/def :kixi.group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (s/def :kixi/user
@@ -118,6 +119,8 @@
 (s/def ::query-criteria
   (s/keys :req [:kixi.user/groups]
           :opts [::activities]))
+
+(s/def ::sharing-update #{::sharing-conj ::sharing-disj})
 
 (defprotocol MetaDataStore
   (authorised
