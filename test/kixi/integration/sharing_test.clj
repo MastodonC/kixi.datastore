@@ -75,6 +75,17 @@
       {:status 200}
       event)))
 
+(defn update-metadata
+  [schema-id file-id uid ugroups]
+  (let [event (base/update-metadata
+               uid ugroups
+               file-id
+               {::ms/source "Updated source"})]
+    (if (= (:kixi.comms.event/key event)
+           :kixi.datastore.file-metadata/updated)
+      {:status 200}
+      event)))
+
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
   (base/send-file-and-metadata
@@ -90,7 +101,7 @@
   {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
    [[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata]
-   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read]
+   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read update-metadata]
    [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]})
 

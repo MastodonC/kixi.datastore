@@ -8,6 +8,10 @@
              [metadatastore :as ms]
              [time :as t]
              [transport-specs :as ts]]
+            [kixi.datastore.metadatastore
+             [geography :as geo]
+             [license :as l]
+             [time :as mdt]]
             [kixi.datastore.schemastore :as ss]))
 
 (defn reject
@@ -97,34 +101,81 @@
                                   :explanation (spec/explain-data ::sharing-change-cmd-payload payload)
                                   :kixi/user (:kixi.comms.command/user cmd)}})))
 
+(spec/def ::metadata-update
+  (spec/merge (spec/keys :req [::ms/id]
+                         :opt [::ms/name ::ms/description
+                               ::ms/tags ::geo/geography ::mdt/temporal-coverage 
+                               ::ms/maintainer ::ms/author ::ms/source ::l/license])
+              (spec/map-of #{::ms/id ::ms/name ::ms/description
+                             ::ms/tags ::geo/geography ::mdt/temporal-coverage 
+                             ::ms/maintainer ::ms/author ::ms/source ::l/license}
+                           any?)))
+
+(defn create-metadata-update-handler
+  [metadatastore]
+  (fn [{:keys [kixi.comms.command/payload] :as cmd}]
+    (if (spec/valid? ::metadata-update payload)
+      (let [user-id (get-user-id cmd)
+            user-groups (get-user-groups cmd)
+            metadata-id (::ms/id payload)]
+        (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
+          (let [event-payload (merge {::cs/file-metadata-update-type
+                                      ::cs/file-metadata-update
+                                      :kixi/user (:kixi.comms.command/user cmd)}
+                                     payload)]
+            {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
+             :kixi.comms.event/version "1.0.0"
+             :kixi.comms.event/payload event-payload})
+          {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
+           :kixi.comms.event/version "1.0.0"
+           :kixi.comms.event/payload {:reason :unauthorised
+                                      ::ms/id metadata-id
+                                      :kixi/user (:kixi.comms.command/user cmd)}}))
+      {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
+       :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/payload {:reason :invalid
+                                  :explanation (spec/explain-data ::metadata-update payload)
+                                  :kixi/user (:kixi.comms.command/user cmd)}})))
+
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore
-     metadata-create-handler sharing-change-handler]
-  component/Lifecycle
-  (start [component]
-    (merge component
-           (when-not metadata-create-handler
-             {:metadata-create-handler
-              (c/attach-command-handler!
-               communications
-               :kixi.datastore/metadata-creator
-               :kixi.datastore.filestore/create-file-metadata
-               "1.0.0" (create-metadata-handler filestore
-                                                schemastore))})
-           (when-not sharing-change-handler
-             {:sharing-change-handler
-              (c/attach-command-handler!
-               communications
-               :kixi.datastore/metadata-creator-sharing-change
-               :kixi.datastore.metadatastore/sharing-change
-               "1.0.0" (create-sharing-change-handler metadatastore))})))
-  (stop [component]
-    (-> component
-        (update component :metadata-create-handler
-                #(when %
-                   (c/detach-handler! communications %)
-                   nil))
-        (update component :sharing-change-handler
-                #(when %
-                   (c/detach-handler! communications %)
-                   nil)))))
+     metadata-create-handler sharing-change-handler metadata-update-handler]
+    component/Lifecycle
+    (start [component]
+      (merge component
+             (when-not metadata-create-handler
+               {:metadata-create-handler
+                (c/attach-command-handler!
+                 communications
+                 :kixi.datastore/metadata-creator
+                 :kixi.datastore.filestore/create-file-metadata
+                 "1.0.0" (create-metadata-handler filestore
+                                                  schemastore))})
+             (when-not sharing-change-handler
+               {:sharing-change-handler
+                (c/attach-command-handler!
+                 communications
+                 :kixi.datastore/metadata-creator-sharing-change
+                 :kixi.datastore.metadatastore/sharing-change
+                 "1.0.0" (create-sharing-change-handler metadatastore))})
+             (when-not metadata-update-handler
+               {:metadata-update-handler
+                (c/attach-command-handler!
+                 communications
+                 :kixi.datastore/metadata-creator-metadata-update
+                 :kixi.datastore.metadatastore/update
+                 "1.0.0" (create-metadata-update-handler metadatastore))})))
+    (stop [component]
+      (-> component
+          (update component :metadata-create-handler
+                  #(when %
+                     (c/detach-handler! communications %)
+                     nil))
+          (update component :sharing-change-handler
+                  #(when %
+                     (c/detach-handler! communications %)
+                     nil))
+          (update component :metadata-update-handler
+                  #(when %
+                     (c/detach-handler! communications %)
+                     nil)))))
