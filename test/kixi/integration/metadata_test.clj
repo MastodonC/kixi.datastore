@@ -191,3 +191,21 @@
                                   ::ms/source "upload"}
                  ::ms/structural-validation {::ms/valid false}}}
          metadata-response)))))
+
+(deftest small-file-into-a-datapack
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [datapack-resp (send-datapack uid "small-file-into-a-datapack" [(extract-id metadata-response)])]
+        (is-submap
+         {:status 200
+          :body {::ms/type "bundle"
+                 ::ms/bundle-type "datapack"
+                 ::ms/name "small-file-into-a-datapack"
+                 ::ms/packed-ids [(extract-id metadata-response)]
+                 ::ms/provenance {:kixi.user/id uid
+                                  ::ms/source "upload"}}}
+         datapack-resp)))))

@@ -70,7 +70,12 @@
         (dissoc ::ss/id))
     md))
 
-(defn filemetadata-transport->internal
+(defmulti filemetadata-transport->internal 
+  (fn [transport]
+    [(::ms/type transport) (::ms/datapack-type transport)]))
+
+(defmethod filemetadata-transport->internal
+  ["stored" nil]
   [transport]
   (let [mapped transport
         with-primaries (merge default-primary-metadata

@@ -9,7 +9,7 @@
              [time :as t]]
             [kixi.datastore.schemastore.conformers :as sc]))
 
-(s/def ::type #{"stored"})
+(s/def ::type #{"stored" "bundle"})
 (s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
@@ -32,6 +32,9 @@
 (s/def :kixi.user-group/id sc/uuid)
 (s/def :kixi.group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
+
+(s/def ::bundle-type #{"datapack"})
+(s/def ::packed-ids (s/coll-of sc/uuid))
 
 (s/def :kixi/user
   (s/keys :req [:kixi.user/id
@@ -113,6 +116,19 @@
           :opt [::schema ::segmentations ::segment ::structural-validation ::description
                 ::tags ::geo/geography ::t/temporal-coverage 
                 ::maintainer ::author ::source ::l/license]))
+
+(defmulti bundle-metadata ::bundle-type)
+
+(defmethod bundle-metadata "datapack"
+  [_]
+  (s/keys :req [::type ::id ::name ::provenance ::sharing ::packed-ids ::bundle-type]
+          :opt [::description
+                ::tags ::geo/geography ::t/temporal-coverage 
+                ::maintainer ::author ::source ::l/license]))
+
+(defmethod file-metadata "bundle"
+  [_]
+  (s/multi-spec bundle-metadata ::bundle-type))
 
 (s/def ::file-metadata (s/multi-spec file-metadata ::type))
 

@@ -8,7 +8,6 @@
             [clj-time.coerce :as tc]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [kixi.datastore
-             [metadata-creator :as mdc]
              [metadatastore :as ms]
              [schemastore :as ss]
              [web-server :as ws]]

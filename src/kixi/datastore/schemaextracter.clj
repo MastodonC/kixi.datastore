@@ -3,9 +3,6 @@
             [clojure-csv.core :as csv :refer [parse-csv]]
             [clojure.string :refer [lower-case]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.communications
-             :refer [attach-pipeline-processor
-                     detach-processor]]
             [kixi.datastore.filestore
              :refer [retrieve]]
             [kixi.datastore.file 
@@ -158,8 +155,9 @@
 
 (defprotocol ISchemaExtracter)
 
-(defrecord SchemaExtracter
-    [communications filestore extract-schema-fn]
+(comment
+  (defrecord SchemaExtracter
+      [communications filestore extract-schema-fn]
     ISchemaExtracter
     component/Lifecycle
     (start [component]
@@ -177,7 +175,7 @@
       (if extract-schema-fn
         (do
           (detach-processor communications
-                           extract-schema-fn)
+                            extract-schema-fn)
           (dissoc component 
                   :extract-schema-fn))
-        component)))
+        component))))

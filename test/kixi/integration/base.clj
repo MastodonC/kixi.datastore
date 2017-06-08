@@ -363,8 +363,8 @@
   (update md
           ::ms/name
           #(subs %
-                 (inc (clojure.string/last-index-of % "/"))
-                 (clojure.string/last-index-of % "."))))
+                 (inc (or (clojure.string/last-index-of % "/") -1))
+                 (or (clojure.string/last-index-of % ".") (count %)))))
 
 (defn send-metadata-cmd
   ([uid metadata]
@@ -392,6 +392,19 @@
      ::ms/sharing-update change-type
      ::ms/activity activity
      :kixi.group/id target-group})))
+
+(defn send-metadata-update-cmd
+  ([uid metadata-id new-metadata]
+   (send-metadata-update-cmd uid uid metadata-id new-metadata))
+  ([uid ugroup metadata-id new-metadata]
+   (c/send-command!
+    @comms
+    :kixi.datastore.metadatastore/update
+    "1.0.0"
+    {:kixi.user/id uid
+     :kixi.user/groups (vec-if-not ugroup)}
+    (assoc new-metadata 
+           ::ms/id metadata-id))))
 
 (defn send-spec-no-wait
   ([uid spec]
@@ -528,10 +541,10 @@
      :size-bytes (file-size file-name)
      :schema-id schema-id
      :header true}))
-  ([{:keys [^String file-name schema-id user-groups sharing header size-bytes provenance]}]
+  ([{:keys [^String file-name type schema-id user-groups sharing header size-bytes provenance]}]
    (merge {}
           (when type
-            {::ms/type "stored"})
+            {::ms/type type})
           (when file-name
             {::ms/name file-name})
           (when-not (nil? header)
@@ -580,12 +593,60 @@
                                                           ::ms/id]))
        event))))
 
+
+(defn create-datapack  
+  ([uid ugroup pack-name packed-ids]
+   (create-datapack
+    {:type "bundle"
+     :bundle-type "datapack"
+     :pack-name pack-name
+     :sharing {::ms/file-read (vec-if-not ugroup)
+               ::ms/meta-read (vec-if-not ugroup)
+               ::ms/meta-update (vec-if-not ugroup)}
+     :packed-ids packed-ids
+     :provenance {::ms/source "upload"
+                  :kixi.user/id uid}}))
+  ([{:keys [^String pack-name packed-ids sharing header provenance id type bundle-type]}]
+   (merge {::ms/id (or id (uuid))
+           ::ms/type type
+           ::ms/bundle-type bundle-type
+           ::ms/name pack-name
+           ::ms/packed-ids packed-ids}
+          (when sharing
+            {::ms/sharing sharing})
+          (when provenance
+            {::ms/provenance provenance}))))
+
+(defn send-datapack
+  ([uid pack-name packed-ids]
+   (send-datapack uid uid pack-name packed-ids))
+  ([uid ugroup pack-name packed-ids]
+   (let [metadata (create-datapack uid ugroup pack-name packed-ids)]
+     (send-metadata-cmd ugroup
+                        metadata)
+     (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
+       (if (= :kixi.datastore.file-metadata/updated
+              (:kixi.comms.event/key event))
+         (wait-for-metadata-key ugroup
+                                (get-in event [:kixi.comms.event/payload
+                                               ::ms/file-metadata
+                                               ::ms/id])
+                                ::ms/id)
+         event)))))
+
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
    (update-metadata-sharing uid uid metadata-id change-type activity target-group))
   ([uid ugroup metadata-id change-type activity target-group]
    (send-metadata-sharing-change-cmd uid ugroup metadata-id change-type activity target-group)
    (wait-for-events uid :kixi.datastore.metadatastore/sharing-change-rejected :kixi.datastore.file-metadata/updated)))
+
+(defn update-metadata
+  ([uid metadata-id new-metadata]
+   (update-metadata uid uid metadata-id new-metadata))
+  ([uid ugroup metadata-id new-metadata]
+   (send-metadata-update-cmd uid ugroup metadata-id new-metadata)
+   (wait-for-events uid :kixi.datastore.metadatastore/update-rejected :kixi.datastore.file-metadata/updated)))
 
 (defn post-segmentation
   [url seg]
@@ -657,6 +718,7 @@
  `(has-status 201
               ~resp))
 
+
 (defmacro accepted
   [resp]
   `(has-status 202
@@ -701,8 +763,7 @@
   [event k & rest]
   `(let [k-val# (:kixi.comms.event/key ~event)]
      (is (= ~k
-            k-val#)
-         ~event)
+            k-val#))
      (when (= ~k
             k-val#)
         ~@rest)))
