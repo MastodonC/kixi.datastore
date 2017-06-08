@@ -99,6 +99,7 @@
        :kixi.comms.event/version "1.0.0"
        :kixi.comms.event/payload {:reason :invalid
                                   :explanation (spec/explain-data ::sharing-change-cmd-payload payload)
+                                  :original payload
                                   :kixi/user (:kixi.comms.command/user cmd)}})))
 
 (spec/def ::metadata-update
@@ -135,6 +136,7 @@
        :kixi.comms.event/version "1.0.0"
        :kixi.comms.event/payload {:reason :invalid
                                   :explanation (spec/explain-data ::metadata-update payload)
+                                  :original payload
                                   :kixi/user (:kixi.comms.command/user cmd)}})))
 
 (defrecord MetadataCreator
