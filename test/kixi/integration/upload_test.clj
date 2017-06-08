@@ -2,7 +2,6 @@
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [filestore :as fs]
-             [metadata-creator :as mdc]
              [metadatastore :as ms]]
             [kixi.integration.base :refer :all]))
 

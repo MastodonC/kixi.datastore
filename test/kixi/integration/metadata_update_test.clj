@@ -123,3 +123,37 @@
             (is (nil?
                    (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
 
+(deftest small-file-add-metadata
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata
+                   uid meta-id
+                   {::ms/source "New Source"})]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                            (get-in metadata [:body ::ms/source])))
+          (let [updated-metadata (get-metadata uid meta-id)]
+            (is (= "New Source"
+                   (get-in updated-metadata [:body ::ms/source])))))))))
+
+(deftest small-file-add-invalid-metadata
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata
+                   uid meta-id
+                   {::ms/file-type "Invalid"})]
+        (when-event-key event :kixi.datastore.metadatastore/update-rejected
+                        (is (= :invalid
+                              (get-in event [:kixi.comms.event/payload :reason]))))))))

@@ -136,6 +136,17 @@
                           (insert-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata))
       ::md/sharing-disj (remove-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata-id))))
 
+(defmethod update-metadata-processor ::cs/file-metadata-update
+  [conn update-event]
+  (info "Update: " update-event)
+  (db/merge-data conn
+                 (primary-metadata-table (:profile conn))
+                 id-col
+                 (::md/id update-event)
+                 (dissoc update-event
+                         ::md/id)))
+
+
 (def sort-order->dynamo-comp
   {"asc" :asc
    "desc" :desc})

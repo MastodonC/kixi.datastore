@@ -3,7 +3,6 @@
             [clj-http.client :as client]
             [kixi.datastore
              [filestore :as fs]
-             [metadata-creator :as mdc]
              [metadatastore :as ms]]
             [kixi.integration.base :refer :all]
             [byte-streams :as bs])
