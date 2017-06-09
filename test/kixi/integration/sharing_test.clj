@@ -86,6 +86,17 @@
       {:status 200}
       event)))
 
+(defn create-datapack-with
+  [schema-id file-id uid ugroups]
+  (let [event (base/send-datapack
+               uid ugroups
+               "sharing test datapack"
+               [file-id])]
+    (if (= (:kixi.comms.event/key event)
+           :kixi.datastore.file-metadata/updated)
+      {:status 200}
+      event)))
+
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
   (base/send-file-and-metadata
@@ -100,7 +111,7 @@
 (def shares->authorised-actions
   {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
    [[:file :sharing ::ms/meta-visible]] []
-   [[:file :sharing ::ms/meta-read]] [get-metadata]
+   [[:file :sharing ::ms/meta-read]] [get-metadata create-datapack-with]
    [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read update-metadata]
    [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]})

@@ -363,8 +363,8 @@
   (update md
           ::ms/name
           #(subs %
-                 (inc (clojure.string/last-index-of % "/"))
-                 (clojure.string/last-index-of % "."))))
+                 (inc (or (clojure.string/last-index-of % "/") -1))
+                 (or (clojure.string/last-index-of % ".") (count %)))))
 
 (defn send-metadata-cmd
   ([uid metadata]
@@ -541,10 +541,10 @@
      :size-bytes (file-size file-name)
      :schema-id schema-id
      :header true}))
-  ([{:keys [^String file-name schema-id user-groups sharing header size-bytes provenance]}]
+  ([{:keys [^String file-name type schema-id user-groups sharing header size-bytes provenance]}]
    (merge {}
           (when type
-            {::ms/type "stored"})
+            {::ms/type type})
           (when file-name
             {::ms/name file-name})
           (when-not (nil? header)
@@ -592,6 +592,47 @@
                                                           ::ms/file-metadata
                                                           ::ms/id]))
        event))))
+
+
+(defn create-datapack  
+  ([uid ugroup pack-name packed-ids]
+   (create-datapack
+    {:type "bundle"
+     :bundle-type "datapack"
+     :pack-name pack-name
+     :sharing {::ms/file-read (vec-if-not ugroup)
+               ::ms/meta-read (vec-if-not ugroup)
+               ::ms/meta-update (vec-if-not ugroup)}
+     :packed-ids packed-ids
+     :provenance {::ms/source "upload"
+                  :kixi.user/id uid}}))
+  ([{:keys [^String pack-name packed-ids sharing header provenance id type bundle-type]}]
+   (merge {::ms/id (or id (uuid))
+           ::ms/type type
+           ::ms/bundle-type bundle-type
+           ::ms/name pack-name
+           ::ms/packed-ids packed-ids}
+          (when sharing
+            {::ms/sharing sharing})
+          (when provenance
+            {::ms/provenance provenance}))))
+
+(defn send-datapack
+  ([uid pack-name packed-ids]
+   (send-datapack uid uid pack-name packed-ids))
+  ([uid ugroup pack-name packed-ids]
+   (let [metadata (create-datapack uid ugroup pack-name packed-ids)]
+     (send-metadata-cmd ugroup
+                        metadata)
+     (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
+       (if (= :kixi.datastore.file-metadata/updated
+              (:kixi.comms.event/key event))
+         (wait-for-metadata-key ugroup
+                                (get-in event [:kixi.comms.event/payload
+                                               ::ms/file-metadata
+                                               ::ms/id])
+                                ::ms/id)
+         event)))))
 
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
