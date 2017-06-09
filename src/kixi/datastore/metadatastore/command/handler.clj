@@ -139,6 +139,43 @@
                                   :original payload
                                   :kixi/user (:kixi.comms.command/user cmd)}})))
 
+(spec/def ::metadata-update
+  (spec/merge (spec/keys :req [::ms/id]
+                         :opt [::ms/name ::ms/description
+                               ::ms/tags ::geo/geography ::mdt/temporal-coverage 
+                               ::ms/maintainer ::ms/author ::ms/source ::l/license])
+              (spec/map-of #{::ms/id ::ms/name ::ms/description
+                             ::ms/tags ::geo/geography ::mdt/temporal-coverage 
+                             ::ms/maintainer ::ms/author ::ms/source ::l/license}
+                           any?)))
+
+(defn create-metadata-update-handler
+  [metadatastore]
+  (fn [{:keys [kixi.comms.command/payload] :as cmd}]
+    (if (spec/valid? ::metadata-update payload)
+      (let [user-id (get-user-id cmd)
+            user-groups (get-user-groups cmd)
+            metadata-id (::ms/id payload)]
+        (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
+          (let [event-payload (merge {::cs/file-metadata-update-type
+                                      ::cs/file-metadata-update
+                                      :kixi/user (:kixi.comms.command/user cmd)}
+                                     payload)]
+            {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
+             :kixi.comms.event/version "1.0.0"
+             :kixi.comms.event/payload event-payload})
+          {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
+           :kixi.comms.event/version "1.0.0"
+           :kixi.comms.event/payload {:reason :unauthorised
+                                      ::ms/id metadata-id
+                                      :kixi/user (:kixi.comms.command/user cmd)}}))
+      {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
+       :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/payload {:reason :invalid
+                                  :explanation (spec/explain-data ::metadata-update payload)
+                                  :original payload
+                                  :kixi/user (:kixi.comms.command/user cmd)}})))
+
 (defmulti metadata-update
    (fn [payload]
      [(::ms/type payload) (::ms/bundle-type payload)]))
