@@ -28,7 +28,7 @@
             new-group (uuid)
             event (update-metadata
                    uid meta-id
-                   {::ms/file-type "Invalid"})]
+                   {:kixi.datastore.metadatastore.update/file-type {:set "Invalid"}})]
         (when-event-key event :kixi.datastore.metadatastore/update-rejected
                         (is (= :invalid
                                (get-in event [:kixi.comms.event/payload :reason]))))))))
@@ -41,7 +41,7 @@
             new-group (uuid)
             event (update-metadata
                    uid meta-id
-                   {::ms/description "New Description"})]
+                   {:kixi.datastore.metadatastore.update/description {:set "New Description"}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (get-in metadata [:body ::ms/description])))

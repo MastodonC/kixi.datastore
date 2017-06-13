@@ -11,7 +11,8 @@
             [kixi.datastore.metadatastore
              [geography :as geo]
              [license :as l]
-             [time :as mdt]]
+             [time :as mdt]
+             [updates :as updates]]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.metadatastore :as md]))
 
@@ -180,30 +181,67 @@
    (fn [payload]
      [(::ms/type payload) (::ms/bundle-type payload)]))
 
-(defmethod metadata-update
-  ["stored" nil]
-  [_]
-  (spec/merge (spec/keys :req [::ms/id ::ms/type]
-                         :opt [::ms/name ::ms/description
-                               ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                               ::ms/maintainer ::ms/author ::ms/source ::l/license])
-              (spec/map-of #{::ms/type ::ms/id ::ms/name ::ms/description
-                             ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                             ::ms/maintainer ::ms/author ::ms/source ::l/license}
-                           any?)))
+(comment "
+This is a declarative method of defining spec's for our update command payloads.
 
-(defmethod metadata-update
-  ["bundle" "datapack"]
-  [_]
-  (spec/merge (spec/keys :req [::ms/id ::ms/type ::ms/bundle-type]
-                         :opt [::ms/name ::ms/description ::ms/packed-ids
-                               ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                               ::ms/maintainer ::ms/author ::ms/source ::l/license])
-              (spec/map-of #{::ms/type ::ms/bundle-type
-                             ::ms/id ::ms/name ::ms/description ::ms/packed-ids
-                             ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                             ::ms/maintainer ::ms/author ::ms/source ::l/license}
-                           any?)))
+The map defines dispatch values for the metadata-update multimethod, which backs the
+::metadata-update multispec. The values of the map define which fields are available for
+modification and the actions allowable for the modification.
+
+updates/create-update-specs creates new spec definitions for all the fields specified, with 
+an 'update' appended to the namespace. Each is map-spec of the declared actions to a valid
+value of the original spec.
+
+defmethod implementations of metadata-update are then created. Defining map spec's using
+the generated 'update' specs.
+")
+
+(def metadata-types->field-actions
+  {["stored" nil] {::ms/name #{:set}
+                   ::ms/description #{:set}
+                   ::ms/source #{:set}
+                   ::ms/author #{:set}
+                   ::ms/maintainer #{:set}
+                   ::ms/tags #{:conj :disj}
+                   ::l/license {::l/usage #{:set}
+                                ::l/type #{:set}}
+                   ::geo/geography {::geo/level #{:set}
+                                    ::geo/type #{:set}}
+                   ::mdt/temporal-coverage {::mdt/from #{:set}
+                                            ::mdt/to #{:set}}}
+
+   ["bundle" "datapack"] {::ms/name #{:set}
+                          ::ms/description #{:set}
+                          ::ms/source #{:set}
+                          ::ms/author #{:set}
+                          ::ms/maintainer #{:set}
+                          ::ms/tags #{:conj :disj}
+                          ::ms/packed-ids #{:conj :disj}
+                          ::l/license {::l/usage #{:set}
+                                       ::l/type #{:set}}
+                          ::geo/geography {::geo/level #{:set}
+                                           ::geo/type #{:set}}
+                          ::mdt/temporal-coverage {::mdt/from #{:set}
+                                                 ::mdt/to #{:set}}}})
+
+(updates/create-update-specs metadata-types->field-actions)
+
+(defn define-metadata-update-implementation
+  [[dispatch-value spec->action]]
+  `(defmethod metadata-update
+     ~dispatch-value
+     ~['_]
+     (spec/keys :req ~(if (nil? (second dispatch-value))
+                        [::ms/id ::ms/type]
+                        [::ms/id ::ms/type ::ms/bundle-type])
+                :opt ~(mapv updates/update-spec-name (keys spec->action)))))
+
+(defmacro define-metadata-update-implementations
+  []
+  `(do
+     ~@(map define-metadata-update-implementation metadata-types->field-actions)))
+
+(define-metadata-update-implementations)
 
 (spec/def ::metadata-update
   (spec/multi-spec metadata-update :metadata-update))
