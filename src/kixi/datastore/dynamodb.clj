@@ -232,9 +232,9 @@
                    {:update-map (map->update-map data)}))
 
 (def fn-specifier->dynamo-expr
-  {:set ["SET" " = "]
-   :conj ["ADD" " "]
-   :disj ["DELETE" " "]})
+  {:set ["SET " " = "]
+   :conj ["ADD " " "]
+   :disj ["DELETE " " "]})
 
 (defn update-set
   [conn table id-column id fn-specifier route val]
@@ -242,7 +242,7 @@
         valid-attribute-name (validify-name raw-attribute-name)]
     (far/update-item conn table
                      {id-column id}
-                     {:update-expr (str (first (fn-specifier fn-specifier->dynamo-expr)) " "
+                     {:update-expr (str (first (fn-specifier fn-specifier->dynamo-expr))
                                         (second (fn-specifier fn-specifier->dynamo-expr))
                                         valid-attribute-name
                                         " :v")
@@ -261,30 +261,10 @@
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
                       :expr-attr-vals {":v" val}})))
 
-(defn remove-update-from-namespace
-  [data]
-  (letfn [(clean-ns [n]
-            (if-let [update-dex (and (namespace n) (clojure.string/index-of (namespace n) ".update"))]
-               (keyword (subs (namespace n) 0 update-dex) (name n))
-               n))]
-    (->> data
-         (sp/transform
-          [sp/MAP-KEYS]
-          clean-ns)
-         (sp/transform
-          [sp/MAP-VALS map? sp/MAP-KEYS]
-          clean-ns))))
-
 (defn action-map?
   [m]
   (and (map? m)
        (every? (set (keys fn-specifier->dynamo-expr))
-               (keys m))))
-
-(defn update-map?
-  [m]
-  (and (map? m)
-       (every? #{:update-expr :expr-attr-names :expr-attr-vals}
                (keys m))))
 
 (defn expr-attribute-value-generator
@@ -299,31 +279,16 @@
   [e1 e2]
   (str e1 " " e2))
 
-(sp/defcollector putseqval
-  [seq-atom]
-  (collect-val 
-   [this structure]
-   (let [v (first @seq-atom)]
-     (swap! seq-atom rest)
-     v)))
-
-(def COLLECT-MAP-KEY-DESCEND-MAP-VALS
-  (sp/path sp/ALL (sp/collect sp/FIRST) sp/LAST))
-
 (defn create-update-expression
-  ([fdepth sdepth operand expr-val-name value]
-   (create-update-expression
-    (vec (concat fdepth sdepth))
-    operand expr-val-name value))
-  ([field-path [operand] expr-val-name value]
-   (let [raw-attribute-name (dynamo-col field-path)
-         valid-attribute-name (validify-name raw-attribute-name)]
-     {:update-expr {operand [(str
-                               valid-attribute-name
-                               (second (operand fn-specifier->dynamo-expr))
-                               expr-val-name)]}
-      :expr-attr-names {valid-attribute-name raw-attribute-name}
-      :expr-attr-vals {(str expr-val-name) value}})))
+  [expr-val-name [field-path operand value]]
+  (let [raw-attribute-name (dynamo-col field-path)
+        valid-attribute-name (validify-name raw-attribute-name)]
+    {:update-expr {operand [(str
+                             valid-attribute-name
+                             (second (operand fn-specifier->dynamo-expr))
+                             expr-val-name)]}
+     :expr-attr-names {valid-attribute-name raw-attribute-name}
+     :expr-attr-vals {(str expr-val-name) value}}))
 
 (defn merge-updates
   [m1 m2]
@@ -336,36 +301,49 @@
 
 (defn concat-update-expr
   [operand->exprs]
-  (apply str 
-         (interpose " "
-                    (reduce-kv
-                     (fn [acc op exprs]
-                       (cons (apply str
-                                    (first (op fn-specifier->dynamo-expr))
-                                    " "
-                                    (interpose ", " exprs)) 
-                             acc))
-                     []
-                     operand->exprs))))
+  (->> operand->exprs
+       (map 
+        (fn [[op exprs]]
+          (apply str
+                 (first (op fn-specifier->dynamo-expr))
+                 (interpose ", " exprs))))
+       (interpose " ")
+       (apply str)))
 
-(defn prn-t
-  [x]
-  (prn "XXXXX: " x)
-  x)
+(def COLLECT-KEY
+  (sp/path (sp/collect-one sp/FIRST)))
+
+(defn vectorise-metadata-path
+  [tuple]
+  (sp/transform
+   (sp/srange-dynamic (constantly 0) #(- (count %) 2))
+   vector
+   tuple))
+
+(defn remove-update-from-metadata-path
+  [tuple]
+  (letfn [(clean-ns [kw]
+            (let [ns (namespace kw)
+                  n (name kw)
+                  update-dex (clojure.string/index-of ns ".update")]
+               (keyword (subs ns 0 update-dex) n)))]
+    (sp/transform
+     [sp/FIRST sp/ALL]
+     clean-ns
+     tuple)))
 
 (defn update-data-map->dynamo-update
   [data]
-  (let [expr-val-names (atom (expr-attribute-value-generator))]
+  (let [expr-val-names (expr-attribute-value-generator)]
     (->> data
-         remove-update-from-namespace
-         (sp/transform
-          [COLLECT-MAP-KEY-DESCEND-MAP-VALS
-           (sp/if-path action-map?
-                       [sp/STAY]
-                       COLLECT-MAP-KEY-DESCEND-MAP-VALS)
-           COLLECT-MAP-KEY-DESCEND-MAP-VALS (putseqval expr-val-names)]
-          create-update-expression)
-         (sp/select (sp/walker update-map?))
+         (sp/select [sp/ALL COLLECT-KEY sp/LAST                  
+                     (sp/if-path action-map?
+                                 [sp/STAY]
+                                 [sp/ALL COLLECT-KEY sp/LAST])
+                     sp/ALL COLLECT-KEY sp/LAST])
+         (map vectorise-metadata-path)
+         (map remove-update-from-metadata-path)
+         (map create-update-expression expr-val-names)
          (apply merge-with merge-updates)
          (#(update % :update-expr concat-update-expr)))))
 
@@ -373,5 +351,5 @@
   [conn table id-column id data]
   (far/update-item conn table
                    {id-column id}
-                   (prn-t (update-data-map->dynamo-update data))))
+                   (update-data-map->dynamo-update data)))
 

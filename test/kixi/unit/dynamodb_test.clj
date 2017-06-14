@@ -3,6 +3,7 @@
             [clojure.spec :as s]
             [clojure.spec.gen :as gen]
             [clojure.data :as data]
+            [com.gfredericks.schpec :as sh]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [environ.core :refer [env]]
             [kixi.datastore.metadatastore :as md]
@@ -89,14 +90,36 @@
             (is-match schema
                       (db/inflate-map (db/flatten-map schema)))))
 
+(sh/alias 'lu 'kixi.datastore.metadatastore.license.update)
+(sh/alias 'mdu 'kixi.datastore.metadatastore.update)
+
+(deftest vectorise-metadata-path
+  (is (= [[::md/name] :set "name"]
+         (db/vectorise-metadata-path [::md/name :set "name"])))
+  (is (= [[::l/license ::l/usage] :set "license usage"]
+         (db/vectorise-metadata-path [::l/license ::l/usage :set "license usage"]))))
+
+(deftest remove-update-from-metadata-path
+  (is (= [[::l/license ::l/usage] :set "license usage"]
+         (db/remove-update-from-metadata-path [[::lu/license ::lu/usage] 
+                                          :set "license usage"]))))
+
+(deftest update-expr-creation
+  (is (= "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac DELETE #kixidatastoremetadatastore_tags :ad"
+         (db/concat-update-expr {:set ["#kixidatastoremetadatastore_name = :aa" 
+                                       "#kixidatastoremetadatastore_description = :ab" 
+                                       "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae"]
+                                 :conj ["#kixidatastoremetadatastore_tags :ac"]
+                                 :disj ["#kixidatastoremetadatastore_tags :ad"]}))))
+
 (deftest update-data-map-transformed-into-update-expr-map
-  (let [test-data {::md/name {:set "name"}
-                   ::md/description {:set "description"}
-                   ::md/tags {:conj #{"add"} 
+  (let [test-data {::mdu/name {:set "name"}
+                   ::mdu/description {:set "description"}
+                   ::mdu/tags {:conj #{"add"} 
                               :disj #{"remove"}}
-                   ::l/license {::l/usage {:set "license usage"}}}]
+                   ::lu/license {::lu/usage {:set "license usage"}}}]
     (is-submap {:update-expr
-                "DELETE #kixidatastoremetadatastore_tags :ad ADD #kixidatastoremetadatastore_tags :ac SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae"
+                "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac DELETE #kixidatastoremetadatastore_tags :ad"
                 :expr-attr-names
                 {"#kixidatastoremetadatastore_name"
                  "kixi.datastore.metadatastore_name",
