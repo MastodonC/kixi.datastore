@@ -94,15 +94,15 @@
 (sh/alias 'mdu 'kixi.datastore.metadatastore.update)
 
 (deftest vectorise-metadata-path
-  (is (= [[::md/name] :set "name"]
-         (db/vectorise-metadata-path [::md/name :set "name"])))
-  (is (= [[::l/license ::l/usage] :set "license usage"]
-         (db/vectorise-metadata-path [::l/license ::l/usage :set "license usage"]))))
+  (is (= [[::md/name] :set "name" :aa]
+         (db/vectorise-metadata-path [::md/name :set "name" :aa])))
+  (is (= [[::l/license ::l/usage] :set "license usage" :aa]
+         (db/vectorise-metadata-path [::l/license ::l/usage :set "license usage" :aa]))))
 
 (deftest remove-update-from-metadata-path
-  (is (= [[::l/license ::l/usage] :set "license usage"]
+  (is (= [[::l/license ::l/usage] :set "license usage" :aa]
          (db/remove-update-from-metadata-path [[::lu/license ::lu/usage] 
-                                          :set "license usage"]))))
+                                               :set "license usage" :aa]))))
 
 (deftest update-expr-creation
   (is (= "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac DELETE #kixidatastoremetadatastore_tags :ad"

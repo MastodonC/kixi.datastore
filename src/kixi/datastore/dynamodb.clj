@@ -231,19 +231,19 @@
                    {id-column id}
                    {:update-map (map->update-map data)}))
 
-(def fn-specifier->dynamo-expr
+(def operand->dynamo-op
   {:set ["SET " " = "]
    :conj ["ADD " " "]
    :disj ["DELETE " " "]})
 
 (defn update-set
-  [conn table id-column id fn-specifier route val]
+  [conn table id-column id operand route val]
   (let [raw-attribute-name (dynamo-col route)
         valid-attribute-name (validify-name raw-attribute-name)]
     (far/update-item conn table
                      {id-column id}
-                     {:update-expr (str (first (fn-specifier fn-specifier->dynamo-expr))
-                                        (second (fn-specifier fn-specifier->dynamo-expr))
+                     {:update-expr (str (first (operand operand->dynamo-op))
+                                        (second (operand operand->dynamo-op))
                                         valid-attribute-name
                                         " :v")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
@@ -261,10 +261,10 @@
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
                       :expr-attr-vals {":v" val}})))
 
-(defn action-map?
+(defn op-map?
   [m]
   (and (map? m)
-       (every? (set (keys fn-specifier->dynamo-expr))
+       (every? (set (keys operand->dynamo-op))
                (keys m))))
 
 (defn expr-attribute-value-generator
@@ -280,12 +280,12 @@
   (str e1 " " e2))
 
 (defn create-update-expression
-  [expr-val-name [field-path operand value]]
+  [[field-path operand value expr-val-name]]
   (let [raw-attribute-name (dynamo-col field-path)
         valid-attribute-name (validify-name raw-attribute-name)]
     {:update-expr {operand [(str
                              valid-attribute-name
-                             (second (operand fn-specifier->dynamo-expr))
+                             (second (operand operand->dynamo-op))
                              expr-val-name)]}
      :expr-attr-names {valid-attribute-name raw-attribute-name}
      :expr-attr-vals {(str expr-val-name) value}}))
@@ -305,18 +305,18 @@
        (map 
         (fn [[op exprs]]
           (apply str
-                 (first (op fn-specifier->dynamo-expr))
+                 (first (op operand->dynamo-op))
                  (interpose ", " exprs))))
        (interpose " ")
        (apply str)))
 
-(def COLLECT-KEY
-  (sp/path (sp/collect-one sp/FIRST)))
+(def COLLECT-KEY-DESC-VAL
+  (sp/path [sp/ALL (sp/collect-one sp/FIRST) sp/LAST]))
 
 (defn vectorise-metadata-path
   [tuple]
   (sp/transform
-   (sp/srange-dynamic (constantly 0) #(- (count %) 2))
+   (sp/srange-dynamic (constantly 0) #(- (count %) 3))
    vector
    tuple))
 
@@ -334,18 +334,26 @@
 
 (defn update-data-map->dynamo-update
   [data]
-  (let [expr-val-names (expr-attribute-value-generator)]
-    (->> data
-         (sp/select [sp/ALL COLLECT-KEY sp/LAST                  
-                     (sp/if-path action-map?
-                                 [sp/STAY]
-                                 [sp/ALL COLLECT-KEY sp/LAST])
-                     sp/ALL COLLECT-KEY sp/LAST])
-         (map vectorise-metadata-path)
-         (map remove-update-from-metadata-path)
-         (map create-update-expression expr-val-names)
-         (apply merge-with merge-updates)
-         (#(update % :update-expr concat-update-expr)))))
+  (transduce
+   (comp
+    (map vectorise-metadata-path)
+    (map remove-update-from-metadata-path)
+    (map create-update-expression))
+   (fn reducer
+     ([] {})
+     ([acc expr]
+      (merge-with merge-updates acc expr))
+     ([acc]
+      (update acc
+              :update-expr concat-update-expr)))
+   (map conj
+        (sp/select [COLLECT-KEY-DESC-VAL
+                    (sp/if-path op-map?
+                                [sp/STAY]
+                                COLLECT-KEY-DESC-VAL)
+                    COLLECT-KEY-DESC-VAL]
+                   data)
+        (expr-attribute-value-generator))))
 
 (defn update-data
   [conn table id-column id data]
