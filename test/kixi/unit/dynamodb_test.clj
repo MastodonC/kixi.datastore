@@ -6,12 +6,31 @@
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [environ.core :refer [env]]
             [kixi.datastore.metadatastore :as md]
+            [kixi.datastore.metadatastore.license :as l]
             [kixi.datastore.dynamodb :as db]
             [kixi.datastore.schemastore :as ss]
             [taoensso
              [timbre :as timbre :refer [error]]]))
 
 (def sample-size (Integer/valueOf (str (env :generative-testing-size "100"))))
+
+
+(defmacro is-submap
+  [expected actual & [msg]]
+  `(try
+     (let [act# ~actual
+           exp# ~expected
+           [only-in-ex# only-in-ac# shared#] (clojure.data/diff exp# act#)]
+       (if only-in-ex#
+         (clojure.test/do-report {:type :fail
+                                  :message (or ~msg "Missing expected elements.")
+                                  :expected only-in-ex# :actual act#})
+         (clojure.test/do-report {:type :pass
+                                  :message "Matched"
+                                  :expected exp# :actual act#})))
+     (catch Throwable t#
+       (clojure.test/do-report {:type :error :message "Exception diffing"
+                                :expected nil :actual t#}))))
 
 (defn first-2-nil?
   [v]
@@ -69,3 +88,31 @@
             [schema (s/gen ::ss/stored-schema)]
             (is-match schema
                       (db/inflate-map (db/flatten-map schema)))))
+
+(deftest update-data-map-transformed-into-update-expr-map
+  (let [test-data {::md/name {:set "name"}
+                   ::md/description {:set "description"}
+                   ::md/tags {:conj #{"add"} 
+                              :disj #{"remove"}}
+                   ::l/license {::l/usage {:set "license usage"}}}]
+    (is-submap {:update-expr
+                "DELETE #kixidatastoremetadatastore_tags :ad ADD #kixidatastoremetadatastore_tags :ac SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae"
+                :expr-attr-names
+                {"#kixidatastoremetadatastore_name"
+                 "kixi.datastore.metadatastore_name",
+                 "#kixidatastoremetadatastore_description"
+                 "kixi.datastore.metadatastore_description",
+                 "#kixidatastoremetadatastore_tags"
+                 "kixi.datastore.metadatastore_tags",
+                 "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage"
+                 "kixi.datastore.metadatastore.license_license|kixi.datastore.metadatastore.license_usage"},
+                :expr-attr-vals
+                {":aa" "name"
+                 ":ab" "description"
+                 ":ae" "license usage"
+                 ":ac" #{"add"}
+                 ":ad" #{"remove"}}}
+               (db/update-data-map->dynamo-update test-data))))
+
+
+

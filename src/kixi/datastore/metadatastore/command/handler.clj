@@ -140,43 +140,6 @@
                                   :original payload
                                   :kixi/user (:kixi.comms.command/user cmd)}})))
 
-(spec/def ::metadata-update
-  (spec/merge (spec/keys :req [::ms/id]
-                         :opt [::ms/name ::ms/description
-                               ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                               ::ms/maintainer ::ms/author ::ms/source ::l/license])
-              (spec/map-of #{::ms/id ::ms/name ::ms/description
-                             ::ms/tags ::geo/geography ::mdt/temporal-coverage 
-                             ::ms/maintainer ::ms/author ::ms/source ::l/license}
-                           any?)))
-
-(defn create-metadata-update-handler
-  [metadatastore]
-  (fn [{:keys [kixi.comms.command/payload] :as cmd}]
-    (if (spec/valid? ::metadata-update payload)
-      (let [user-id (get-user-id cmd)
-            user-groups (get-user-groups cmd)
-            metadata-id (::ms/id payload)]
-        (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
-          (let [event-payload (merge {::cs/file-metadata-update-type
-                                      ::cs/file-metadata-update
-                                      :kixi/user (:kixi.comms.command/user cmd)}
-                                     payload)]
-            {:kixi.comms.event/key :kixi.datastore.file-metadata/updated
-             :kixi.comms.event/version "1.0.0"
-             :kixi.comms.event/payload event-payload})
-          {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
-           :kixi.comms.event/version "1.0.0"
-           :kixi.comms.event/payload {:reason :unauthorised
-                                      ::ms/id metadata-id
-                                      :kixi/user (:kixi.comms.command/user cmd)}}))
-      {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
-       :kixi.comms.event/version "1.0.0"
-       :kixi.comms.event/payload {:reason :invalid
-                                  :explanation (spec/explain-data ::metadata-update payload)
-                                  :original payload
-                                  :kixi/user (:kixi.comms.command/user cmd)}})))
-
 (defmulti metadata-update
    (fn [payload]
      [(::ms/type payload) (::ms/bundle-type payload)]))
@@ -228,13 +191,16 @@ the generated 'update' specs.
 
 (defn define-metadata-update-implementation
   [[dispatch-value spec->action]]
-  `(defmethod metadata-update
-     ~dispatch-value
-     ~['_]
-     (spec/keys :req ~(if (nil? (second dispatch-value))
-                        [::ms/id ::ms/type]
-                        [::ms/id ::ms/type ::ms/bundle-type])
-                :opt ~(mapv updates/update-spec-name (keys spec->action)))))
+  (let [type-fields (if (nil? (second dispatch-value))
+                      [::ms/id ::ms/type]
+                      [::ms/id ::ms/type ::ms/bundle-type])]
+    `(defmethod metadata-update
+       ~dispatch-value
+       ~['_]
+       (spec/merge (spec/keys :req ~type-fields
+                              :opt ~(mapv updates/update-spec-name (keys spec->action)))
+                   (spec/map-of ~(into (set type-fields) (mapv updates/update-spec-name (keys spec->action)))
+                                any?)))))
 
 (defmacro define-metadata-update-implementations
   []
@@ -255,6 +221,15 @@ the generated 'update' specs.
                               :original {::ms/payload cmd}
                               :kixi/user (:kixi.comms.command/user cmd)}})
 
+(defn semantically-invalid
+  [cmd explanation]
+  {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
+   :kixi.comms.event/version "1.0.0"
+   :kixi.comms.event/payload {:reason :invalid
+                              :explanation explanation
+                              :original {::ms/payload cmd}
+                              :kixi/user (:kixi.comms.command/user cmd)}})
+
 (defn unauthorised
   [cmd id]
   {:kixi.comms.event/key :kixi.datastore.metadatastore/update-rejected
@@ -269,34 +244,30 @@ the generated 'update' specs.
    :kixi.comms.event/version "1.0.0"
    :kixi.comms.event/payload payload})
 
-(defn assoc-types
-  [md payload]
-  (merge payload
-         (select-keys md
-                      [::ms/type ::ms/bundle-type])))
-
-(defn valid-update
+(defn structurally-valid
   [metadatastore {:keys [::ms/id] :as payload}]
   (spec/valid? ::metadata-update 
                payload))
 
-(defn resolve-packed-ids
-  [metadatastore user-groups current updates]
-  (if (= "bundle"
-         (::ms/type updates))
-    (let [current-ids (set (::ms/packed-ids current))
-          updated-ids (set (::ms/packed-ids updates))
-          removed (clojure.set/difference current-ids updated-ids)
-          added (clojure.set/difference updated-ids current-ids)
-          removable (apply disj removed (unauthorised-ids metadatastore user-groups removed))
-          addable (apply disj added (unauthorised-ids metadatastore user-groups added))]
-      (assoc updates
-             ::ms/packed-ids
-             (->> current-ids
-                  (concat addable)
-                  (remove (set removable))
-                  vec)))
-    updates))
+(defn not-semantically-valid
+  [metadatastore cmd typed-payload]
+  (when (= "bundle"
+           (::ms/type typed-payload))
+    (some->> (concat (get-in typed-payload [:kixi.datastore.metadatastore.update/packed-ids :conj])
+                     (get-in typed-payload [:kixi.datastore.metadatastore.update/packed-ids :disj]))
+             (unauthorised-ids metadatastore (get-user-groups cmd))
+             (hash-map ::ms/type "bundle" :unauthorised-packed-ids)
+             (semantically-invalid cmd))))
+
+(defn get-metadata-types
+  [metadatastore id]
+  (select-keys (ms/retrieve metadatastore id)
+               [::ms/type ::ms/bundle-type]))
+
+(defn dissoc-types
+  [md]
+  (dissoc md      
+          ::ms/type ::ms/bundle-type))
 
 (defn create-metadata-update-handler
   [metadatastore]
@@ -304,14 +275,15 @@ the generated 'update' specs.
     (cond
       (not (spec/valid? ::ms/id id)) (invalid cmd ::ms/id id)
       (not (ms/authorised metadatastore ::ms/meta-update id (get-user-groups cmd))) (unauthorised cmd id)
-      :default (let [current-meta (ms/retrieve metadatastore id)
-                     typed-payload (assoc-types current-meta payload)]
+      :default (let [typed-payload (merge payload
+                                          (get-metadata-types metadatastore id))]
                  (cond
-                   (not (valid-update metadatastore typed-payload)) (invalid cmd ::metadata-update typed-payload)
-                   :default (let [with-resolved-packed-ids (resolve-packed-ids metadatastore (get-user-groups cmd) current-meta typed-payload)] 
-                                (updated (assoc with-resolved-packed-ids
-                                                ::cs/file-metadata-update-type ::cs/file-metadata-update
-                                                :kixi/user (:kixi.comms.command/user cmd)))))))))
+                   (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::metadata-update typed-payload)
+                   :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
+                              invalid-event
+                              (updated (assoc (dissoc-types typed-payload)
+                                              ::cs/file-metadata-update-type ::cs/file-metadata-update
+                                              :kixi/user (:kixi.comms.command/user cmd)))))))))
 
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore

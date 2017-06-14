@@ -36,7 +36,7 @@
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (s/def ::bundle-type #{"datapack"})
-(s/def ::packed-ids (s/coll-of sc/uuid))
+(s/def ::packed-ids (s/coll-of sc/uuid :kind set?))
 
 (s/def :kixi/user
   (s/keys :req [:kixi.user/id

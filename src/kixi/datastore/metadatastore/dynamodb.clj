@@ -106,20 +106,21 @@
 (defmethod update-metadata-processor ::cs/file-metadata-segmentation-add
   [conn update-event]
   (info "Update: " update-event)
-  (db/append-list conn
-                  (primary-metadata-table (:profile conn))
-                  id-col
-                  (::md/id update-event)
-                  :add
-                  [::md/segmentations]
-                  (:kixi.group/id update-event)))
+  (comment "This implementation is not idempotent, need a check to prevent repeat segement adds"
+    (db/append-list conn
+                    (primary-metadata-table (:profile conn))
+                    id-col
+                    (::md/id update-event)
+                    :add
+                    [::md/segmentations]
+                    (:kixi.group/id update-event))))
 
 (defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
   [conn update-event]
   (info "Update Share: " update-event)
   (let [update-fn (case (::md/sharing-update update-event)
-                    ::md/sharing-conj :add
-                    ::md/sharing-disj :delete)
+                    ::md/sharing-conj :conj
+                    ::md/sharing-disj :disj)
         metadata-id (::md/id update-event)]
     (db/update-set conn
                    (primary-metadata-table (:profile conn))
@@ -136,16 +137,24 @@
                           (insert-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata))
       ::md/sharing-disj (remove-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata-id))))
 
+(defn dissoc-nonupdates
+  [md]
+  (reduce
+   (fn [acc [k v]]
+     (if (and (namespace k) (clojure.string/index-of (namespace k) ".update"))
+       (assoc acc k v)
+       acc))
+   {}
+   md))
+
 (defmethod update-metadata-processor ::cs/file-metadata-update
   [conn update-event]
   (info "Update: " update-event)
-  (db/merge-data conn
-                 (primary-metadata-table (:profile conn))
-                 id-col
-                 (::md/id update-event)
-                 (dissoc update-event
-                         ::md/id)))
-
+  (db/update-data conn
+                  (primary-metadata-table (:profile conn))
+                  id-col
+                  (::md/id update-event)
+                  (dissoc-nonupdates update-event)))
 
 (def sort-order->dynamo-comp
   {"asc" :asc

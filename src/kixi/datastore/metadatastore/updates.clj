@@ -17,15 +17,21 @@
   [[spec actions]]
   (eval
    `(s/def ~(update-spec-name spec)
-     ~(s/map-of actions
-               #(s/valid? spec %)))))
+      ~(s/merge (s/map-of actions
+                          #(s/valid? spec %))
+                #(-> %
+                     keys
+                     count
+                     (= 1))))))
 
 (defn update-map-spec
   [[map-spec fields]]
   (eval
    `(s/def ~(update-spec-name map-spec)
-     (s/keys
-       :opt ~(mapv update-spec-name fields)))))
+      (s/merge (s/keys
+                :opt ~(mapv update-spec-name fields))
+               (s/map-of ~(into #{} (mapv update-spec-name fields))
+                         any?)))))
 
 (defn all-specs-with-actions
   [definition-map]

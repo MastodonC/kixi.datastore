@@ -134,7 +134,7 @@
             new-group (uuid)
             event (update-metadata
                    uid meta-id
-                   {::ms/source "New Source"})]
+                   {:kixi.datastore.metadatastore.update/source {:set "New Source"}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
           (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                             (get-in metadata [:body ::ms/source])))

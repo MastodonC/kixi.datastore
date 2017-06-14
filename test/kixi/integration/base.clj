@@ -621,7 +621,12 @@
   ([uid pack-name packed-ids]
    (send-datapack uid uid pack-name packed-ids))
   ([uid ugroup pack-name packed-ids]
-   (let [metadata (create-datapack uid ugroup pack-name packed-ids)]
+   (send-datapack (create-datapack uid ugroup pack-name packed-ids)))
+  ([metadata]
+   (let [ugroup (or (get-in metadata [::ms/sharing ::ms/file-read])
+                    (get-in metadata [::ms/sharing ::ms/meta-read])
+                    (get-in metadata [::ms/sharing ::ms/meta-update]))
+         uid (get-in metadata [::ms/provenance :kixi.user/id])]
      (send-metadata-cmd ugroup
                         metadata)
      (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
