@@ -26,6 +26,8 @@
 (s/def :kixi.user/id sc/uuid)
 (s/def ::created sc/timestamp)
 (s/def ::added sc/timestamp)
+(s/def ::source-created sc/date)
+(s/def ::source-updated sc/date)
 
 (s/def ::maintainer sc/not-empty-string)
 (s/def ::author sc/not-empty-string)
@@ -117,7 +119,8 @@
   (s/keys :req [::type ::file-type ::id ::name ::provenance ::size-bytes ::sharing]
           :opt [::schema ::segmentations ::segment ::structural-validation ::description
                 ::tags ::geo/geography ::t/temporal-coverage 
-                ::maintainer ::author ::source ::l/license]))
+                ::maintainer ::author ::source ::l/license
+                ::source-created ::source-updated]))
 
 (defmulti bundle-metadata ::bundle-type)
 

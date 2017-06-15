@@ -198,6 +198,8 @@ the generated 'update' specs.
                    ::ms/source #{:set}
                    ::ms/author #{:set}
                    ::ms/maintainer #{:set}
+                   ::ms/source-created #{:set}
+                   ::ms/source-updated #{:set}
                    ::ms/tags #{:conj :disj}
                    ::l/license {::l/usage #{:set}
                                 ::l/type #{:set}}
