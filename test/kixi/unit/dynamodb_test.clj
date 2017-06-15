@@ -138,4 +138,12 @@
                (db/update-data-map->dynamo-update test-data))))
 
 
-
+(deftest map->flat-vectors
+  (is (= [[:a :aa 1] [:a :ab 1] [:a :ac :aca 1] [:a :ac :acb 1] [:a :ac :acc :acca 1] [:b :ba 2] [:c 3]]
+         (db/map->flat-vectors {:a {:aa 1
+                                    :ab 1
+                                    :ac {:aca 1
+                                         :acb 1
+                                         :acc {:acca 1}}}
+                                :b {:ba 2}
+                                :c 3}))))

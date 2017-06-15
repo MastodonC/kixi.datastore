@@ -262,12 +262,6 @@
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
                       :expr-attr-vals {":v" val}})))
 
-(defn op-map?
-  [m]
-  (and (map? m)
-       (every? (set (keys operand->dynamo-op))
-               (keys m))))
-
 (def expr-attribute-value-generator
   "Sequence of two char keywords for use in update expressions as place holders"
   (let [alphabet (map (comp str char) (range 97 123))]
@@ -311,8 +305,17 @@
        (interpose " ")
        (apply str)))
 
-(def COLLECT-KEY-DESC-VAL
-  (sp/path [sp/ALL (sp/collect-one sp/FIRST) sp/LAST]))
+(defn map->flat-vectors
+  [x]
+  (if (map? x)
+    (vec 
+     (mapcat 
+      (fn [[k v]] 
+        (map 
+         #(vec (cons k %))
+         (map->flat-vectors v))) 
+      x))
+    [[x]]))
 
 (defn vectorise-metadata-path
   [tuple]
@@ -348,12 +351,7 @@
       (update acc
               :update-expr concat-update-expr)))
    (map conj
-        (sp/select [COLLECT-KEY-DESC-VAL
-                    (sp/if-path op-map?
-                                [sp/STAY]
-                                COLLECT-KEY-DESC-VAL)
-                    COLLECT-KEY-DESC-VAL]
-                   data)
+        (map->flat-vectors data)
         expr-attribute-value-generator)))
 
 (defn update-data
