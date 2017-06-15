@@ -17,12 +17,8 @@
   [[spec actions]]
   (eval
    `(s/def ~(update-spec-name spec)
-      ~(s/merge (s/map-of actions
-                          #(s/valid? spec %))
-                #(-> %
-                     keys
-                     count
-                     (= 1))))))
+      ~(s/map-of actions
+                 #(s/valid? spec %)))))
 
 (defn update-map-spec
   [[map-spec fields]]
