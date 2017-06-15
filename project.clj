@@ -23,7 +23,9 @@
                  [clojure-csv/clojure-csv "2.0.1"]
                  [cheshire "5.6.3"]
                  [com.cognitect/transit-clj "0.8.288"]
+                 [com.gfredericks/schpec "0.1.1"]
                  [com.fzakaria/slf4j-timbre "0.3.2"]
+                 [com.rpl/specter "1.0.2"]
                  [com.stuartsierra/component "0.3.1"]
                  [com.taoensso/faraday "1.9.0" :exclusions [com.amazonaws/aws-java-sdk-dynamodb
                                                             com.taoensso/encore]]

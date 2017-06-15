@@ -7,15 +7,17 @@
              [geography :as geo]
              [license :as l]
              [time :as t]]
-            [kixi.datastore.schemastore.conformers :as sc]))
+            [kixi.datastore.schemastore.conformers :as sc]
+            [clojure.spec.gen :as gen]))
 
 (s/def ::type #{"stored" "bundle"})
 (s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
-(s/def ::name (s/and sc/not-empty-string
-                     #(re-matches #"^[\p{Digit}\p{IsAlphabetic}].{1,512}[\p{Digit}\p{IsAlphabetic}]$" %)))
+(s/def ::name (s/with-gen (s/and sc/not-empty-string
+                                #(when (string? %) (re-matches #"^[\p{Digit}\p{IsAlphabetic}].{1,512}[\p{Digit}\p{IsAlphabetic}]$" %)))
+               #(gen/such-that (fn [x] (< 0 (count x) 512)) (gen/string-alphanumeric))))
 (s/def ::description sc/not-empty-string)
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})
@@ -34,7 +36,7 @@
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (s/def ::bundle-type #{"datapack"})
-(s/def ::packed-ids (s/coll-of sc/uuid))
+(s/def ::packed-ids (s/coll-of sc/uuid :kind set?))
 
 (s/def :kixi/user
   (s/keys :req [:kixi.user/id

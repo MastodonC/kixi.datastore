@@ -1,5 +1,6 @@
 (ns kixi.datastore.dynamodb
   (:require [environ.core :refer [env]]
+            [com.rpl.specter :as sp]
             [joplin.repl :as jrepl]
             [medley.core :refer [map-keys map-vals remove-vals]]
             [taoensso
@@ -15,13 +16,13 @@
    (clojure.string/split-lines)
    (run! #(info "JOPLIN:" %))))
 
-(def map-depth-seperator "|")
-(def namespace-seperator "_")
+(def map-depth-separator "|")
+(def namespace-separator "_")
 
 (defn flat-kw
   [k]
   (if-let [ns (namespace k)]
-          (str ns namespace-seperator (name k))
+          (str ns namespace-separator (name k))
           (name k)))
 
 (defn size-1
@@ -47,12 +48,12 @@
   [v]
   (->> v
        (map flat-kw)
-       (interpose map-depth-seperator)
+       (interpose map-depth-separator)
        (apply str)))
 
 (defn inflate-kw
   [^String s]
-  (if-let [dex (clojure.string/index-of s namespace-seperator)]
+  (if-let [dex (clojure.string/index-of s namespace-separator)]
     (keyword (subs s 0 dex)
              (subs s (inc dex)))
     (keyword s)))
@@ -68,7 +69,7 @@
              (not-empty v)) 
         (merge acc
                (flatten-map 
-                (str prefix (flat-kw k) map-depth-seperator)
+                (str prefix (flat-kw k) map-depth-separator)
                 v))
         (and (sequential? v)
              (not-empty v)
@@ -88,7 +89,7 @@
   ([s]
    (split-to-kws s 0))
   ([^String s dex]
-   (if-let [nxt (clojure.string/index-of s map-depth-seperator dex)]
+   (if-let [nxt (clojure.string/index-of s map-depth-separator dex)]
      (cons (inflate-kw (subs s dex nxt))
            (lazy-seq (split-to-kws s (inc nxt))))
      [(inflate-kw (subs s dex))])))
@@ -230,17 +231,20 @@
                    {id-column id}
                    {:update-map (map->update-map data)}))
 
-(def fn-specifier->dynamo-expr
-  {:add "ADD"
-   :delete "DELETE"})
+(def operand->dynamo-op
+  {:set ["SET " " = "]
+   :conj ["ADD " " "]
+   :disj ["DELETE " " "]})
 
 (defn update-set
-  [conn table id-column id fn-specifier route val]
+  [conn table id-column id operand route val]
   (let [raw-attribute-name (dynamo-col route)
-        valid-attribute-name (validify-name raw-attribute-name)]
+        valid-attribute-name (validify-name raw-attribute-name)
+        [dynamo-op separator] (operand operand->dynamo-op)]
     (far/update-item conn table
                      {id-column id}
-                     {:update-expr (str (fn-specifier fn-specifier->dynamo-expr) " "
+                     {:update-expr (str dynamo-op
+                                        separator
                                         valid-attribute-name
                                         " :v")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
@@ -257,4 +261,102 @@
                                          " = list_append( " valid-attribute-name ", :v)")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
                       :expr-attr-vals {":v" val}})))
+
+(def expr-attribute-value-generator
+  "Sequence of two char keywords for use in update expressions as place holders"
+  (let [alphabet (map (comp str char) (range 97 123))]
+    (for [a alphabet
+          b alphabet]
+      (keyword (str a b)))))
+
+(defn combine-update-expr
+  [e1 e2]
+  (str e1 " " e2))
+
+(defn create-update-expression
+  [[field-path operand value expr-val-name]]
+  (let [raw-attribute-name (dynamo-col field-path)
+        valid-attribute-name (validify-name raw-attribute-name)
+        [dynamo-op attr-name-val-sep] (operand operand->dynamo-op)]
+    {:update-expr {dynamo-op [(str
+                               valid-attribute-name
+                               attr-name-val-sep
+                               expr-val-name)]}
+     :expr-attr-names {valid-attribute-name raw-attribute-name}
+     :expr-attr-vals {(str expr-val-name) value}}))
+
+(defn merge-updates
+  [m1 m2]
+  (merge-with
+   (fn [f s]
+     (if (vector? f)
+       (vec (concat f s))
+       s))
+   m1 m2))
+
+(defn concat-update-expr
+  [operand->exprs]
+  (->> operand->exprs
+       (map 
+        (fn [[op exprs]]
+          (apply str
+                 op
+                 (interpose ", " exprs))))
+       (interpose " ")
+       (apply str)))
+
+(defn map->flat-vectors
+  [x]
+  (if (map? x)
+    (vec 
+     (mapcat 
+      (fn [[k v]] 
+        (map 
+         #(vec (cons k %))
+         (map->flat-vectors v))) 
+      x))
+    [[x]]))
+
+(defn vectorise-metadata-path
+  [tuple]
+  (sp/transform
+   (sp/srange-dynamic (constantly 0) #(- (count %) 3))
+   vector
+   tuple))
+
+(defn remove-update-from-metadata-path
+  [tuple]
+  (letfn [(clean-ns [kw]
+            (let [ns (namespace kw)
+                  n (name kw)
+                  update-dex (clojure.string/index-of ns ".update")]
+               (keyword (subs ns 0 update-dex) n)))]
+    (sp/transform
+     [sp/FIRST sp/ALL]
+     clean-ns
+     tuple)))
+
+(defn update-data-map->dynamo-update
+  [data]
+  (transduce
+   (comp
+    (map vectorise-metadata-path)
+    (map remove-update-from-metadata-path)
+    (map create-update-expression))
+   (fn reducer
+     ([] {})
+     ([acc expr]
+      (merge-with merge-updates acc expr))
+     ([acc]
+      (update acc
+              :update-expr concat-update-expr)))
+   (map conj
+        (map->flat-vectors data)
+        expr-attribute-value-generator)))
+
+(defn update-data
+  [conn table id-column id data]
+  (far/update-item conn table
+                   {id-column id}
+                   (update-data-map->dynamo-update data)))
 

@@ -134,7 +134,7 @@
             new-group (uuid)
             event (update-metadata
                    uid meta-id
-                   {::ms/source "New Source"})]
+                   {:kixi.datastore.metadatastore.update/source {:set "New Source"}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
           (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                             (get-in metadata [:body ::ms/source])))
@@ -150,10 +150,39 @@
                             "./test-resources/metadata-one-valid.csv"))]
     (when-success metadata-response
       (let [meta-id (get-in metadata-response [:body ::ms/id])
-            new-group (uuid)
             event (update-metadata
                    uid meta-id
                    {::ms/file-type "Invalid"})]
         (when-event-key event :kixi.datastore.metadatastore/update-rejected
                         (is (= :invalid
                               (get-in event [:kixi.comms.event/payload :reason]))))))))
+
+(deftest small-file-update-tags
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (assoc (create-metadata
+                                   uid
+                                   "./test-resources/metadata-one-valid.csv")
+                                  ::ms/tags #{"orig1" "orig2"}))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            event (update-metadata
+                   uid meta-id
+                   {:kixi.datastore.metadatastore.update/tags {:conj #{"Tag1" "Tag2" "Tag3"}}})]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= #{"orig1" "orig2" "Tag1" "Tag2" "Tag3"}
+                                             (get-in metadata [:body ::ms/tags]))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{"orig1" "orig2" "Tag1" "Tag2" "Tag3"}
+                                 (get-in updated-metadata [:body ::ms/tags]))))
+                        (let [disj-event (update-metadata
+                                          uid meta-id
+                                          {:kixi.datastore.metadatastore.update/tags {:disj #{"Tag1" "orig1"}}})]
+                          (when-event-key disj-event :kixi.datastore.file-metadata/updated
+                                          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                                            (= #{"orig2" "Tag2" "Tag3"}
+                                                               (get-in metadata [:body ::ms/tags]))))
+                                          (let [updated-metadata (get-metadata uid meta-id)]
+                                            (is (= #{"orig2" "Tag2" "Tag3"}
+                                                   (get-in updated-metadata [:body ::ms/tags])))))))))))

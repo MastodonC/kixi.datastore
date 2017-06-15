@@ -80,7 +80,7 @@
   (let [event (base/update-metadata
                uid ugroups
                file-id
-               {::ms/source "Updated source"})]
+               {:kixi.datastore.metadatastore.update/source {:set "Updated source"}})]
     (if (= (:kixi.comms.event/key event)
            :kixi.datastore.file-metadata/updated)
       {:status 200}
@@ -91,7 +91,7 @@
   (let [event (base/send-datapack
                uid ugroups
                "sharing test datapack"
-               [file-id])]
+               #{file-id})]
     (if (= (:kixi.comms.event/key event)
            :kixi.datastore.file-metadata/updated)
       {:status 200}
