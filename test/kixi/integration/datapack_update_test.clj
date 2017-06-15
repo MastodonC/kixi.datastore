@@ -93,6 +93,7 @@
         event (update-metadata
                uid-two pack-id
                {:kixi.datastore.metadatastore.update/packed-ids {:conj #{file-two-id}}
+                :kixi.datastore.metadatastore.update/tags {:conj #{"New Tag"}}
                 :kixi.datastore.metadatastore.update/description {:set "Added"}})]
     (when-event-key event :kixi.datastore.file-metadata/updated
                     (wait-for-pred #(let [metadata (get-metadata uid-one pack-id)]
@@ -100,5 +101,7 @@
                     (let [updated-metadata (get-metadata uid-one pack-id)]
                       (is (= "Added"
                              (get-in updated-metadata [:body ::ms/description])))
+                      (is (= #{"New Tag"}
+                             (get-in updated-metadata [:body ::ms/tags])))
                       (is (= #{file-one-id file-two-id}
                              (get-in updated-metadata [:body ::ms/packed-ids])))))))

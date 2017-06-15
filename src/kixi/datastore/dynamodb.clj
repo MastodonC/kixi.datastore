@@ -239,11 +239,12 @@
 (defn update-set
   [conn table id-column id operand route val]
   (let [raw-attribute-name (dynamo-col route)
-        valid-attribute-name (validify-name raw-attribute-name)]
+        valid-attribute-name (validify-name raw-attribute-name)
+        [dynamo-op seperator] (operand operand->dynamo-op)]
     (far/update-item conn table
                      {id-column id}
-                     {:update-expr (str (first (operand operand->dynamo-op))
-                                        (second (operand operand->dynamo-op))
+                     {:update-expr (str dynamo-op
+                                        seperator
                                         valid-attribute-name
                                         " :v")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
@@ -267,9 +268,8 @@
        (every? (set (keys operand->dynamo-op))
                (keys m))))
 
-(defn expr-attribute-value-generator
+(def expr-attribute-value-generator
   "Sequence of two char keywords for use in update expressions as place holders"
-  []
   (let [alphabet (map (comp str char) (range 97 123))]
     (for [a alphabet
           b alphabet]
@@ -282,11 +282,12 @@
 (defn create-update-expression
   [[field-path operand value expr-val-name]]
   (let [raw-attribute-name (dynamo-col field-path)
-        valid-attribute-name (validify-name raw-attribute-name)]
-    {:update-expr {operand [(str
-                             valid-attribute-name
-                             (second (operand operand->dynamo-op))
-                             expr-val-name)]}
+        valid-attribute-name (validify-name raw-attribute-name)
+        [dynamo-op attr-name-val-sep] (operand operand->dynamo-op)]
+    {:update-expr {dynamo-op [(str
+                               valid-attribute-name
+                               attr-name-val-sep
+                               expr-val-name)]}
      :expr-attr-names {valid-attribute-name raw-attribute-name}
      :expr-attr-vals {(str expr-val-name) value}}))
 
@@ -305,7 +306,7 @@
        (map 
         (fn [[op exprs]]
           (apply str
-                 (first (op operand->dynamo-op))
+                 op
                  (interpose ", " exprs))))
        (interpose " ")
        (apply str)))
@@ -353,7 +354,7 @@
                                 COLLECT-KEY-DESC-VAL)
                     COLLECT-KEY-DESC-VAL]
                    data)
-        (expr-attribute-value-generator))))
+        expr-attribute-value-generator)))
 
 (defn update-data
   [conn table id-column id data]

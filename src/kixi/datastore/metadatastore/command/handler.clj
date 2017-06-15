@@ -92,7 +92,6 @@
    ::ke/version "1.0.0"
    ::ke/payload payload})
 
-
 (defn get-user-groups
   [cmd]
   (get-in cmd [::kc/user :kixi.user/groups]))

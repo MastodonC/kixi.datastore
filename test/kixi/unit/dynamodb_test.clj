@@ -106,11 +106,11 @@
 
 (deftest update-expr-creation
   (is (= "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac DELETE #kixidatastoremetadatastore_tags :ad"
-         (db/concat-update-expr {:set ["#kixidatastoremetadatastore_name = :aa" 
+         (db/concat-update-expr {"SET " ["#kixidatastoremetadatastore_name = :aa" 
                                        "#kixidatastoremetadatastore_description = :ab" 
                                        "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae"]
-                                 :conj ["#kixidatastoremetadatastore_tags :ac"]
-                                 :disj ["#kixidatastoremetadatastore_tags :ad"]}))))
+                                 "ADD " ["#kixidatastoremetadatastore_tags :ac"]
+                                 "DELETE " ["#kixidatastoremetadatastore_tags :ad"]}))))
 
 (deftest update-data-map-transformed-into-update-expr-map
   (let [test-data {::mdu/name {:set "name"}
