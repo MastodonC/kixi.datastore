@@ -16,13 +16,13 @@
    (clojure.string/split-lines)
    (run! #(info "JOPLIN:" %))))
 
-(def map-depth-seperator "|")
-(def namespace-seperator "_")
+(def map-depth-separator "|")
+(def namespace-separator "_")
 
 (defn flat-kw
   [k]
   (if-let [ns (namespace k)]
-          (str ns namespace-seperator (name k))
+          (str ns namespace-separator (name k))
           (name k)))
 
 (defn size-1
@@ -48,12 +48,12 @@
   [v]
   (->> v
        (map flat-kw)
-       (interpose map-depth-seperator)
+       (interpose map-depth-separator)
        (apply str)))
 
 (defn inflate-kw
   [^String s]
-  (if-let [dex (clojure.string/index-of s namespace-seperator)]
+  (if-let [dex (clojure.string/index-of s namespace-separator)]
     (keyword (subs s 0 dex)
              (subs s (inc dex)))
     (keyword s)))
@@ -69,7 +69,7 @@
              (not-empty v)) 
         (merge acc
                (flatten-map 
-                (str prefix (flat-kw k) map-depth-seperator)
+                (str prefix (flat-kw k) map-depth-separator)
                 v))
         (and (sequential? v)
              (not-empty v)
@@ -89,7 +89,7 @@
   ([s]
    (split-to-kws s 0))
   ([^String s dex]
-   (if-let [nxt (clojure.string/index-of s map-depth-seperator dex)]
+   (if-let [nxt (clojure.string/index-of s map-depth-separator dex)]
      (cons (inflate-kw (subs s dex nxt))
            (lazy-seq (split-to-kws s (inc nxt))))
      [(inflate-kw (subs s dex))])))
@@ -240,11 +240,11 @@
   [conn table id-column id operand route val]
   (let [raw-attribute-name (dynamo-col route)
         valid-attribute-name (validify-name raw-attribute-name)
-        [dynamo-op seperator] (operand operand->dynamo-op)]
+        [dynamo-op separator] (operand operand->dynamo-op)]
     (far/update-item conn table
                      {id-column id}
                      {:update-expr (str dynamo-op
-                                        seperator
+                                        separator
                                         valid-attribute-name
                                         " :v")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
