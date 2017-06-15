@@ -62,7 +62,8 @@
                    uid meta-id
                    {:kixi.datastore.metadatastore.update/description {:set "New Description"}
                     :kixi.datastore.metadatastore.update/source {:set "New Source"}
-                    :kixi.datastore.metadatastore.update/tags {:conj #{"tag" "tag two"}}})]
+                    :kixi.datastore.metadatastore.update/tags {:conj #{"tag" "tag two"}
+                                                               :disj #{"orig-one"}}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (get-in metadata [:body ::ms/description])))
@@ -72,7 +73,7 @@
                                  (get-in updated-metadata [:body ::ms/description])))
                           (is (= "New Source"
                                  (get-in updated-metadata [:body ::ms/source])))
-                          (is (= #{"tag" "tag two" "orig-one" "orig-two"}
+                          (is (= #{"tag" "tag two" "orig-two"}
                                  (get-in updated-metadata [:body ::ms/tags])))))))))
 
 (deftest unreadable-files-arent-removed-when-file-is-added

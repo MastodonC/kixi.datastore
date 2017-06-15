@@ -288,10 +288,11 @@
 (defn merge-updates
   [m1 m2]
   (merge-with
-   (fn [f s]
-     (if (vector? f)
-       (vec (concat f s))
-       s))
+   (partial merge-with
+     (fn [f s]
+       (if (vector? f)
+         (vec (concat f s))
+         s)))
    m1 m2))
 
 (defn concat-update-expr
@@ -344,19 +345,33 @@
     (map remove-update-from-metadata-path)
     (map create-update-expression))
    (fn reducer
-     ([] {})
-     ([acc expr]
-      (merge-with merge-updates acc expr))
-     ([acc]
-      (update acc
-              :update-expr concat-update-expr)))
+     ([] [{}])
+     ([updates expr]
+      (letfn [(able-to-merge?
+                [base expr]
+                (not (get (:expr-attr-names base)
+                      (ffirst (:expr-attr-names expr)))))
+              (targeted-merge
+                [new-updates current-updates expr]
+                (if-let [f (first current-updates)]
+                  (if (able-to-merge? f expr)
+                    (concat new-updates [(merge-updates f expr)] (rest current-updates))
+                    (targeted-merge (conj new-updates f) (rest current-updates) expr))
+                  (conj new-updates expr)))]
+        (targeted-merge [] updates expr)))
+     ([updates]
+      (mapv
+       #(update %
+                :update-expr concat-update-expr)
+       updates)))
    (map conj
         (map->flat-vectors data)
         expr-attribute-value-generator)))
 
 (defn update-data
   [conn table id-column id data]
-  (far/update-item conn table
-                   {id-column id}
-                   (update-data-map->dynamo-update data)))
+  (doseq [update-expr (update-data-map->dynamo-update data)]
+      (far/update-item conn table
+                       {id-column id}
+                       update-expr)))
 

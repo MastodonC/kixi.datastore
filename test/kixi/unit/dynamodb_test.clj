@@ -116,25 +116,31 @@
   (let [test-data {::mdu/name {:set "name"}
                    ::mdu/description {:set "description"}
                    ::mdu/tags {:conj #{"add"} 
-                              :disj #{"remove"}}
+                               :disj #{"remove"}}
                    ::lu/license {::lu/usage {:set "license usage"}}}]
-    (is-submap {:update-expr
-                "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac DELETE #kixidatastoremetadatastore_tags :ad"
-                :expr-attr-names
-                {"#kixidatastoremetadatastore_name"
-                 "kixi.datastore.metadatastore_name",
-                 "#kixidatastoremetadatastore_description"
-                 "kixi.datastore.metadatastore_description",
-                 "#kixidatastoremetadatastore_tags"
-                 "kixi.datastore.metadatastore_tags",
-                 "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage"
-                 "kixi.datastore.metadatastore.license_license|kixi.datastore.metadatastore.license_usage"},
-                :expr-attr-vals
-                {":aa" "name"
-                 ":ab" "description"
-                 ":ae" "license usage"
-                 ":ac" #{"add"}
-                 ":ad" #{"remove"}}}
+    (is-submap [{:update-expr
+                  "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac"
+                  :expr-attr-names
+                  {"#kixidatastoremetadatastore_name"
+                   "kixi.datastore.metadatastore_name",
+                   "#kixidatastoremetadatastore_description"
+                   "kixi.datastore.metadatastore_description",
+                   "#kixidatastoremetadatastore_tags"
+                   "kixi.datastore.metadatastore_tags",
+                   "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage"
+                   "kixi.datastore.metadatastore.license_license|kixi.datastore.metadatastore.license_usage"},
+                  :expr-attr-vals
+                  {":aa" "name"
+                   ":ab" "description"
+                   ":ae" "license usage"
+                   ":ac" #{"add"}}}
+                {:update-expr
+                  "DELETE #kixidatastoremetadatastore_tags :ad"
+                  :expr-attr-names
+                  {"#kixidatastoremetadatastore_tags"
+                   "kixi.datastore.metadatastore_tags"},
+                  :expr-attr-vals
+                  {":ad" #{"remove"}}}]
                (db/update-data-map->dynamo-update test-data))))
 
 
