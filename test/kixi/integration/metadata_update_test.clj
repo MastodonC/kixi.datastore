@@ -134,13 +134,13 @@
             new-group (uuid)
             event (update-metadata
                    uid meta-id
-                   {:kixi.datastore.metadatastore.update/source {:set "New Source"}})]
+                   {:kixi.datastore.metadatastore.update/source-created {:set "20170615"}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
           (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
-                            (get-in metadata [:body ::ms/source])))
+                            (get-in metadata [:body ::ms/source-created])))
           (let [updated-metadata (get-metadata uid meta-id)]
-            (is (= "New Source"
-                   (get-in updated-metadata [:body ::ms/source])))))))))
+            (is (= "20170615"
+                   (get-in updated-metadata [:body ::ms/source-created])))))))))
 
 (deftest small-file-add-invalid-metadata
   (let [uid (uuid)
