@@ -42,6 +42,57 @@
                   :expected expected
                   ::ms/file-metadata metadata}}))
 
+(spec/def ::sharing-change-cmd-payload
+  (spec/keys :req [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))
+
+(defn sharing-change-rejected
+  [payload]
+  {::ke/key ::kdm/sharing-change-rejected
+   ::ke/version "1.0.0"
+   ::ke/payload payload})
+
+(defn sharing-change-invalid
+  [{:keys [::kc/payload] :as cmd}]
+  (sharing-change-rejected {:reason :invalid
+                            :explanation (spec/explain-data 
+                                          ::sharing-change-cmd-payload payload)
+                            :original payload
+                            :kixi/user (::kc/user cmd)}))
+
+(defn sharing-change-unauthorised
+  [{:keys [::kc/payload] :as cmd}]
+  (sharing-change-rejected {:reason :unauthorised
+                            ::ms/id (::ms/id payload)
+                            :kixi/user (::kc/user cmd)}))
+
+(defn update-rejected
+  [payload]
+  {::ke/key ::kdm/update-rejected
+   ::ke/version "1.0.0"
+   ::ke/payload payload})
+
+(defn invalid
+  ([cmd speccy data]
+   (invalid cmd (spec/explain-data speccy data)))
+  ([cmd explanation]
+   (update-rejected {:reason :invalid
+                     :explanation explanation
+                     :original {::ms/payload cmd}
+                     :kixi/user (::kc/user cmd)})))
+
+(defn unauthorised
+  [cmd id]
+  (update-rejected {:reason :unauthorised
+                    ::ms/id id
+                    :kixi/user (::kc/user cmd)}))
+
+(defn updated
+  [payload]
+  {::ke/key ::kdfm/updated
+   ::ke/version "1.0.0"
+   ::ke/payload payload})
+
+
 (defn get-user-groups
   [cmd]
   (get-in cmd [::kc/user :kixi.user/groups]))
@@ -80,11 +131,9 @@
       :default [{::ke/key :kixi.datastore.file/created
                  ::ke/version "1.0.0"
                  ::ke/payload metadata}
-                {::ke/key ::kdfm/updated
-                 ::ke/version "1.0.0"
-                 ::ke/payload {::ms/file-metadata metadata
-                                            ::cs/file-metadata-update-type
-                                            ::cs/file-metadata-created}}])))
+                (updated {::ms/file-metadata metadata
+                          ::cs/file-metadata-update-type
+                          ::cs/file-metadata-created})])))
 
 (defn unauthorised-ids
   [metadatastore user-groups ids]
@@ -109,41 +158,21 @@
     (cond
       metadata-explain (reject metadata :metadata-invalid metadata-explain)
       unauthorised-ids (reject metadata :unauthorised {:unauthorised-ids unauthorised-ids})
-      :default {::ke/key ::kdfm/updated
-                ::ke/version "1.0.0"
-                ::ke/payload {::ms/file-metadata metadata
-                                           ::cs/file-metadata-update-type
-                                           ::cs/file-metadata-created}})))
-
-(spec/def ::sharing-change-cmd-payload
-  (spec/keys :req [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))
+      :default (updated {::ms/file-metadata metadata
+                         ::cs/file-metadata-update-type
+                         ::cs/file-metadata-created}))))
 
 (defn create-sharing-change-handler
   [metadatastore]
-  (fn [{:keys [::kc/payload] :as cmd}]
-    (if (spec/valid? ::sharing-change-cmd-payload payload)      
-      (let [user-id (get-user-id cmd)
-            user-groups (get-user-groups cmd)
-            metadata-id (::ms/id payload)]
-        (if (ms/authorised metadatastore ::ms/meta-update metadata-id user-groups)
-          (let [event-payload (merge {::cs/file-metadata-update-type
-                                      ::cs/file-metadata-sharing-updated
-                                      :kixi/user (::kc/user cmd)}
-                                     payload)]
-            {::ke/key ::kdfm/updated
-             ::ke/version "1.0.0"
-             ::ke/payload event-payload})
-          {::ke/key ::kdm/sharing-change-rejected
-           ::ke/version "1.0.0"
-           ::ke/payload {:reason :unauthorised
-                                      ::ms/id metadata-id
-                                      :kixi/user (::kc/user cmd)}}))
-      {::ke/key ::kdm/sharing-change-rejected
-       ::ke/version "1.0.0"
-       ::ke/payload {:reason :invalid
-                                  :explanation (spec/explain-data ::sharing-change-cmd-payload payload)
-                                  :original payload
-                                  :kixi/user (::kc/user cmd)}})))
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{:keys [::kc/payload] :as cmd}]
+      (cond
+        (not (spec/valid? ::sharing-change-cmd-payload payload)) (sharing-change-invalid cmd)
+        (not (authorised (::ms/id payload) (get-user-groups cmd))) (sharing-change-unauthorised cmd)
+        :default (updated (merge {::cs/file-metadata-update-type
+                                  ::cs/file-metadata-sharing-updated
+                                  :kixi/user (::kc/user cmd)}
+                                 payload))))))
 
 (defmulti metadata-update
    (fn [payload]
@@ -217,38 +246,6 @@ the generated 'update' specs.
 (spec/def ::metadata-update
   (spec/multi-spec metadata-update :metadata-update))
 
-(defn invalid
-  [cmd speccy data]
-  {::ke/key ::kdm/update-rejected
-   ::ke/version "1.0.0"
-   ::ke/payload {:reason :invalid
-                              :explanation (spec/explain-data speccy data)
-                              :original {::ms/payload cmd}
-                              :kixi/user (::kc/user cmd)}})
-
-(defn semantically-invalid
-  [cmd explanation]
-  {::ke/key ::kdm/update-rejected
-   ::ke/version "1.0.0"
-   ::ke/payload {:reason :invalid
-                              :explanation explanation
-                              :original {::ms/payload cmd}
-                              :kixi/user (::kc/user cmd)}})
-
-(defn unauthorised
-  [cmd id]
-  {::ke/key ::kdm/update-rejected
-   ::ke/version "1.0.0"
-   ::ke/payload {:reason :unauthorised
-                              ::ms/id id
-                              :kixi/user (::kc/user cmd)}})
-
-(defn updated
-  [payload]
-  {::ke/key ::kdfm/updated
-   ::ke/version "1.0.0"
-   ::ke/payload payload})
-
 (defn structurally-valid
   [metadatastore {:keys [::ms/id] :as payload}]
   (spec/valid? ::metadata-update 
@@ -258,11 +255,11 @@ the generated 'update' specs.
   [metadatastore cmd typed-payload]
   (when (= "bundle"
            (::ms/type typed-payload))
-    (some->> (concat (get-in typed-payload [::mdu/packed-ids :conj])
-                     (get-in typed-payload [::mdu/packed-ids :disj]))
-             (unauthorised-ids metadatastore (get-user-groups cmd))
-             (hash-map ::ms/type "bundle" :unauthorised-packed-ids)
-             (semantically-invalid cmd))))
+    (when-let [unauthed-ids (unauthorised-ids metadatastore (get-user-groups cmd)
+                                              (concat (get-in typed-payload [::mdu/packed-ids :conj])
+                                                      (get-in typed-payload [::mdu/packed-ids :disj])))]
+      (invalid cmd {::ms/type "bundle" 
+                    :unauthorised-packed-ids unauthed-ids}))))
 
 (defn get-metadata-types
   [metadatastore id]
@@ -276,19 +273,20 @@ the generated 'update' specs.
 
 (defn create-metadata-update-handler
   [metadatastore]
-  (fn [{{:keys [::ms/id] :as payload} ::kc/payload :as cmd}]
-    (cond
-      (not (spec/valid? ::ms/id id)) (invalid cmd ::ms/id id)
-      (not (ms/authorised metadatastore ::ms/meta-update id (get-user-groups cmd))) (unauthorised cmd id)
-      :default (let [typed-payload (merge payload
-                                          (get-metadata-types metadatastore id))]
-                 (cond
-                   (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::metadata-update typed-payload)
-                   :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
-                              invalid-event
-                              (updated (assoc (dissoc-types typed-payload)
-                                              ::cs/file-metadata-update-type ::cs/file-metadata-update
-                                              :kixi/user (::kc/user cmd)))))))))
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{{:keys [::ms/id] :as payload} ::kc/payload :as cmd}]
+      (cond
+        (not (spec/valid? ::ms/id id)) (invalid cmd ::ms/id id)
+        (not (authorised id (get-user-groups cmd))) (unauthorised cmd id)
+        :default (let [typed-payload (merge payload
+                                            (get-metadata-types metadatastore id))]
+                   (cond
+                     (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::metadata-update typed-payload)
+                     :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
+                                invalid-event
+                                (updated (assoc (dissoc-types typed-payload)
+                                                ::cs/file-metadata-update-type ::cs/file-metadata-update
+                                                :kixi/user (::kc/user cmd))))))))))
 
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore
