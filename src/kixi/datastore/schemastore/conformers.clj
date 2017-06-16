@@ -2,6 +2,7 @@
   (:require [clojure.core :exclude [integer? double? set?]]
             [clojure.spec :as s]
             [clojure.spec.gen :as gen]
+            [clojure.test.check.generators :as tgen]
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [kixi.datastore.time :as time]))
@@ -205,7 +206,7 @@
 (def uuid 
   (s/with-gen 
     (s/conformer uuid?)
-    #(gen/fmap str (gen/uuid))))
+    #(tgen/no-shrink (gen/fmap str (gen/uuid)))))
 
 (def anything 
   (s/with-gen (constantly true)

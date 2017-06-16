@@ -15,10 +15,15 @@
 
 (defn update-spec
   [[spec actions]]
-  (eval
-   `(s/def ~(update-spec-name spec)
-      ~(s/map-of actions
-                 #(s/valid? spec %)))))
+  (let [rmless-actions (disj actions :rm)]
+    (eval
+     `(s/def ~(update-spec-name spec)
+        ~(if (:rm actions)
+           (s/or :r #{:rm}
+                 :o (s/map-of rmless-actions
+                              #(s/valid? spec %)))
+           (s/map-of rmless-actions
+                     #(s/valid? spec %)))))))
 
 (defn update-map-spec
   [[map-spec fields]]

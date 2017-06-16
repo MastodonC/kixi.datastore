@@ -194,33 +194,33 @@ the generated 'update' specs.
 
 (def metadata-types->field-actions
   {["stored" nil] {::ms/name #{:set}
-                   ::ms/description #{:set}
-                   ::ms/source #{:set}
-                   ::ms/author #{:set}
-                   ::ms/maintainer #{:set}
-                   ::ms/source-created #{:set}
-                   ::ms/source-updated #{:set}
+                   ::ms/description #{:set :rm}
+                   ::ms/source #{:set :rm}
+                   ::ms/author #{:set :rm}
+                   ::ms/maintainer #{:set :rm}
+                   ::ms/source-created #{:set :rm}
+                   ::ms/source-updated #{:set :rm}
                    ::ms/tags #{:conj :disj}
-                   ::l/license {::l/usage #{:set}
-                                ::l/type #{:set}}
-                   ::geo/geography {::geo/level #{:set}
-                                    ::geo/type #{:set}}
-                   ::mdt/temporal-coverage {::mdt/from #{:set}
-                                            ::mdt/to #{:set}}}
+                   ::l/license {::l/usage #{:set :rm}
+                                ::l/type #{:set :rm}}
+                   ::geo/geography {::geo/level #{:set :rm}
+                                    ::geo/type #{:set :rm}}
+                   ::mdt/temporal-coverage {::mdt/from #{:set :rm}
+                                            ::mdt/to #{:set :rm}}}
 
    ["bundle" "datapack"] {::ms/name #{:set}
-                          ::ms/description #{:set}
-                          ::ms/source #{:set}
-                          ::ms/author #{:set}
-                          ::ms/maintainer #{:set}
+                          ::ms/description #{:set :rm}
+                          ::ms/source #{:set :rm}
+                          ::ms/author #{:set :rm}
+                          ::ms/maintainer #{:set :rm}
                           ::ms/tags #{:conj :disj}
                           ::ms/packed-ids #{:conj :disj}
-                          ::l/license {::l/usage #{:set}
-                                       ::l/type #{:set}}
-                          ::geo/geography {::geo/level #{:set}
-                                           ::geo/type #{:set}}
-                          ::mdt/temporal-coverage {::mdt/from #{:set}
-                                                 ::mdt/to #{:set}}}})
+                          ::l/license {::l/usage #{:set :rm}
+                                       ::l/type #{:set :rm}}
+                          ::geo/geography {::geo/level #{:set :rm}
+                                           ::geo/type #{:set :rm}}
+                          ::mdt/temporal-coverage {::mdt/from #{:set :rm}
+                                                 ::mdt/to #{:set :rm}}}})
 
 (updates/create-update-specs metadata-types->field-actions)
 
@@ -244,12 +244,12 @@ the generated 'update' specs.
 
 (define-metadata-update-implementations)
 
-(spec/def ::metadata-update
-  (spec/multi-spec metadata-update :metadata-update))
+(spec/def ::mdu/metadata-update
+  (spec/multi-spec metadata-update ::mdu/metadata-update))
 
 (defn structurally-valid
   [metadatastore {:keys [::ms/id] :as payload}]
-  (spec/valid? ::metadata-update 
+  (spec/valid? ::mdu/metadata-update
                payload))
 
 (defn not-semantically-valid
@@ -282,7 +282,7 @@ the generated 'update' specs.
         :default (let [typed-payload (merge payload
                                             (get-metadata-types metadatastore id))]
                    (cond
-                     (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::metadata-update typed-payload)
+                     (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::mdu/metadata-update typed-payload)
                      :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
                                 invalid-event
                                 (updated (assoc (dissoc-types typed-payload)
