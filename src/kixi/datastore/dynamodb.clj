@@ -233,8 +233,11 @@
 
 (def operand->dynamo-op
   {:set ["SET " " = "]
+   :rm ["REMOVE " ""]
    :conj ["ADD " " "]
    :disj ["DELETE " " "]})
+
+(def operands (set (keys operand->dynamo-op)))
 
 (defn update-set
   [conn table id-column id operand route val]
@@ -278,12 +281,15 @@
   (let [raw-attribute-name (dynamo-col field-path)
         valid-attribute-name (validify-name raw-attribute-name)
         [dynamo-op attr-name-val-sep] (operand operand->dynamo-op)]
-    {:update-expr {dynamo-op [(str
-                               valid-attribute-name
-                               attr-name-val-sep
-                               expr-val-name)]}
-     :expr-attr-names {valid-attribute-name raw-attribute-name}
-     :expr-attr-vals {(str expr-val-name) value}}))
+    (case operand
+      :rm {:update-expr {dynamo-op [valid-attribute-name]}
+           :expr-attr-names {valid-attribute-name raw-attribute-name}}
+      {:update-expr {dynamo-op [(str
+                                 valid-attribute-name
+                                 attr-name-val-sep
+                                 expr-val-name)]}
+       :expr-attr-names {valid-attribute-name raw-attribute-name}
+       :expr-attr-vals {(str expr-val-name) value}})))
 
 (defn merge-updates
   [m1 m2]
@@ -321,7 +327,7 @@
 (defn vectorise-metadata-path
   [tuple]
   (sp/transform
-   (sp/srange-dynamic (constantly 0) #(- (count %) 3))
+   (sp/srange-dynamic (constantly 0) #(count (take-while (complement operands) %)))
    vector
    tuple))
 

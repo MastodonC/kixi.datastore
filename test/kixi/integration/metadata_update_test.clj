@@ -142,6 +142,34 @@
             (is (= "20170615"
                    (get-in updated-metadata [:body ::ms/source-created])))))))))
 
+(deftest small-file-remove-metadata
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata
+                   uid meta-id
+                   {:kixi.datastore.metadatastore.update/source-created {:set "20170615"}})]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (get-in metadata [:body ::ms/source-created])))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= "20170615"
+                                 (get-in updated-metadata [:body ::ms/source-created]))))
+                        (let [rm-event (update-metadata
+                                        uid meta-id
+                                        {:kixi.datastore.metadatastore.update/source-created :rm})]
+                          (when-event-key event :kixi.datastore.file-metadata/updated
+                                          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                                            (not (get-in metadata [:body ::ms/source-created]))))
+                                          (let [updated-metadata (get-metadata uid meta-id)]
+                                            (is (nil?
+                                                   (get-in updated-metadata [:body ::ms/source-created])))))))))))
+
 (deftest small-file-add-invalid-metadata
   (let [uid (uuid)
         metadata-response (send-file-and-metadata

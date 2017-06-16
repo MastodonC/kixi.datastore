@@ -117,9 +117,10 @@
                    ::mdu/description {:set "description"}
                    ::mdu/tags {:conj #{"add"} 
                                :disj #{"remove"}}
+                   ::mdu/source :rm
                    ::lu/license {::lu/usage {:set "license usage"}}}]
     (is-submap [{:update-expr
-                  "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :ae ADD #kixidatastoremetadatastore_tags :ac"
+                  "SET #kixidatastoremetadatastore_name = :aa, #kixidatastoremetadatastore_description = :ab, #kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage = :af ADD #kixidatastoremetadatastore_tags :ac REMOVE #kixidatastoremetadatastore_source"
                   :expr-attr-names
                   {"#kixidatastoremetadatastore_name"
                    "kixi.datastore.metadatastore_name",
@@ -127,12 +128,14 @@
                    "kixi.datastore.metadatastore_description",
                    "#kixidatastoremetadatastore_tags"
                    "kixi.datastore.metadatastore_tags",
+                   "#kixidatastoremetadatastore_source"
+                   "kixi.datastore.metadatastore_source",
                    "#kixidatastoremetadatastorelicense_licensekixidatastoremetadatastorelicense_usage"
                    "kixi.datastore.metadatastore.license_license|kixi.datastore.metadatastore.license_usage"},
                   :expr-attr-vals
                   {":aa" "name"
                    ":ab" "description"
-                   ":ae" "license usage"
+                   ":af" "license usage"
                    ":ac" #{"add"}}}
                 {:update-expr
                   "DELETE #kixidatastoremetadatastore_tags :ad"
