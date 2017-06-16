@@ -214,7 +214,6 @@ the generated 'update' specs.
                           ::ms/author #{:set :rm}
                           ::ms/maintainer #{:set :rm}
                           ::ms/tags #{:conj :disj}
-                          ::ms/packed-ids #{:conj :disj}
                           ::l/license {::l/usage #{:set :rm}
                                        ::l/type #{:set :rm}}
                           ::geo/geography {::geo/level #{:set :rm}

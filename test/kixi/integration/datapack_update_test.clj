@@ -76,33 +76,34 @@
                           (is (= #{"tag" "tag two" "orig-two"}
                                  (get-in updated-metadata [:body ::ms/tags])))))))))
 
-(deftest unreadable-files-arent-removed-when-file-is-added
-  (let [uid-one (uuid)
-        uid-two (uuid)
-        file-one (send-file-and-metadata
-                  (create-metadata
-                   uid-one
-                   "./test-resources/metadata-one-valid.csv"))
-        file-two (send-file-and-metadata
-                  (create-metadata
-                   uid-two
-                   "./test-resources/metadata-one-valid.csv"))
-        file-one-id (extract-id file-one)
-        file-two-id (extract-id file-two)
-        pack (send-datapack uid-one [uid-one uid-two] "small-file-into-a-datapack" #{file-one-id})
-        pack-id (get-in pack [:body ::ms/id])
-        event (update-metadata
-               uid-two pack-id
-               {:kixi.datastore.metadatastore.update/packed-ids {:conj #{file-two-id}}
-                :kixi.datastore.metadatastore.update/tags {:conj #{"New Tag"}}
-                :kixi.datastore.metadatastore.update/description {:set "Added"}})]
-    (when-event-key event :kixi.datastore.file-metadata/updated
-                    (wait-for-pred #(let [metadata (get-metadata uid-one pack-id)]
-                                      (get-in metadata [:body ::ms/description])))
-                    (let [updated-metadata (get-metadata uid-one pack-id)]
-                      (is (= "Added"
-                             (get-in updated-metadata [:body ::ms/description])))
-                      (is (= #{"New Tag"}
-                             (get-in updated-metadata [:body ::ms/tags])))
-                      (is (= #{file-one-id file-two-id}
-                             (get-in updated-metadata [:body ::ms/packed-ids])))))))
+(comment
+  (deftest unreadable-files-arent-removed-when-file-is-added
+    (let [uid-one (uuid)
+          uid-two (uuid)
+          file-one (send-file-and-metadata
+                    (create-metadata
+                     uid-one
+                     "./test-resources/metadata-one-valid.csv"))
+          file-two (send-file-and-metadata
+                    (create-metadata
+                     uid-two
+                     "./test-resources/metadata-one-valid.csv"))
+          file-one-id (extract-id file-one)
+          file-two-id (extract-id file-two)
+          pack (send-datapack uid-one [uid-one uid-two] "small-file-into-a-datapack" #{file-one-id})
+          pack-id (get-in pack [:body ::ms/id])
+          event (update-metadata
+                 uid-two pack-id
+                 {:kixi.datastore.metadatastore.update/packed-ids {:conj #{file-two-id}}
+                  :kixi.datastore.metadatastore.update/tags {:conj #{"New Tag"}}
+                  :kixi.datastore.metadatastore.update/description {:set "Added"}})]
+      (when-event-key event :kixi.datastore.file-metadata/updated
+                      (wait-for-pred #(let [metadata (get-metadata uid-one pack-id)]
+                                        (get-in metadata [:body ::ms/description])))
+                      (let [updated-metadata (get-metadata uid-one pack-id)]
+                        (is (= "Added"
+                               (get-in updated-metadata [:body ::ms/description])))
+                        (is (= #{"New Tag"}
+                               (get-in updated-metadata [:body ::ms/tags])))
+                        (is (= #{file-one-id file-two-id}
+                               (get-in updated-metadata [:body ::ms/packed-ids]))))))))
