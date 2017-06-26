@@ -25,6 +25,7 @@
     (let [id (uuid)]
       {:kixi.comms.event/key :kixi.datastore.filestore/upload-link-created
        :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/partition-key id
        :kixi.comms.event/payload {::upload-link (link-fn id)
                                   ::id id
                                   :kixi.user/id (get-in e [:kixi.comms.command/user :kixi.user/id])}})))

@@ -26,17 +26,20 @@
   ([metadata reason]
    {::ke/key ::kdfm/rejected
     ::ke/version "1.0.0"
+    ::ke/partition-key (::ms/id metadata)
     ::ke/payload {:reason reason
                   ::ms/file-metadata metadata}})
   ([metadata reason explain]
    {::ke/key ::kdfm/rejected
     ::ke/version "1.0.0"
+    ::ke/partition-key (::ms/id metadata)
     ::ke/payload {:reason reason
                   :explaination explain
                   ::ms/file-metadata metadata}})
   ([metadata reason actual expected]
    {::ke/key ::kdfm/rejected
     ::ke/version "1.0.0"
+    ::ke/partition-key (::ms/id metadata)
     ::ke/payload {:reason reason
                   :actual actual
                   :expected expected
@@ -49,6 +52,8 @@
   [payload]
   {::ke/key ::kdm/sharing-change-rejected
    ::ke/version "1.0.0"
+   ::ke/partition-key (or (::ms/id payload)
+                          (get-in payload [:original ::ms/id]))
    ::ke/payload payload})
 
 (defn sharing-change-invalid
@@ -69,7 +74,9 @@
   [payload]
   {::ke/key ::kdm/update-rejected
    ::ke/version "1.0.0"
-   ::ke/payload payload})
+   ::ke/payload payload
+   ::ke/partition-key (or (::ms/id payload)
+                          (get-in payload [:original ::ms/id]))})
 
 (defn invalid
   ([cmd speccy data]
@@ -90,6 +97,7 @@
   [payload]
   {::ke/key ::kdfm/updated
    ::ke/version "1.0.0"
+   ::ke/partition-key (::ms/id payload)
    ::ke/payload payload})
 
 (defn get-user-groups
