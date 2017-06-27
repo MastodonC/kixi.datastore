@@ -209,3 +209,36 @@
                  ::ms/provenance {:kixi.user/id uid
                                   ::ms/source "upload"}}}
          datapack-resp)))))
+
+(deftest attempt-duplicate-create-event-injection
+  (let [uid (uuid)
+        metadata (create-metadata
+                  uid
+                  "./test-resources/metadata-one-valid.csv")
+        _ (send-file-and-metadata-no-wait uid uid metadata)
+        event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)
+        metadata-response (if (= :kixi.datastore.file-metadata/updated
+                                 (:kixi.comms.event/key event))
+                            (wait-for-metadata-to-be-searchable uid
+                                                                (get-in event [:kixi.comms.event/payload
+                                                                               ::ms/file-metadata
+                                                                               ::ms/id]))
+                            event)
+        metadata-id (get-in event [:kixi.comms.event/payload
+                                   ::ms/file-metadata
+                                   ::ms/id])]
+    (when-success metadata-response
+      (is-submap
+       {:status 200
+        :body {::ms/size-bytes 14}}
+       metadata-response)
+      (send-update-event uid uid
+                         (assoc-in (get-in event [:kixi.comms.event/payload])
+                                   [::ms/file-metadata ::ms/size-bytes]
+                                   10))
+      (wait-for-pred #(let [md (get-metadata uid metadata-id)]
+                        (= 10
+                           (get-in md [:body ::ms/size-bytes]))))
+      (let [md (get-metadata uid metadata-id)]
+        (is (= 14
+               (get-in md [:body ::ms/size-bytes])))))))

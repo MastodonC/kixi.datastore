@@ -42,13 +42,12 @@
     schema))
 
 (defn persist-new-schema
-  [merge-data]
+  [insert-data]
   (fn [schema]
     (let [id (::ss/id schema)
           schema' (assoc-in schema [::ss/provenance ::ss/created] (time/timestamp))]
       (if (s/valid? ::ss/stored-schema schema')
-        (merge-data id 
-                    (dissoc (inject-tags schema') ::ss/id))
+        (insert-data (inject-tags schema'))
         (error "Tried to persist schema but it was invalid:" schema' (s/explain-data ::ss/stored-schema schema'))))))
 
 (defn extract-tag
@@ -109,7 +108,7 @@
                                    :kixi.datastore.schema/created
                                    "1.0.0"
                                    (comp response-event (persist-new-schema 
-                                                         (partial db/merge-data client (primary-schemastore-table profile) id-col))
+                                                         (partial db/insert-data client (primary-schemastore-table profile) id-col))
                                          :kixi.comms.event/payload))
           (sc/attach-command-handler communications)
           (-> component
