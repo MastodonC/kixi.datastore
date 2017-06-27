@@ -82,13 +82,11 @@
   [conn update-event]
   (let [metadata (::md/file-metadata update-event)]
     (info "Create: " metadata)
-    (db/merge-data conn
-                   (primary-metadata-table (:profile conn))
-                   id-col
-                   (::md/id metadata)
-                   (-> metadata
-                       sharing-columns->sets
-                       (dissoc ::md/id)))
+    (db/insert-data conn
+                    (primary-metadata-table (:profile conn))
+                    id-col
+                    (sharing-columns->sets
+                        metadata))
     (doseq [activity (keys (::md/sharing metadata))]
       (doseq [group-id (get-in metadata [::md/sharing activity])]
         (insert-activity-row conn group-id activity metadata)))))

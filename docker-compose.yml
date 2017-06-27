@@ -1,6 +1,6 @@
 version: '2'
 services:
   dynamo:
-    image: rajatvig/dynalite-alpine
+    image: deangiberson/aws-dynamodb-local
     ports:
       - '8000:8000'

@@ -326,7 +326,8 @@
 
 (defn sink-to
   [a]
-  #(do (async/>!! @a %)
+  #(do (when @a
+         (async/>!! @a %))
        nil))
 
 (defn extract-comms
@@ -405,6 +406,15 @@
      :kixi.user/groups (vec-if-not ugroup)}
     (assoc new-metadata 
            ::ms/id metadata-id))))
+
+(defn send-update-event
+  [uid ugroup event]
+  (c/send-event!
+   @comms
+   :kixi.datastore.file-metadata/updated
+   "1.0.0"
+   event
+   {:kixi.comms.event/partition-key (get-in event [::ms/file-metadata ::ms/id])}))
 
 (defn send-spec-no-wait
   ([uid spec]

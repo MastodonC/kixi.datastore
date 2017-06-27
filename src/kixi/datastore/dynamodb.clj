@@ -231,6 +231,13 @@
                    {id-column id}
                    {:update-map (map->update-map data)}))
 
+(defn insert-data
+  [conn table id-column data]
+  (far/put-item conn table
+                (map-keys keyword (freeze-columns (serialize data)))
+                {:cond-expr "attribute_not_exists(#id)"
+                 :expr-attr-names {"#id" id-column}}))
+
 (def operand->dynamo-op
   {:set ["SET " " = "]
    :rm ["REMOVE " ""]
