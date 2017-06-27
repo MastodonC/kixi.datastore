@@ -20,9 +20,11 @@
          internal-sr)
       {:kixi.comms.event/key :kixi.datastore.schema/created
        :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/partition-key new-id
        :kixi.comms.event/payload internal-sr}
       {:kixi.comms.event/key :kixi.datastore.schema/rejected
        :kixi.comms.event/version "1.0.0"
+       :kixi.comms.event/partition-key new-id
        :kixi.comms.event/payload {:reason :invalid-schema
                                   :schema raw-schema-req
                                   :explanation (s/explain-data ::ss/create-schema-request

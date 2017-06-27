@@ -113,10 +113,12 @@
       (cs/send-event! communications
                       (assoc metadata
                              ::cs/event :kixi.datastore/file-created
-                             ::cs/version "1.0.0"))
+                             ::cs/version "1.0.0"
+                             ::cs/partition-key (::ms/id metadata)))
       (cs/send-event! communications
                       {::cs/event :kixi.datastore/file-metadata-updated
                        ::cs/version "1.0.0"
+                       ::cs/partition-key (::ms/id metadata)
                        ::cs/file-metadata-update-type ::cs/file-metadata-created
                        ::ms/file-metadata metadata}))
     segment-data))
