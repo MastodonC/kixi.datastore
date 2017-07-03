@@ -10,13 +10,18 @@
             [kixi.datastore.schemastore.conformers :as sc]
             [clojure.spec.gen :as gen]))
 
+(defn valid-file-name?
+  "A file name should be at least one valid character long and only have valid characters and start with a digit or letter."
+  [s]
+  (when (string? s)
+    (re-matches #"^[\p{Digit}\p{IsAlphabetic}].{0,512}$" s)))
+
 (s/def ::type #{"stored" "bundle"})
 (s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
-(s/def ::name (s/with-gen (s/and sc/not-empty-string
-                                 #(when (string? %) (re-matches #"^[\p{Digit}\p{IsAlphabetic}].{0,512}$" %)))
+(s/def ::name (s/with-gen (s/and sc/not-empty-string valid-file-name?)
                 #(gen/such-that (fn [x] (and (< 0 (count x) 512)
                                              (re-matches #"^[\p{Digit}\p{IsAlphabetic}]" ((comp str first) x)))) (gen/string) 100)))
 (s/def ::description sc/not-empty-string)
