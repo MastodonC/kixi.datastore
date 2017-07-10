@@ -18,7 +18,8 @@
             [kixi.comms :as comms]
             [kixi.comms.components
              [kinesis :as kinesis]
-             [coreasync :as coreasync]]
+             [coreasync :as coreasync]
+             [inprocess :as inprocess]]
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [dynamodb :as md-dd]]
@@ -75,7 +76,8 @@
                    :inmemory (segementation-inmemory/map->InMemory {}))
    :communications (case (first (keys (:communications config)))
                      :kinesis (kinesis/map->Kinesis {})
-                     :coreasync (coreasync/map->CoreAsync {}))
+                     :coreasync (coreasync/map->CoreAsync {})
+                     :inprocess (inprocess/map->InProcess {}))
                                         ;  :schema-extracter (se/map->SchemaExtracter {})
    :structural-validator (sv/map->StructuralValidator {})))
 
