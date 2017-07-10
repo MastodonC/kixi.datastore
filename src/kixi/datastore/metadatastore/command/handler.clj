@@ -296,9 +296,21 @@ the generated 'update' specs.
                                                 ::cs/file-metadata-update-type ::cs/file-metadata-update
                                                 :kixi/user (::kc/user cmd))))))))))
 
+(defn detach-handlers
+  [communications component & handler-kws]
+  (reduce
+   (fn [c h-kw]
+     (update c h-kw
+             #(when %
+                (c/detach-handler! communications %)
+                nil)))   
+   component
+   handler-kws))
+
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore
-     metadata-create-handler sharing-change-handler metadata-update-handler]
+     metadata-create-handler sharing-change-handler
+     metadata-update-handler datapack-create-handler]
     component/Lifecycle
     (start [component]
       (merge component
@@ -308,6 +320,15 @@ the generated 'update' specs.
                  communications
                  :kixi.datastore/metadata-creator
                  :kixi.datastore.filestore/create-file-metadata
+                 "1.0.0" (partial metadata-handler metadatastore
+                                  filestore
+                                  schemastore))})
+             (when-not datapack-create-handler
+               {:datapack-create-handler
+                (c/attach-command-handler!
+                 communications
+                 :kixi.datastore/datapack-creator
+                 :kixi.datastore/create-datapack
                  "1.0.0" (partial metadata-handler metadatastore
                                   filestore
                                   schemastore))})
@@ -326,16 +347,9 @@ the generated 'update' specs.
                  ::kdm/update
                  "1.0.0" (create-metadata-update-handler metadatastore))})))
     (stop [component]
-      (-> component
-          (update component :metadata-create-handler
-                  #(when %
-                     (c/detach-handler! communications %)
-                     nil))
-          (update component :sharing-change-handler
-                  #(when %
-                     (c/detach-handler! communications %)
-                     nil))
-          (update component :metadata-update-handler
-                  #(when %
-                     (c/detach-handler! communications %)
-                     nil)))))
+      (detach-handlers communications
+                       component
+                       :metadata-create-handler
+                       :datapack-create-handler
+                       :sharing-change-handler
+                       :metadata-update-handler)))

@@ -20,8 +20,8 @@
             [kixi.datastore.metadatastore :as md])
   (:import [java.io File FileNotFoundException]))
 
-(def wait-tries (Integer/parseInt (env :wait-tries "80")))
-(def wait-per-try (Integer/parseInt (env :wait-per-try "1000")))
+(def wait-tries (Integer/parseInt (env :wait-tries "10")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "500")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 
@@ -379,6 +379,18 @@
      :kixi.user/groups (vec-if-not ugroup)}
     (trim-file-name metadata))))
 
+(defn send-datapack-cmd
+  ([uid metadata]
+   (send-datapack-cmd uid uid metadata))
+  ([uid ugroup metadata]
+   (c/send-command!
+    @comms
+    :kixi.datastore/create-datapack
+    "1.0.0"
+    {:kixi.user/id uid
+     :kixi.user/groups (vec-if-not ugroup)}
+    (trim-file-name metadata))))
+
 (defn send-metadata-sharing-change-cmd
   ([uid metadata-id change-type activity target-group]
    (send-metadata-cmd uid uid metadata-id change-type activity target-group))
@@ -637,7 +649,7 @@
                     (get-in metadata [::ms/sharing ::ms/meta-read])
                     (get-in metadata [::ms/sharing ::ms/meta-update]))
          uid (get-in metadata [::ms/provenance :kixi.user/id])]
-     (send-metadata-cmd ugroup
+     (send-datapack-cmd ugroup
                         metadata)
      (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
        (if (= :kixi.datastore.file-metadata/updated
