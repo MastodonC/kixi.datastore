@@ -67,7 +67,7 @@
                                    :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
                                           :profile "prod"}}}
  :segmentation {:inmemory {}}
- :communications #profile {:local {:coreasync {:app "kixi.datastore"
+ :communications #profile {:local {:inprocess {:app "kixi.datastore"
                                                :metric-level :NONE
                                                :profile "local"}}
                            :local-kinesis {:kinesis {:app "kixi.datastore"
@@ -78,7 +78,7 @@
                                                                :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                                      :metric-level :NONE
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
-                                           }}
+                                                     }}
                            :staging-jenkins {:coreasync {:app "kixi.datastore"
                                                          :profile "staging-jenkins"}}
                            :staging {:kinesis {:app "kixi.datastore"
