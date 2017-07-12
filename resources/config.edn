@@ -67,7 +67,7 @@
                                    :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
                                           :profile "prod"}}}
  :segmentation {:inmemory {}}
- :communications #profile {:local {:inprocess {:app "kixi.datastore"
+ :communications #profile {:local {:coreasync {:app "kixi.datastore"
                                                :metric-level :NONE
                                                :profile "local"}}
                            :local-kinesis {:kinesis {:app "kixi.datastore"
