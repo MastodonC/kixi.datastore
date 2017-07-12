@@ -617,7 +617,7 @@
 
 
 (defn create-datapack  
-  ([uid ugroup pack-name packed-ids]
+  ([uid ugroup pack-name bundled-ids]
    (create-datapack
     {:type "bundle"
      :bundle-type "datapack"
@@ -625,25 +625,25 @@
      :sharing {::ms/file-read (vec-if-not ugroup)
                ::ms/meta-read (vec-if-not ugroup)
                ::ms/meta-update (vec-if-not ugroup)}
-     :packed-ids packed-ids
+     :bundled-ids bundled-ids
      :provenance {::ms/source "upload"
                   :kixi.user/id uid}}))
-  ([{:keys [^String pack-name packed-ids sharing header provenance id type bundle-type]}]
+  ([{:keys [^String pack-name bundled-ids sharing header provenance id type bundle-type]}]
    (merge {::ms/id (or id (uuid))
            ::ms/type type
            ::ms/bundle-type bundle-type
            ::ms/name pack-name
-           ::ms/packed-ids packed-ids}
+           ::ms/bundled-ids bundled-ids}
           (when sharing
             {::ms/sharing sharing})
           (when provenance
             {::ms/provenance provenance}))))
 
 (defn send-datapack
-  ([uid pack-name packed-ids]
-   (send-datapack uid uid pack-name packed-ids))
-  ([uid ugroup pack-name packed-ids]
-   (send-datapack (create-datapack uid ugroup pack-name packed-ids)))
+  ([uid pack-name bundled-ids]
+   (send-datapack uid uid pack-name bundled-ids))
+  ([uid ugroup pack-name bundled-ids]
+   (send-datapack (create-datapack uid ugroup pack-name bundled-ids)))
   ([metadata]
    (let [ugroup (or (get-in metadata [::ms/sharing ::ms/file-read])
                     (get-in metadata [::ms/sharing ::ms/meta-read])

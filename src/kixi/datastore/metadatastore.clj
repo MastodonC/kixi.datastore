@@ -44,7 +44,7 @@
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
 (s/def ::bundle-type #{"datapack"})
-(s/def ::packed-ids (s/coll-of sc/uuid :kind set?))
+(s/def ::bundled-ids (s/coll-of sc/uuid :kind set?))
 
 (s/def :kixi/user
   (s/keys :req [:kixi.user/id
@@ -132,7 +132,7 @@
 
 (defmethod bundle-metadata "datapack"
   [_]
-  (s/keys :req [::type ::id ::name ::provenance ::sharing ::packed-ids ::bundle-type]
+  (s/keys :req [::type ::id ::name ::provenance ::sharing ::bundled-ids ::bundle-type]
           :opt [::description
                 ::tags ::geo/geography ::t/temporal-coverage
                 ::maintainer ::author ::source ::l/license]))
