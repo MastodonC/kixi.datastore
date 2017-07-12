@@ -161,7 +161,7 @@
         user-groups (get-user-groups cmd)
         metadata-explain (spec/explain-data ::ms/file-metadata metadata)
         unauthorised-ids (when-not metadata-explain
-                           (unauthorised-ids metadatastore user-groups (::ms/packed-ids metadata)))]
+                           (unauthorised-ids metadatastore user-groups (::ms/bundled-ids metadata)))]
     (cond
       metadata-explain (reject metadata :metadata-invalid metadata-explain)
       unauthorised-ids (reject metadata :unauthorised {:unauthorised-ids unauthorised-ids})
@@ -264,10 +264,10 @@ the generated 'update' specs.
   (when (= "bundle"
            (::ms/type typed-payload))
     (when-let [unauthed-ids (unauthorised-ids metadatastore (get-user-groups cmd)
-                                              (concat (get-in typed-payload [::mdu/packed-ids :conj])
-                                                      (get-in typed-payload [::mdu/packed-ids :disj])))]
+                                              (concat (get-in typed-payload [::mdu/bundled-ids :conj])
+                                                      (get-in typed-payload [::mdu/bundled-ids :disj])))]
       (invalid cmd {::ms/type "bundle" 
-                    :unauthorised-packed-ids unauthed-ids}))))
+                    :unauthorised-bundled-ids unauthed-ids}))))
 
 (defn get-metadata-types
   [metadatastore id]

@@ -205,7 +205,7 @@
           :body {::ms/type "bundle"
                  ::ms/bundle-type "datapack"
                  ::ms/name "small-file-into-a-datapack"
-                 ::ms/packed-ids #{(extract-id metadata-response)}
+                 ::ms/bundled-ids #{(extract-id metadata-response)}
                  ::ms/provenance {:kixi.user/id uid
                                   ::ms/source "upload"}}}
          datapack-resp)))))

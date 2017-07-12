@@ -94,7 +94,7 @@
           pack-id (get-in pack [:body ::ms/id])
           event (update-metadata
                  uid-two pack-id
-                 {:kixi.datastore.metadatastore.update/packed-ids {:conj #{file-two-id}}
+                 {:kixi.datastore.metadatastore.update/bundled-ids {:conj #{file-two-id}}
                   :kixi.datastore.metadatastore.update/tags {:conj #{"New Tag"}}
                   :kixi.datastore.metadatastore.update/description {:set "Added"}})]
       (when-event-key event :kixi.datastore.file-metadata/updated
@@ -106,4 +106,4 @@
                         (is (= #{"New Tag"}
                                (get-in updated-metadata [:body ::ms/tags])))
                         (is (= #{file-one-id file-two-id}
-                               (get-in updated-metadata [:body ::ms/packed-ids]))))))))
+                               (get-in updated-metadata [:body ::ms/bundled-ids]))))))))
