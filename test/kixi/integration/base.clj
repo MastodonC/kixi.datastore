@@ -8,6 +8,7 @@
             [clojure.core.async :as async]
             [clojure.java.io :as io]
             [clojure.spec.test :as stest]
+            [com.gfredericks.schpec :as sh]
             [digest :as d]
             [environ.core :refer [env]]
             [kixi.comms :as c]
@@ -19,6 +20,9 @@
             [user :as user]
             [kixi.datastore.metadatastore :as md])
   (:import [java.io File FileNotFoundException]))
+
+(sh/alias 'cmd 'kixi.command)
+(sh/alias 'event 'kixi.event)
 
 (def wait-tries (Integer/parseInt (env :wait-tries "10")))
 (def wait-per-try (Integer/parseInt (env :wait-per-try "500")))
@@ -338,11 +342,17 @@
                  @comms
                  :datastore-integration-tests
                  :kixi.comms.event/id
-                 (sink-to event-channel))]
+                 (sink-to event-channel))
+        handler2 (c/attach-event-with-key-handler!
+                  @comms
+                  :datastore-integration-tests-new-format
+                  :kixi.event/type
+                  (sink-to event-channel))]
     (try
       (all-tests)
       (finally
         (detach-handler handler)
+        (detach-handler handler2)
         (async/close! @event-channel)
         (reset! event-channel nil))))
   (reset! comms nil))
@@ -378,6 +388,20 @@
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     (trim-file-name metadata))))
+
+(defn send-bundle-delete-cmd
+  ([uid meta-id]
+   (send-bundle-delete-cmd uid uid meta-id))
+  ([uid ugroup meta-id]
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore/delete-bundle
+     ::cmd/version "1.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}
+     ::cmd/id (uuid)
+     ::ms/id meta-id}
+    {:partition-key "a"})))
 
 (defn send-datapack-cmd
   ([uid metadata]
@@ -443,7 +467,9 @@
 (defn event-for
   [uid event]
   (= uid
-     (or (get-in event [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id])
+     (or (get-in event [:kixi/user :kixi.user/id])
+         ;old formats
+         (get-in event [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload :kixi.user/id])
@@ -458,7 +484,8 @@
                 [event (async/<! c)]
               (if (and (event-for uid event)
                        ((set event-types)
-                        (:kixi.comms.event/key event)))
+                        (or (:kixi.comms.event/key event)
+                            (::event/type event))))
                 event
                 (when event
                   (recur (async/<! c))))))
@@ -661,6 +688,13 @@
                                 ::ms/id)
          event)))))
 
+(defn send-bundle-delete
+  ([uid meta-id]
+   (send-bundle-delete uid uid meta-id))
+  ([uid ugroups meta-id]
+   (send-bundle-delete-cmd uid ugroups meta-id)
+   (wait-for-events uid :kixi.datastore/bundle-deleted :kixi.datastore/bundle-delete-rejected)))
+
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
    (update-metadata-sharing uid uid metadata-id change-type activity target-group))
@@ -795,6 +829,15 @@
             k-val#)
         ~@rest)))
 
+(defmacro when-event-type
+  [event k & rest]
+  `(let [k-val# (:kixi.event/type ~event)]
+     (is (= ~k
+            k-val#))
+     (when (= ~k
+            k-val#)
+        ~@rest)))
+
 
 (defn is-file-metadata-rejected
   [uid deliverer rejection-submap]
@@ -805,3 +848,16 @@
     (when e
       (is-submap rejection-submap
                  (:kixi.comms.event/payload e)))))
+
+(defn small-file-into-datapack
+  ([uid]
+   (small-file-into-datapack uid {}))
+  ([uid extra-dp-meta]
+   (let [metadata-response (send-file-and-metadata
+                            (create-metadata
+                             uid
+                             "./test-resources/metadata-one-valid.csv"))]
+     (when-success metadata-response
+       (let [datapack-resp (send-datapack (merge (create-datapack uid uid "small-file-into-a-datapack" #{(extract-id metadata-response)})
+                                                 extra-dp-meta))]
+         datapack-resp)))))

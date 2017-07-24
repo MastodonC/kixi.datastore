@@ -1,4 +1,4 @@
-(ns kixi.datastore.metadatastore.command.handler
+(ns kixi.datastore.metadatastore.command-handler
   (:require [com.stuartsierra.component :as component]
             [clojure.spec :as spec]
             [com.gfredericks.schpec :as sh]
@@ -14,13 +14,17 @@
              [license :as l]
              [time :as mdt]
              [updates :as updates]]
-            [kixi.datastore.schemastore :as ss]))
+            [kixi.datastore.schemastore :as ss]
+            [clojure.spec :as s]))
 
 (sh/alias 'ke 'kixi.comms.event)
 (sh/alias 'kc 'kixi.comms.command)
 (sh/alias 'mdu 'kixi.datastore.metadatastore.update)
 (sh/alias 'kdm 'kixi.datastore.metadatastore)
 (sh/alias 'kdfm 'kixi.datastore.file-metadata)
+
+
+(sh/alias 'event 'kixi.event)
 
 (defn reject
   ([metadata reason]
@@ -102,7 +106,8 @@
 
 (defn get-user-groups
   [cmd]
-  (get-in cmd [::kc/user :kixi.user/groups]))
+  (or (get-in cmd [::kc/user :kixi.user/groups])
+      (get-in cmd [:kixi/user :kixi.user/groups])))
 
 (defn get-user-id
   [cmd]
@@ -296,6 +301,46 @@ the generated 'update' specs.
                                                 ::cs/file-metadata-update-type ::cs/file-metadata-update
                                                 :kixi/user (::kc/user cmd))))))))))
 
+(defmethod c/command-type->event-types
+  [:kixi.datastore/delete-bundle "1.0.0"]
+  [_]
+  #{[:kixi.datastore/bundle-deleted "1.0.0"]
+    [:kixi.datastore/bundle-delete-rejected "1.0.0"]})
+
+(defn invalid-bundle-delete
+  ([cmd reason id]
+   [{::event/type :kixi.datastore/bundle-delete-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id}
+    {:partition-key id}])
+  ([cmd reason id explain]
+   [{::event/type :kixi.datastore/bundle-delete-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id
+     :spec-explain explain}
+    {:partition-key id}]))
+
+(defn bundle?
+  [metadatastore id]
+  (let [md (ms/retrieve metadatastore id)]
+    (= "bundle"
+       (::ms/type md))))
+
+(defn delete-bundle-handler
+  [metadatastore]
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{:keys [::ms/id] :as cmd}]
+      (cond
+        (not (spec/valid? :kixi/command cmd)) (invalid-bundle-delete cmd :invalid-cmd id (s/explain-data :kixi/command cmd))
+        (not (authorised id (get-user-groups cmd))) (invalid-bundle-delete cmd :unauthorised id)
+        (not (bundle? metadatastore id)) (invalid-bundle-delete cmd :incorrect-type id)
+        :default [{::event/type :kixi.datastore/bundle-deleted
+                   ::event/version "1.0.0"
+                   ::ms/id id}
+                  {:partition-key id}]))))
+
 (defn detach-handlers
   [communications component & handler-kws]
   (reduce
@@ -310,7 +355,8 @@ the generated 'update' specs.
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore
      metadata-create-handler sharing-change-handler
-     metadata-update-handler datapack-create-handler]
+     metadata-update-handler bundle-create-handler
+     bundle-delete-handler]
     component/Lifecycle
     (start [component]
       (merge component
@@ -323,7 +369,7 @@ the generated 'update' specs.
                  "1.0.0" (partial metadata-handler metadatastore
                                   filestore
                                   schemastore))})
-             (when-not datapack-create-handler
+             (when-not bundle-create-handler
                {:datapack-create-handler
                 (c/attach-command-handler!
                  communications
@@ -332,6 +378,13 @@ the generated 'update' specs.
                  "1.0.0" (partial metadata-handler metadatastore
                                   filestore
                                   schemastore))})
+             (when-not bundle-delete-handler
+               {:bundle-delete-handler
+                (c/attach-validating-command-handler!
+                 communications
+                 :kixi.datastore/bundle-deleter
+                 :kixi.datastore/delete-bundle "1.0.0"
+                 (delete-bundle-handler metadatastore))})
              (when-not sharing-change-handler
                {:sharing-change-handler
                 (c/attach-command-handler!
@@ -351,5 +404,6 @@ the generated 'update' specs.
                        component
                        :metadata-create-handler
                        :datapack-create-handler
+                       :bundle-delete-handler
                        :sharing-change-handler
                        :metadata-update-handler)))

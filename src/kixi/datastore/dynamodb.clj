@@ -169,11 +169,14 @@
   ([conn table id-column id options]
    (let [result (if options
                   (far/get-item conn table {id-column id} 
-                                (options->db-opts options))
+                                (options->db-opts (update options :projection
+                                                          #(conj % (dynamo-col ::md/tombstone)))))
                   (far/get-item conn table {id-column id}
-                                {:consistent? true}))]
-     (inflate-map
-      (map-keys name result)))))
+                                {:consistent? true}))
+         inflated-result (inflate-map
+                          (map-keys name result))]
+     (when-not (::md/tombstone inflated-result)
+       inflated-result))))
 
 (defn get-bulk
   [conn table pk-col ids]
@@ -182,7 +185,8 @@
                                    :consistent? true}})
        vals 
        first
-       (mapv (comp inflate-map (partial map-keys name)))))
+       (mapv (comp inflate-map (partial map-keys name)))
+       (remove ::md/tombstone)))
 
 (defn get-bulk-ordered
   [conn table pk-col ids]
@@ -193,25 +197,31 @@
                  (assoc acc (get r useable-pk) r))
                {}
                raw-results)]
-    (map (partial get pk->r) ids)))
+    (keep (partial get pk->r) ids)))
 
 (defn query
   [conn table pks projection]
   (->> (far/query conn table 
                   (map-vals #(vector "eq" %) pks)
-                  {:return (doall (mapv dynamo-col projection))
+                  {:return (doall (mapv dynamo-col 
+                                        (conj projection
+                                              ::md/tombstone)))
                    :consistent? true})
-       (map (comp inflate-map (partial map-keys name)))))
+       (map (comp inflate-map (partial map-keys name)))
+       (remove ::md/tombstone)))
 
 (defn query-index
   [conn table index pks projection sort-order]
   (->> (far/query conn table 
                   (map-vals #(vector "eq" %) pks)
-                  {:return (doall (mapv dynamo-col projection))
+                  {:return (doall (mapv dynamo-col
+                                        (conj projection
+                                              ::md/tombstone)))
                    :consistent? true
                    :order sort-order
                    :index index})
-       (map (comp inflate-map (partial map-keys name)))))
+       (map (comp inflate-map (partial map-keys name)))
+       (remove ::md/tombstone)))
 
 (defn insert
   [conn table rows]
@@ -237,6 +247,12 @@
                 (map-keys keyword (freeze-columns (serialize data)))
                 {:cond-expr "attribute_not_exists(#id)"
                  :expr-attr-names {"#id" id-column}}))
+
+(defn delete-data
+  [conn table id-column id]
+  (far/update-item conn table
+                   {id-column id}
+                   {:update-map (map->update-map {::md/tombstone true})}))
 
 (def operand->dynamo-op
   {:set ["SET " " = "]

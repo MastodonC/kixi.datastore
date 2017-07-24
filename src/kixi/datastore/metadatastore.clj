@@ -7,6 +7,8 @@
              [geography :as geo]
              [license :as l]
              [time :as t]]
+            [kixi.datastore.metadatastore.events]
+            [kixi.datastore.metadatastore.commands]            
             [kixi.datastore.schemastore.conformers :as sc]
             [clojure.spec.gen :as gen]))
 
