@@ -154,6 +154,15 @@
                   (::md/id update-event)
                   (dissoc-nonupdates update-event)))
 
+(defn bundle-deleted-handler
+  [client]
+  (fn [event]
+    (info "Deleting: " event)
+    (db/delete-data client              
+                    (primary-metadata-table (:profile client))
+                    id-col
+                    (::md/id event))))
+
 (def sort-order->dynamo-comp
   {"asc" :asc
    "desc" :desc})
@@ -261,15 +270,16 @@
       (let [group-ids (:kixi.user/groups criteria)
             activities (criteria->activities criteria)
             all-ids-ordered (all-ids-ordered client group-ids activities sort-cols sort-order)
-            target-ids (get-subvector all-ids-ordered from-index cnt)]
-        {:items (if (not-empty target-ids)
-                  (db/get-bulk-ordered client
-                                       (primary-metadata-table profile)
-                                       id-col
-                                       target-ids)
-                  [])
+            target-ids (get-subvector all-ids-ordered from-index cnt)
+            items (if (not-empty target-ids)
+                    (db/get-bulk-ordered client
+                                         (primary-metadata-table profile)
+                                         id-col
+                                         target-ids)
+                    [])]
+        {:items items
          :paging {:total (count all-ids-ordered)
-                  :count (count target-ids)
+                  :count (count items)
                   :index from-index}}))
 
     component/Lifecycle
@@ -291,6 +301,11 @@
                                    :kixi.datastore.file-metadata/updated
                                    "1.0.0"
                                    (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
+          (c/attach-validating-event-handler! communications
+                                              :kixi.datastore/metadatastore-bundle-delete
+                                              :kixi.datastore/bundle-deleted
+                                              "1.0.0"
+                                              (bundle-deleted-handler client))
           (assoc component 
                  :client client
                  :get-item (partial db/get-item client (primary-metadata-table profile) id-col)))

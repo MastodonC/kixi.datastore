@@ -23,7 +23,7 @@
             [kixi.datastore.metadatastore
              [inmemory :as md-inmemory]
              [dynamodb :as md-dd]]
-            [kixi.datastore.metadatastore.command.handler
+            [kixi.datastore.metadatastore.command-handler
              :as md-creator]
             [kixi.datastore.schemastore
              [inmemory :as ss-inmemory]
