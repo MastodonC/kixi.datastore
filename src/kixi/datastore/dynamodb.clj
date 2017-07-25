@@ -262,6 +262,13 @@
 
 (def operands (set (keys operand->dynamo-op)))
 
+(defn set-if-not
+  [v]
+  (cond
+    (set? v) v
+    (coll? v) (set v)
+    :default #{v}))
+
 (defn update-set
   [conn table id-column id operand route val]
   (let [raw-attribute-name (dynamo-col route)
@@ -274,7 +281,7 @@
                                         valid-attribute-name
                                         " :v")
                       :expr-attr-names {valid-attribute-name raw-attribute-name}
-                      :expr-attr-vals {":v" #{val}}})))
+                      :expr-attr-vals {":v" (set-if-not val)}})))
 
 (defn append-list
   [conn table id-column id route val]

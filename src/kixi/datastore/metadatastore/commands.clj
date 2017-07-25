@@ -12,5 +12,9 @@
   [_]
   (s/keys :req [::md/id]))
 
-
+(defmethod comms/command-payload
+  [:kixi.datastore/add-files-to-bundle "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]))
 

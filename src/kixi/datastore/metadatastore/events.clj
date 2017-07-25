@@ -28,3 +28,26 @@
   (s/keys :req [::md/id]
           :req-un [::dd-reject/reason]
           :opt-un [::spec-explain]))
+
+
+
+(defmethod comms/event-payload
+  [:kixi.datastore/files-added-to-bundle "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]))
+
+(sh/alias 'fab-reject 'kixi.event.bundle.addfiles.rejection)
+
+(s/def ::fab-reject/reason
+  #{:unauthorised
+    :incorrect-type
+    :invalid-cmd})
+
+(defmethod comms/event-payload
+  [:kixi.datastore/files-add-to-bundle-rejected "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]
+          :req-un [::fab-reject/reason]
+          :opt-un [::spec-explain]))

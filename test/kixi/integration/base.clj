@@ -403,6 +403,21 @@
      ::ms/id meta-id}
     {:partition-key "a"})))
 
+(defn send-add-files-to-bundle-cmd
+  ([uid id bundled-ids]
+   (send-add-files-to-bundle-cmd uid uid id bundled-ids))
+  ([uid ugroup id bundled-ids]
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore/add-files-to-bundle
+     ::cmd/version "1.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}
+     ::cmd/id (uuid)
+     ::ms/id id
+     ::ms/bundled-ids bundled-ids}
+    {:partition-key "a"})))
+
 (defn send-datapack-cmd
   ([uid metadata]
    (send-datapack-cmd uid uid metadata))
@@ -694,6 +709,13 @@
   ([uid ugroups meta-id]
    (send-bundle-delete-cmd uid ugroups meta-id)
    (wait-for-events uid :kixi.datastore/bundle-deleted :kixi.datastore/bundle-delete-rejected)))
+
+(defn send-add-files-to-bundle
+  ([uid id bundled-ids]
+   (send-add-files-to-bundle uid uid id bundled-ids))
+  ([uid ugroups id bundled-ids]
+   (send-add-files-to-bundle-cmd uid ugroups id bundled-ids)
+   (wait-for-events uid :kixi.datastore/files-added-to-bundle :kixi.datastore/files-add-to-bundle-rejected)))
 
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
