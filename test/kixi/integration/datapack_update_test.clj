@@ -10,6 +10,13 @@
   cycle-system-fixture
   extract-comms)
 
+(deftest datapack-create-empty
+  (let [uid (uuid)
+        datapack-resp (send-datapack uid "Empty Datapack" #{})]
+    (when-success datapack-resp
+      (is (= #{}
+             (get-in datapack-resp [:body ::ms/bundled-ids]))))))
+
 (deftest datapack-edit-invalid-field
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
