@@ -328,7 +328,7 @@ the generated 'update' specs.
     (= "bundle"
        (::ms/type md))))
 
-(defn delete-bundle-handler
+(defn create-delete-bundle-handler
   [metadatastore]
   (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
     (fn [{:keys [::ms/id] :as cmd}]
@@ -339,6 +339,44 @@ the generated 'update' specs.
         :default [{::event/type :kixi.datastore/bundle-deleted
                    ::event/version "1.0.0"
                    ::ms/id id}
+                  {:partition-key id}]))))
+
+
+(defmethod c/command-type->event-types
+  [:kixi.datastore/add-files-to-bundle "1.0.0"]
+  [_]
+  #{[:kixi.datastore/files-added-to-bundle "1.0.0"]
+    [:kixi.datastore/files-add-to-bundle-rejected "1.0.0"]})
+
+(defn reject-add-files-to-bundle
+  ([cmd reason id bundled-ids]
+   [{::event/type :kixi.datastore/files-add-to-bundle-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id
+     ::ms/bundled-ids bundled-ids}
+    {:partition-key id}])
+  ([cmd reason id bundled-ids explain]
+   [{::event/type :kixi.datastore/files-add-to-bundle-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id
+     ::ms/bundled-ids bundled-ids
+     :spec-explain explain}
+    {:partition-key id}]))
+
+(defn create-add-files-to-bundle-handler
+  [metadatastore]
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{:keys [::ms/id ::ms/bundled-ids] :as cmd}]
+      (cond
+        (not (spec/valid? :kixi/command cmd)) (reject-add-files-to-bundle cmd :invalid-cmd id bundled-ids (s/explain-data :kixi/command cmd))
+        (not (authorised id (get-user-groups cmd))) (reject-add-files-to-bundle cmd :unauthorised id bundled-ids)
+        (not (bundle? metadatastore id)) (reject-add-files-to-bundle cmd :incorrect-type id bundled-ids)
+        :default [{::event/type :kixi.datastore/files-added-to-bundle
+                   ::event/version "1.0.0"
+                   ::ms/id id
+                   ::ms/bundled-ids bundled-ids}
                   {:partition-key id}]))))
 
 (defn detach-handlers
@@ -356,7 +394,7 @@ the generated 'update' specs.
     [communications filestore schemastore metadatastore
      metadata-create-handler sharing-change-handler
      metadata-update-handler bundle-create-handler
-     bundle-delete-handler]
+     delete-bundle-handler add-files-to-bundle-handler]
     component/Lifecycle
     (start [component]
       (merge component
@@ -378,13 +416,20 @@ the generated 'update' specs.
                  "1.0.0" (partial metadata-handler metadatastore
                                   filestore
                                   schemastore))})
-             (when-not bundle-delete-handler
-               {:bundle-delete-handler
+             (when-not delete-bundle-handler
+               {:delete-bundle-handler
                 (c/attach-validating-command-handler!
                  communications
                  :kixi.datastore/bundle-deleter
                  :kixi.datastore/delete-bundle "1.0.0"
-                 (delete-bundle-handler metadatastore))})
+                 (create-delete-bundle-handler metadatastore))})
+             (when-not add-files-to-bundle-handler
+               {:add-files-to-bundle-handler
+                (c/attach-validating-command-handler!
+                 communications
+                 :kixi.datastore/add-files-to-bundler
+                 :kixi.datastore/add-files-to-bundle "1.0.0"
+                 (create-add-files-to-bundle-handler metadatastore))})
              (when-not sharing-change-handler
                {:sharing-change-handler
                 (c/attach-command-handler!
@@ -405,5 +450,6 @@ the generated 'update' specs.
                        :metadata-create-handler
                        :datapack-create-handler
                        :bundle-delete-handler
+                       :add-files-to-bundle-handler
                        :sharing-change-handler
                        :metadata-update-handler)))

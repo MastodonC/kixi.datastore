@@ -23,60 +23,6 @@
                         (is (= :invalid
                                (get-in event [:kixi.comms.event/payload :reason]))))))))
 
-(deftest bundle-delete
-  (let [uid (uuid)
-        datapack-resp (small-file-into-datapack uid)]
-    (when-success datapack-resp
-      (let [meta-id (get-in datapack-resp [:body ::ms/id])
-            response-event (send-bundle-delete uid meta-id)]
-        (when-event-type response-event :kixi.datastore/bundle-deleted
-                         (wait-for-pred #(= 401
-                                            (:status (get-metadata uid meta-id))))
-                         (is (= 401
-                                (:status (get-metadata uid meta-id)))))))))
-
-(deftest deleted-bundles-are-not-returned-in-searches
-  (let [uid (uuid)
-        datapack-resp (small-file-into-datapack uid)]
-    (when-success datapack-resp
-      (let [meta-id (get-in datapack-resp [:body ::ms/id])
-            all-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
-                                [:body :paging :count])]
-        (is (= 2
-               all-visible-cnt))
-        (let [response-event (send-bundle-delete uid meta-id)]        
-          (when-event-type response-event :kixi.datastore/bundle-deleted
-                           (wait-for-pred #(= 401
-                                              (:status (get-metadata uid meta-id))))
-                           (let [only-file-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
-                                                               [:body :paging :count])]
-                             (is (= 1
-                                    only-file-visible-cnt)))))))))
-
-(deftest bundle-delete-unauthorised
-  (let [uid (uuid)
-        datapack-resp (small-file-into-datapack uid)]
-    (when-success datapack-resp
-      (let [meta-id (get-in datapack-resp [:body ::ms/id])
-            response-event (send-bundle-delete (uuid) meta-id)]
-        (when-event-type response-event :kixi.datastore/bundle-delete-rejected
-                         (is (= :unauthorised
-                                (:reason response-event)))
-                         (is (= 200
-                                (:status (get-metadata uid meta-id)))))))))
-
-(deftest bundle-delete-file-doesnt-work
-  (let [uid (uuid)
-        datapack-resp (small-file-into-datapack uid)]
-    (when-success datapack-resp
-      (let [file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
-            response-event (send-bundle-delete uid file-meta-id)]
-        (when-event-type response-event :kixi.datastore/bundle-delete-rejected
-                         (is (= :incorrect-type
-                                (:reason response-event)))
-                         (is (= 200
-                                (:status (get-metadata uid file-meta-id)))))))))
-
 (deftest datapack-edit-field
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
@@ -116,6 +62,103 @@
                                  (get-in updated-metadata [:body ::ms/source])))
                           (is (= #{"tag" "tag two" "orig-two"}
                                  (get-in updated-metadata [:body ::ms/tags])))))))))
+
+
+(deftest bundle-delete
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [meta-id (get-in datapack-resp [:body ::ms/id])
+            response-event (send-bundle-delete uid meta-id)]
+        (when-event-type response-event :kixi.datastore/bundle-deleted
+                         (wait-for-pred #(= 401
+                                            (:status (get-metadata uid meta-id))))
+                         (is (= 401
+                                (:status (get-metadata uid meta-id)))))))))
+
+(deftest deleted-bundles-are-not-returned-in-searches
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [meta-id (get-in datapack-resp [:body ::ms/id])
+            all-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
+                                [:body :paging :count])]
+        (is (= 2
+               all-visible-cnt))
+        (let [response-event (send-bundle-delete uid meta-id)]        
+          (when-event-type response-event :kixi.datastore/bundle-deleted
+                           (wait-for-pred #(= 401
+                                              (:status (get-metadata uid meta-id))))
+                           (let [only-file-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
+                                                               [:body :paging :count])]
+                             (is (= 1
+                                    only-file-visible-cnt)))))))))
+
+(deftest bundle-delete-unauthorised-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [meta-id (get-in datapack-resp [:body ::ms/id])
+            response-event (send-bundle-delete (uuid) meta-id)]
+        (when-event-type response-event :kixi.datastore/bundle-delete-rejected
+                         (is (= :unauthorised
+                                (:reason response-event)))
+                         (is (= 200
+                                (:status (get-metadata uid meta-id)))))))))
+
+(deftest bundle-delete-incorrect-type-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            response-event (send-bundle-delete uid file-meta-id)]
+        (when-event-type response-event :kixi.datastore/bundle-delete-rejected
+                         (is (= :incorrect-type
+                                (:reason response-event)))
+                         (is (= 200
+                                (:status (get-metadata uid file-meta-id)))))))))
+
+
+(deftest add-files-to-bundle-incorrect-type-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            response-event (send-add-files-to-bundle uid file-meta-id #{file-meta-id})]
+        (when-event-type response-event :kixi.datastore/files-add-to-bundle-rejected
+                         (is (= :incorrect-type
+                                (:reason response-event))))))))
+
+(deftest add-files-to-bundle-unauthorised-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [bundle-id (get-in datapack-resp [:body ::ms/id])
+            file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            response-event (send-add-files-to-bundle uid (uuid) bundle-id #{file-meta-id})]
+        (when-event-type response-event :kixi.datastore/files-add-to-bundle-rejected
+                         (is (= :unauthorised
+                                (:reason response-event))))))))
+
+(deftest add-files-to-bundle
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [bundle-id (get-in datapack-resp [:body ::ms/id])
+            first-file-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            metadata-response (send-file-and-metadata
+                               (create-metadata
+                                uid
+                                "./test-resources/metadata-one-valid.csv"))]
+        (when-success metadata-response
+          (let [extra-file-id (get-in metadata-response [:body ::ms/id])
+                response-event (send-add-files-to-bundle uid bundle-id #{extra-file-id})]
+            (when-event-type response-event :kixi.datastore/files-added-to-bundle
+                             (wait-for-pred #(= 2
+                                                (count (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids]))))
+                             (let [bundled-ids (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids])]
+                               (is (= #{first-file-id extra-file-id}
+                                      bundled-ids))))))))))
 
 (comment
   (deftest unreadable-files-arent-removed-when-file-is-added
