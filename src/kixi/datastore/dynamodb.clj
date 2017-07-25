@@ -83,7 +83,10 @@
 (def remove-empty-str-vals 
   (partial remove-vals #(and (string? %) (empty? %))))
 
-(def serialize (comp remove-empty-str-vals flatten-map))
+(def remove-empty-sets
+  (partial remove-vals #(and (set? %) (empty? %))))
+
+(def serialize (comp remove-empty-sets remove-empty-str-vals flatten-map))
 
 (defn split-to-kws
   ([s]

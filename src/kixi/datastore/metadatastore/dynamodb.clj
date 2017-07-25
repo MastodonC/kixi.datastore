@@ -7,7 +7,8 @@
              [metadatastore :as md :refer [MetaDataStore]]]
             [taoensso
              [encore :refer [get-subvector]]
-             [timbre :as timbre :refer [info error]]]))
+             [timbre :as timbre :refer [info error]]]
+            [kixi.datastore.metadatastore :as ms]))
 
 (def dynamodb-client-kws
   #{:endpoint})
@@ -262,6 +263,17 @@
   [r]
   nil)
 
+(defmulti default-values ::ms/type)
+
+(defmethod default-values
+  :default
+  [_] {})
+
+(defmethod default-values
+  "bundle"
+  [_]
+  {::ms/bundled-ids #{}})
+
 (defrecord DynamoDb
     [communications profile endpoint cluster discover
      client get-item]
@@ -274,7 +286,9 @@
     (exists [this id]
       (get-item id {:projection [id-col]}))
     (retrieve [this id]
-      (get-item id))
+      (let [item (get-item id)]
+        (merge (default-values item)
+               item)))
     (query [this criteria from-index cnt sort-cols sort-order]
       (when-not (= [::md/provenance ::md/created]
                    sort-cols)
