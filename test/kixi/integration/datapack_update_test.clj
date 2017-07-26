@@ -167,6 +167,61 @@
                                (is (= #{first-file-id extra-file-id}
                                       bundled-ids))))))))))
 
+
+
+(deftest remove-files-from-bundle-incorrect-type-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            response-event (send-remove-files-from-bundle uid file-meta-id #{file-meta-id})]
+        (when-event-type response-event :kixi.datastore/files-remove-from-bundle-rejected
+                         (is (= :incorrect-type
+                                (:reason response-event))))))))
+
+(deftest remove-files-to-bundle-unauthorised-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when-success datapack-resp
+      (let [bundle-id (get-in datapack-resp [:body ::ms/id])
+            file-meta-id (first (get-in datapack-resp [:body ::ms/bundled-ids]))
+            response-event (send-remove-files-from-bundle uid (uuid) bundle-id #{file-meta-id})]
+        (when-event-type response-event :kixi.datastore/files-remove-from-bundle-rejected
+                         (is (= :unauthorised
+                                (:reason response-event))))))))
+
+(deftest remove-files-from-bundle
+  (let [uid (uuid)
+        file-one (send-file-and-metadata
+                  (create-metadata
+                   uid
+                   "./test-resources/metadata-one-valid.csv"))
+        file-one-id (get-in file-one [:body ::ms/id])
+        file-two (send-file-and-metadata
+                  (create-metadata
+                   uid
+                   "./test-resources/metadata-one-valid.csv"))
+        file-two-id (get-in file-two [:body ::ms/id])
+        datapack-resp (send-datapack uid "test remove-files-from-bundle two files" #{file-one-id file-two-id})]
+    (when-success datapack-resp
+      (let [bundle-id (get-in datapack-resp [:body ::ms/id])]
+        (is (= #{file-one-id file-two-id}
+               (set (get-in datapack-resp [:body ::ms/bundled-ids]))))
+        (let [response-event (send-remove-files-from-bundle uid bundle-id #{file-two-id})]
+          (when-event-type response-event :kixi.datastore/files-removed-from-bundle
+                           (wait-for-pred #(= 1
+                                              (count (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids]))))
+                           (let [bundled-ids (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids])]
+                             (is (= #{file-one-id}
+                                    bundled-ids)))
+                           (let [response-event (send-remove-files-from-bundle uid bundle-id #{file-one-id})]
+                             (when-event-type response-event :kixi.datastore/files-removed-from-bundle
+                                              (wait-for-pred #(= 0
+                                                                 (count (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids]))))
+                                              (let [bundled-ids (get-in (get-metadata uid bundle-id) [:body ::ms/bundled-ids])]
+                                                (is (= #{}
+                                                       bundled-ids)))))))))))
+
 (comment
   (deftest unreadable-files-arent-removed-when-file-is-added
     (let [uid-one (uuid)

@@ -51,3 +51,25 @@
                 ::md/bundled-ids]
           :req-un [::fab-reject/reason]
           :opt-un [::spec-explain]))
+
+
+(defmethod comms/event-payload
+  [:kixi.datastore/files-removed-from-bundle "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]))
+
+(sh/alias 'frb-reject 'kixi.event.bundle.removefiles.rejection)
+
+(s/def ::frb-reject/reason
+  #{:unauthorised
+    :incorrect-type
+    :invalid-cmd})
+
+(defmethod comms/event-payload
+  [:kixi.datastore/files-remove-from-bundle-rejected "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]
+          :req-un [::fab-reject/reason]
+          :opt-un [::spec-explain]))
