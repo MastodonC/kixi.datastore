@@ -379,6 +379,43 @@ the generated 'update' specs.
                    ::ms/bundled-ids bundled-ids}
                   {:partition-key id}]))))
 
+(defmethod c/command-type->event-types
+  [:kixi.datastore/remove-files-from-bundle "1.0.0"]
+  [_]
+  #{[:kixi.datastore/files-removed-from-bundle "1.0.0"]
+    [:kixi.datastore/files-remove-from-bundle-rejected "1.0.0"]})
+
+(defn reject-remove-files-from-bundle
+  ([cmd reason id bundled-ids]
+   [{::event/type :kixi.datastore/files-remove-from-bundle-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id
+     ::ms/bundled-ids bundled-ids}
+    {:partition-key id}])
+  ([cmd reason id bundled-ids explain]
+   [{::event/type :kixi.datastore/files-remove-from-bundle-rejected
+     ::event/version "1.0.0"
+     :reason reason
+     ::ms/id id
+     ::ms/bundled-ids bundled-ids
+     :spec-explain explain}
+    {:partition-key id}]))
+
+(defn create-remove-files-from-bundle-handler
+  [metadatastore]
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{:keys [::ms/id ::ms/bundled-ids] :as cmd}]
+      (cond
+        (not (spec/valid? :kixi/command cmd)) (reject-remove-files-from-bundle cmd :invalid-cmd id bundled-ids (s/explain-data :kixi/command cmd))
+        (not (authorised id (get-user-groups cmd))) (reject-remove-files-from-bundle cmd :unauthorised id bundled-ids)
+        (not (bundle? metadatastore id)) (reject-remove-files-from-bundle cmd :incorrect-type id bundled-ids)
+        :default [{::event/type :kixi.datastore/files-removed-from-bundle
+                   ::event/version "1.0.0"
+                   ::ms/id id
+                   ::ms/bundled-ids bundled-ids}
+                  {:partition-key id}]))))
+
 (defn detach-handlers
   [communications component & handler-kws]
   (reduce
@@ -394,7 +431,8 @@ the generated 'update' specs.
     [communications filestore schemastore metadatastore
      metadata-create-handler sharing-change-handler
      metadata-update-handler bundle-create-handler
-     delete-bundle-handler add-files-to-bundle-handler]
+     delete-bundle-handler add-files-to-bundle-handler
+     remove-files-from-bundle-handler]
     component/Lifecycle
     (start [component]
       (merge component
@@ -430,6 +468,13 @@ the generated 'update' specs.
                  :kixi.datastore/add-files-to-bundler
                  :kixi.datastore/add-files-to-bundle "1.0.0"
                  (create-add-files-to-bundle-handler metadatastore))})
+             (when-not remove-files-from-bundle-handler
+               {:remove-files-from-bundle-handler
+                (c/attach-validating-command-handler!
+                 communications
+                 :kixi.datastore/remove-files-from-bundler
+                 :kixi.datastore/remove-files-from-bundle "1.0.0"
+                 (create-remove-files-from-bundle-handler metadatastore))})
              (when-not sharing-change-handler
                {:sharing-change-handler
                 (c/attach-command-handler!
@@ -451,5 +496,6 @@ the generated 'update' specs.
                        :datapack-create-handler
                        :bundle-delete-handler
                        :add-files-to-bundle-handler
+                       :remove-files-from-bundle-handler
                        :sharing-change-handler
                        :metadata-update-handler)))

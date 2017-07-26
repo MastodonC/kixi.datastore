@@ -176,6 +176,18 @@
                    [::md/bundled-ids]
                    (::md/bundled-ids event))))
 
+(defn files-removed-from-bundle-handler
+  [client]
+  (fn [event]
+    (info "Removed files from bundle: " event)
+    (db/update-set client        
+                   (primary-metadata-table (:profile client))
+                   id-col
+                   (::md/id event)
+                   :disj
+                   [::md/bundled-ids]
+                   (::md/bundled-ids event))))
+
 (def sort-order->dynamo-comp
   {"asc" :asc
    "desc" :desc})
@@ -333,10 +345,15 @@
                                               "1.0.0"
                                               (bundle-deleted-handler client))
           (c/attach-validating-event-handler! communications
-                                              :kixi.datastore/metadatastore-add-file-to-bundle
+                                              :kixi.datastore/metadatastore-add-files-to-bundle
                                               :kixi.datastore/files-added-to-bundle
                                               "1.0.0"
                                               (files-added-to-bundle-handler client))
+          (c/attach-validating-event-handler! communications
+                                              :kixi.datastore/metadatastore-remove-files-from-bundle
+                                              :kixi.datastore/files-removed-from-bundle
+                                              "1.0.0"
+                                              (files-removed-from-bundle-handler client))
           (assoc component 
                  :client client
                  :get-item (partial db/get-item client (primary-metadata-table profile) id-col)))

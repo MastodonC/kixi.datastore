@@ -18,3 +18,9 @@
   (s/keys :req [::md/id
                 ::md/bundled-ids]))
 
+(defmethod comms/command-payload
+  [:kixi.datastore/remove-files-from-bundle "1.0.0"]
+  [_]
+  (s/keys :req [::md/id
+                ::md/bundled-ids]))
+
