@@ -1,31 +1,31 @@
 {
-  "container": {
-    "type": "DOCKER",
-    "docker": {
-      "image": "@@IMAGE_PREFIX@@/@@APP_NAME@@:@@TAG@@",
-      "privileged": true,
-      "parameters": [
-         {"key": "env", "value": "ENVIRONMENT=@@ENVIRONMENT@@"},
-         {"key": "env", "value": "JAVA_OPTS=@@JAVA_OPTS@@"},
-         {"key": "label", "value": "cluster=@@ENVIRONMENT@@"},
-         {"key": "label", "value": "application=@@APP_NAME@@"}
-      ],
-      "network": "BRIDGE",
-      "portMappings": [
-          {
-              "containerPort": 18080,
-              "hostPort": 18080,
-              "protocol": "tcp"
-          }
-      ]
-    }
-  },
-  "id": "@@APP_NAME@@",
-  "constraints": [["hostname", "UNIQUE"]],
-  "instances": @@INSTANCE_COUNT@@,
-  "cpus": @@CPUS@@,
-  "mem": @@MEM@@,
-  "healthChecks": [{
+    "container": {
+        "type": "DOCKER",
+        "docker": {
+            "image": "@@IMAGE_PREFIX@@/@@APP_NAME@@:@@TAG@@",
+            "privileged": true,
+            "parameters": [
+                {"key": "env", "value": "ENVIRONMENT=@@ENVIRONMENT@@"},
+                {"key": "env", "value": "JAVA_OPTS=@@JAVA_OPTS@@"},
+                {"key": "label", "value": "cluster=@@ENVIRONMENT@@"},
+                {"key": "label", "value": "application=@@APP_NAME@@"}
+            ],
+            "network": "BRIDGE",
+            "portMappings": [
+                {
+                    "containerPort": 18080,
+                    "hostPort": 18080,
+                    "protocol": "tcp"
+                }
+            ]
+        }
+    },
+    "id": "@@APP_NAME@@",
+    "constraints": [["hostname", "UNIQUE"]],
+    "instances": @@INSTANCE_COUNT@@,
+    "cpus": @@CPUS@@,
+    "mem": @@MEM@@,
+    "healthChecks": [{
         "protocol": "TCP",
         "path": "/healthcheck",
         "gracePeriodSeconds": 600,
@@ -33,5 +33,5 @@
         "portIndex": 0,
         "timeoutSeconds": 10,
         "maxConsecutiveFailures": 3
-  }]
+    }]
 }
