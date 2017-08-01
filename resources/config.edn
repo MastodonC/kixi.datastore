@@ -77,6 +77,8 @@
                                                      :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
                                                                :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                                      :metric-level :NONE
+                                                     :initial-lease-table-read-capacity 1
+                                                     :initial-lease-table-write-capacity 1
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                      }}
                            :staging-jenkins {:coreasync {:app "kixi.datastore"
@@ -84,7 +86,9 @@
                            :staging {:kinesis {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "staging"
+                                               :profile "staging"                                               
+                                               :initial-lease-table-read-capacity 1
+                                               :initial-lease-table-write-capacity 1
                                                :streams {:event "staging-witan-event"
                                                          :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
@@ -93,6 +97,8 @@
                                                            :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                            :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                            :profile "staging-integration"
+                                                           :initial-lease-table-read-capacity 1
+                                                           :initial-lease-table-write-capacity 1
                                                            :streams {:event "staging-witan-event"
                                                                      :command "staging-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
@@ -101,6 +107,8 @@
                                             :endpoint "kinesis.eu-west-1.amazonaws.com"
                                             :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
                                             :profile "prod"
+                                            :initial-lease-table-read-capacity 2
+                                            :initial-lease-table-write-capacity 2
                                             :streams {:event "prod-witan-event"
                                                       :command "prod-witan-command"}
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
