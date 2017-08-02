@@ -51,7 +51,8 @@
                  [org.slf4j/jul-to-slf4j ~slf4j-version]
                  [org.slf4j/jcl-over-slf4j ~slf4j-version]
                  [org.clojure/test.check "0.9.0"]
-                 [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]]
+                 [yada "1.1.44" :exclusions [com.fasterxml.jackson.core/jackson-core]]
+                 [spootnik/signal "0.2.1"]]
 
   :jvm-opts ["-Xmx2g"]
 
