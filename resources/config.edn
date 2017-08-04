@@ -80,6 +80,7 @@
                                                      :metric-level :NONE
                                                      :initial-lease-table-read-capacity 1
                                                      :initial-lease-table-write-capacity 1
+                                                     :teardown true
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                      }}
                            :staging-jenkins {:coreasync {:app "kixi.datastore"
