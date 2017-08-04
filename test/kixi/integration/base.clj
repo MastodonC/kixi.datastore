@@ -106,10 +106,12 @@
 
 (defn tear-down-kinesis
   [{:keys [endpoint dynamodb-endpoint streams
-           profile app]}]
-  (delete-tables dynamodb-endpoint [(kinesis/event-worker-app-name app profile)
-                                    (kinesis/command-worker-app-name app profile)])
-  (kinesis/delete-streams! endpoint (vals streams)))
+           profile app teardown-kinesis teardown-dynamodb]}]
+  (when teardown-dynamodb
+    (delete-tables dynamodb-endpoint [(kinesis/event-worker-app-name app profile)
+                                      (kinesis/command-worker-app-name app profile)]))
+  (when teardown-kinesis
+    (kinesis/delete-streams! endpoint (vals streams))))
 
 (defn cycle-system-fixture
   [all-tests]
@@ -121,10 +123,9 @@
        (finally
          (let [kinesis-conf (select-keys (:communications @user/system)
                                          [:endpoint :dynamodb-endpoint :streams
-                                          :profile :app :teardown])]
-           (user/stop)
-           (when (:teardown kinesis-conf)
-             (tear-down-kinesis kinesis-conf))))))
+                                          :profile :app :teardown-kinesis :teardown-dynamodb])]
+           (user/stop)          
+           (tear-down-kinesis kinesis-conf)))))
 
 (defn uuid
   []
