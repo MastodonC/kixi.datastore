@@ -80,7 +80,8 @@
                                                      :metric-level :NONE
                                                      :initial-lease-table-read-capacity 1
                                                      :initial-lease-table-write-capacity 1
-                                                     :teardown true
+                                                     :teardown-kinesis true
+                                                     :teardown-dynamodb true
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                      }}
                            :staging-jenkins {:coreasync {:app "kixi.datastore"
@@ -103,6 +104,7 @@
                                                            :initial-lease-table-write-capacity 1
                                                            :streams {:event "staging-witan-event"
                                                                      :command "staging-witan-command"}
+                                                           :teardown-dynamodb true
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                                            }}
                            :prod {:kinesis {:app "kixi.datastore"
