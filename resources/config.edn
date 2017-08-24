@@ -73,6 +73,7 @@
                                                :profile "local"}}
                            :local-kinesis {:kinesis {:app "kixi.datastore"
                                                      :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                                     :region-name "eu-central-1"
                                                      :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
                                                      :profile "local"
                                                      :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
@@ -88,6 +89,7 @@
                                                          :profile "staging-jenkins"}}
                            :staging {:kinesis {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                               :region-name "eu-central-1"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                :profile "staging"
                                                :initial-lease-table-read-capacity 1
@@ -99,6 +101,7 @@
                                                }}
                            :staging-integration {:kinesis {:app "kixi.datastore-staging-test"
                                                            :endpoint "kinesis.eu-central-1.amazonaws.com"
+                                                           :region-name "eu-central-1"
                                                            :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
                                                            :profile "staging-integration"
                                                            :initial-lease-table-read-capacity 1
@@ -111,6 +114,7 @@
                                                            }}
                            :prod {:kinesis {:app "kixi.datastore"
                                             :endpoint "kinesis.eu-west-1.amazonaws.com"
+                                            :region-name "eu-west-1"
                                             :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
                                             :profile "prod"
                                             :initial-lease-table-read-capacity 2
