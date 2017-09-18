@@ -123,4 +123,5 @@
                                                       :command "prod-witan-command"}
                                             :metrics-level :NONE
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
-                                            }}}}
+                                            }}}
+ :repl {:port 5002}}
