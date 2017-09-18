@@ -62,7 +62,7 @@
   (system-map
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
-   :repl (repl/->ReplServer (:repl config))
+   :repl (repl/->ReplServer {})
    :logging (logging/map->Log {})
    :metadata-creator (md-creator/map->MetadataCreator {})
    :filestore (case (first (keys (:filestore config)))
