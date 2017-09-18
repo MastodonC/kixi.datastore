@@ -19,5 +19,6 @@ ADD target/kixi.datastore-standalone.jar /srv/kixi.datastore.jar
 ADD scripts/run.sh /etc/service/kixi.datastore/run
 
 EXPOSE 8080/tcp
+EXPOSE 5002/tcp
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

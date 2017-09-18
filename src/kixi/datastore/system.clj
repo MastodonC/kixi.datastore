@@ -11,7 +11,8 @@
              [metrics :as metrics]
              [web-server :as web-server]
              [schemaextracter :as se]
-             [structural-validation :as sv]]
+             [structural-validation :as sv]
+             [repl :as repl]]
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
@@ -44,6 +45,7 @@
 
 (def component-dependencies
   {:metrics []
+   :repl []
    :logging [:metrics]
    :communications []
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
@@ -60,6 +62,7 @@
   (system-map
    :web-server (web-server/map->WebServer {})
    :metrics (metrics/map->Metrics {})
+   :repl (repl/->ReplServer {})
    :logging (logging/map->Log {})
    :metadata-creator (md-creator/map->MetadataCreator {})
    :filestore (case (first (keys (:filestore config)))
