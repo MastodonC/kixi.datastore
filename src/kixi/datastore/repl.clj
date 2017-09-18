@@ -9,7 +9,7 @@
   (start [this]
     (println "Starting REPL server - port " port)
     (assoc this :repl-server
-           (apply nrepl-server/start-server :handler cider-nrepl-handler :bind "0.0.0.0" :port port)))
+           (nrepl-server/start-server :handler cider-nrepl-handler :bind "0.0.0.0" :port port)))
   (stop [this]
     (println "Stopping REPL server")
     (nrepl-server/stop-server (:repl-server this))
