@@ -14,6 +14,7 @@
             [kixi.comms :as c]
             [kixi.comms.components.kinesis :as kinesis]
             [kixi.datastore
+             [application :as app]
              [filestore :as fs]
              [metadatastore :as ms]
              [schemastore :as ss]]
@@ -121,7 +122,7 @@
   (try (instrument-specd-functions)
        (all-tests)
        (finally
-         (let [kinesis-conf (select-keys (:communications @user/system)
+         (let [kinesis-conf (select-keys (:communications @app/system)
                                          [:endpoint :dynamodb-endpoint :streams
                                           :profile :app :teardown-kinesis :teardown-dynamodb])]
            (user/stop)          
@@ -337,7 +338,7 @@
 
 (defn extract-comms
   [all-tests]
-  (reset! comms (:communications @user/system))
+  (reset! comms (:communications @app/system))
   (let [_ (reset! event-channel (async/chan 100))
         handler (c/attach-event-with-key-handler!
                  @comms

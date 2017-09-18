@@ -1,5 +1,6 @@
 (ns kixi.datastore.metadatastore.migrators.dynamodb.migrator-2017031130-init
-  (:require [kixi.datastore.system :refer [system-profile config]]
+  (:require [kixi.datastore.system :refer [config]]
+            [kixi.datastore.application :refer [profile]]
             [kixi.datastore.metadatastore.dynamodb :as mdb]
             [kixi.datastore.metadatastore :as md]
             [kixi.datastore.dynamodb :as db]
@@ -22,9 +23,9 @@
 
 (defn up
   [db]
-  (let [profile (name @system-profile)
+  (let [profile (name @profile)
         conn (get-db-config db)
-        alert-conf (get-alerts-config @system-profile)]
+        alert-conf (get-alerts-config @profile)]
     (far/create-table conn
                       (mdb/primary-metadata-table profile)
                       [(db/dynamo-col ::md/id) :s]
@@ -57,7 +58,7 @@
 
 (defn down
   [db]
-  (let [profile (name @system-profile)
+  (let [profile (name @profile)
         conn (get-db-config db)]
     (far/delete-table conn (mdb/primary-metadata-table profile))
     (far/delete-table conn (mdb/activity-metadata-table profile))))
