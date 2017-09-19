@@ -1,9 +1,8 @@
 (ns user
   (:require [com.stuartsierra.component :as component]
             [kixi.datastore.system :as system]
+            [kixi.datastore.application :as app]
             [environ.core :refer [env]]))
-
-(defonce system (atom nil))
 
 (defn start
   ([]
@@ -11,26 +10,27 @@
   ([overrides component-subset]
    (start "local" overrides component-subset))
   ([profile overrides component-subset]
-   (when-not @system
+   (when-not @app/system
+     (reset! app/profile profile)
      (try
        (prn "Starting system")
-       (->> (system/new-system (keyword (env :system-profile profile)))
+       (->> (system/new-system (keyword (env :system-profile profile)))           
             (#(merge % overrides))
             (#(if component-subset
                 (select-keys % component-subset)
                 %))
             component/start-system
-            (reset! system))
+            (reset! app/system))
        (catch Exception e
-         (reset! system (:system (ex-data e)))
+         (reset! app/system (:system (ex-data e)))
          (throw e))))))
 
 (defn stop
   []
-  (when @system
+  (when @app/system
     (prn "Stopping system")
-    (component/stop-system @system)
-    (reset! system nil)))
+    (component/stop-system @app/system)
+    (reset! app/system nil)))
 
 (defn restart
   []

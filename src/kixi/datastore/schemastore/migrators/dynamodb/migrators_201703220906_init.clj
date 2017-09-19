@@ -1,8 +1,9 @@
 (ns kixi.datastore.schemastore.migrators.dynamodb.migrators-201703220906-init
   (:require [kixi.datastore
+             [application :refer [profile]]
              [dynamodb :as db]
              [schemastore :as ss]
-             [system :refer [system-profile config]]]
+             [system :refer [config]]]
             [kixi.datastore.schemastore.dynamodb :as ssdb]
             [kixi.datastore.cloudwatch :refer [table-dynamo-alarms]]
             [taoensso.faraday :as far]
@@ -22,9 +23,9 @@
 
 (defn up
   [db]
-  (let [profile (name @system-profile)
+  (let [profile (name @profile)
         conn (get-db-config db)
-        alert-conf (get-alerts-config @system-profile)]
+        alert-conf (get-alerts-config @profile)]
     (far/create-table conn
                       (ssdb/primary-schemastore-table profile)
                       [(db/dynamo-col ::ss/id) :s]
@@ -42,6 +43,6 @@
 
 (defn down
   [db]
-  (let [profile (name @system-profile)
+  (let [profile (name @profile)
         conn (get-db-config db)]
     (far/delete-table conn (ssdb/primary-schemastore-table profile))))

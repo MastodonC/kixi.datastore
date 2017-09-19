@@ -118,11 +118,8 @@
       (log/info "Switching on Kixi Comms verbose logging...")
       (comms/set-verbose-logging! true))))
 
-(def system-profile (atom nil))
-
 (defn new-system
   [profile]
-  (reset! system-profile profile)
   (let [config (config profile)]
     (configure-logging config)
     (-> (new-system-map config)
