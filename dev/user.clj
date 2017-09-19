@@ -11,7 +11,7 @@
    (start "local" overrides component-subset))
   ([profile overrides component-subset]
    (when-not @app/system
-     (reset! app/profile profile)
+     (reset! app/profile (keyword (env :system-profile profile)))
      (try
        (prn "Starting system")
        (->> (system/new-system (keyword (env :system-profile profile)))           
