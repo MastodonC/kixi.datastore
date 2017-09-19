@@ -16,9 +16,9 @@
      (Thread. #(do (component/stop-system system)
                    (reset! application/system nil)
                    (reset! application/profile nil))))
-    (try
-      (component/start-system system)
-      (reset! application/system system)
+    (try      
+      (reset! application/system 
+              (component/start-system system))
       (.. (Thread/currentThread) join)
       (catch Throwable t
         (log/error t "Top level exception caught")))
