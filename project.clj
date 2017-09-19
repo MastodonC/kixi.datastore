@@ -69,6 +69,8 @@
 
   :global-vars {*warn-on-reflection* true
                 *assert* false}
+  
+  :plugins [[lein-test-out "0.3.1"]]
 
   :profiles {:dev {:source-paths ["dev"]
                    :dependencies [[org.clojure/math.combinatorics "0.1.3"]
