@@ -13,9 +13,9 @@
         system (kixi.datastore.system/new-system config-profile)]
     (.addShutdownHook
      (Runtime/getRuntime)
-     (Thread. #(component/stop-system system))     
+     (Thread. #(component/stop-system system)))
      (reset! application/system nil)
-     (reset! application/profile nil))
+     (reset! application/profile nil)
     (try
       (component/start-system system)
       (reset! application/system system)
