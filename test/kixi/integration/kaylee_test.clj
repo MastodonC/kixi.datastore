@@ -56,3 +56,27 @@
                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
           (is (= #{}
                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
+
+(deftest kaylee-get-metadata-by-group
+  (let [uid (uuid)
+        total-files 15
+        metadata (create-metadata uid "./test-resources/metadata-one-valid.csv")
+        _ (->> (range total-files)
+               (map (fn [_] 
+                      (send-file-and-metadata-no-wait
+                       metadata)))
+               doall
+               (map ::ms/id)
+               (map #(wait-for-metadata-key uid % ::ms/id))
+               doall)]
+    (wait-for-pred
+     #(= total-files
+         (get-in (search-metadata uid [::ms/meta-read])
+                 [:body :paging :total])))
+
+    (is-submap {:paging {:total total-files
+                         :count total-files}}
+               (kaylee/get-metadata-by-group [uid] 0 50))
+    (is-submap {:paging {:total total-files
+                         :count 5}}
+               (kaylee/get-metadata-by-group [uid] 0 5))))

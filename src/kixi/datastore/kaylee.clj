@@ -31,6 +31,18 @@
   {:pre [string?]}
   (ms/retrieve (metadatastore) meta-id))
 
+(defn get-metadata-by-group
+  [group-ids from-dex page-count]
+  {:pre [#(and (vector? group-ids)
+               (every? string? group-ids))
+         integer? integer?]}
+  (ms/query (metadatastore)
+            {:kixi.user/groups group-ids}
+            from-dex
+            page-count
+            [::ms/provenance ::ms/created]
+            "desc"))
+
 (defn send-sharing-update
   "Issues an event with sharing matrix changes, bypasses the command level user authorization."
   [your-user-id metadata-id change-type activity target-group]
