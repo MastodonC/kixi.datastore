@@ -25,7 +25,7 @@
   [db]
   (let [profile (name @profile)
         conn (get-db-config db)
-        alert-conf (get-alerts-config @profile)]
+        alert-conf (get-alerts-config profile)]
     (far/create-table conn
                       (mdb/primary-metadata-table profile)
                       [(db/dynamo-col ::md/id) :s]
