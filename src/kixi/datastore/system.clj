@@ -31,7 +31,8 @@
             [kixi.datastore.segmentation
              [inmemory :as segementation-inmemory]]
             [taoensso.timbre :as log]
-            [kixi.log :as kixi-log]))
+            [kixi.log :as kixi-log]
+            [medley.core :as med]))
 
 (defmethod aero/reader 'rand-uuid
  [{:keys [profile] :as opts} tag value]
@@ -93,14 +94,17 @@
   system starting). This is a pattern described in
   https://juxt.pro/blog/posts/aero.html"
   [system config profile]
-  (merge-with merge
-              system
-              (-> config
-                  (raise-first :filestore)
-                  (raise-first :metadatastore)
-                  (raise-first :communications)
-                  (raise-first :schemastore)
-                  (raise-first :segmentation))))
+  (->> (-> config
+           (raise-first :filestore)
+           (raise-first :metadatastore)
+           (raise-first :communications)
+           (raise-first :schemastore)
+           (raise-first :segmentation))
+       (med/map-vals #(if (map? %)
+                        (assoc % :profile (name profile))
+                        %))
+       (merge-with merge
+                   system)))
 
 (defn configure-logging
   [config]
