@@ -1,4 +1,5 @@
 (ns kixi.integration.spec-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [schemastore :as ss]

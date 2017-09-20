@@ -1,4 +1,5 @@
 (ns kixi.integration.upload-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [filestore :as fs]

@@ -1,4 +1,5 @@
 (ns kixi.integration.segmentation-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [metadatastore :as ms]

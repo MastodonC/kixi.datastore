@@ -1,4 +1,5 @@
 (ns kixi.integration.search.paging-test
+  {:integration true}
   (:require [clojure.spec.gen :as gen]
             [clojure.test :refer :all]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]

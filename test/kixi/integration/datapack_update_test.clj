@@ -1,4 +1,5 @@
 (ns kixi.integration.datapack-update-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [metadatastore :as ms]

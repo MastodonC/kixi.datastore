@@ -1,4 +1,5 @@
-(ns kixi.integration.kaylee-test
+(ns kixi.acceptance.kaylee-test
+  {:acceptance true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [kaylee :as kaylee]
