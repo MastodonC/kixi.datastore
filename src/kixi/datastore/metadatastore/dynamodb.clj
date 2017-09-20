@@ -332,7 +332,7 @@
                                                    :migration-table (str profile "-kixi.datastore-metadatastore.migrations")}
                                                   client)}
                            :environments {:env [{:db :dynamodb :migrator :migrator}]}}]
-          (info "Starting File Metadata DynamoDb Store")
+          (info "Starting File Metadata DynamoDb Store - " profile)
           (migrate :env joplin-conf)
           (c/attach-event-handler! communications
                                    :kixi.datastore/metadatastore

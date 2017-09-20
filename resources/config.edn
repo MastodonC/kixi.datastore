@@ -36,8 +36,7 @@
                                         ;To use S3 locally, remove :local config and set some keys.
                                 #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
                                          :endpoint "s3.eu-central-1.amazonaws.com"
-                                         :link-expiration-mins 10
-                                         :profile "witan"}}
+                                         :link-expiration-mins 10                                         }}
                       :staging-jenkins {:s3 {:bucket "staging-witan-kixi-datastore-filestore-jenkins"
                                              :endpoint "s3.eu-central-1.amazonaws.com"
                                              :link-expiration-mins 10}}
@@ -47,35 +46,23 @@
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
                                   :endpoint "s3-eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
- :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                             :profile "local"}
-                                     :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                                     :profile "local-kinesis"}
-                                     :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                                       :profile "staging-jenkins"}
-                                     :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "staging"}
-                                     :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
-                                            :profile "prod"}}}
- :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                           :profile "local"}
-                                   :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                                   :profile "local-kinesis"}
-                                   :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                                     :profile "staging-jenkins"}
-                                   :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                             :profile "staging"}
-                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"
-                                          :profile "prod"}}}
+ :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
+                                     :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
+                                     :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
+                                     :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
+                                     :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
+ :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
+                                   :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
+                                   :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
+                                   :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
+                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
  :segmentation {:inmemory {}}
  :communications #profile {:local {:coreasync {:app "kixi.datastore"
-                                               :metrics-level :NONE
-                                               :profile "local"}}
+                                               :metrics-level :NONE}}
                            :local-kinesis {:kinesis {:app "kixi.datastore"
                                                      :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                      :region-name "eu-central-1"
                                                      :dynamodb-endpoint #or [#env DYNAMODB "http://localhost:8000"]
-                                                     :profile "local"
                                                      :streams {:event #or [#env EVENT_STREAM  "kixi-datastore-local-event"]
                                                                :command #or [#env COMMAND_STREAM "kixi-datastore-local-command"]}
                                                      :metrics-level :NONE
@@ -85,13 +72,11 @@
                                                      :teardown-dynamodb true
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 100]
                                                      }}
-                           :staging-jenkins {:coreasync {:app "kixi.datastore"
-                                                         :profile "staging-jenkins"}}
+                           :staging-jenkins {:coreasync {:app "kixi.datastore"}}
                            :staging {:kinesis {:app "kixi.datastore"
                                                :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                :region-name "eu-central-1"
                                                :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                               :profile "staging"
                                                :initial-lease-table-read-capacity 1
                                                :initial-lease-table-write-capacity 1
                                                :streams {:event "staging-witan-event"
@@ -103,7 +88,6 @@
                                                            :endpoint "kinesis.eu-central-1.amazonaws.com"
                                                            :region-name "eu-central-1"
                                                            :dynamodb-endpoint "dynamodb.eu-central-1.amazonaws.com"
-                                                           :profile "staging-integration"
                                                            :initial-lease-table-read-capacity 1
                                                            :initial-lease-table-write-capacity 1
                                                            :streams {:event "staging-witan-event"
@@ -116,7 +100,6 @@
                                             :endpoint "kinesis.eu-west-1.amazonaws.com"
                                             :region-name "eu-west-1"
                                             :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
-                                            :profile "prod"
                                             :initial-lease-table-read-capacity 2
                                             :initial-lease-table-write-capacity 2
                                             :streams {:event "prod-witan-event"

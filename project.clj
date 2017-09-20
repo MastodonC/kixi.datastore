@@ -64,8 +64,7 @@
 
   :exclusions [cheshire]
 
-  :test-selectors {:default :all
-                   :integration :integration
+  :test-selectors {:integration :integration
                    :acceptance :acceptance}
 
   :global-vars {*warn-on-reflection* true
