@@ -1,4 +1,5 @@
 (ns kixi.integration.search.ordering-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [clojure.spec.test :refer [with-instrument-disabled]]
             [clojure.core.async :as async]

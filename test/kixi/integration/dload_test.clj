@@ -1,4 +1,5 @@
 (ns kixi.integration.dload-test
+  {:integration true}
   (:require [clojure.test :refer :all]
             [clj-http.client :as client]
             [kixi.datastore
