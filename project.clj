@@ -5,7 +5,7 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[aero "1.0.0"]
+  :dependencies [[aero "1.1.2"]
                  [aleph "0.4.2-alpha8"]
                  [amazonica "0.3.92" :exclusions [ch.qos.logback/logback-classic
                                                   com.amazonaws/aws-java-sdk
