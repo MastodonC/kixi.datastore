@@ -7,7 +7,7 @@
                           :sns  "arn:aws:sns:eu-west-1:720433613167:witan-to-slack"
                           :alerts? true}}
  :web-server #profile {:default {:vhost #or [#env VHOST "localhost"]
-                                 :port 8080
+                                 :port  #long #or [#env PORT "8080"]
                                  :request-logging? true}
                        :staging {:vhost "kixi.datastore.marathon.mesos"
                                  :port 18080
