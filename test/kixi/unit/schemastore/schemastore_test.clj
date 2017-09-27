@@ -1,8 +1,8 @@
 (ns kixi.unit.schemastore.schemastore-test
   (:require [clojure
-             [spec :as s]
              [test :refer :all]]
-            [clojure.spec.gen :as gen]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [environ.core :refer [env]]
             [kixi.datastore.schemastore :as ss]

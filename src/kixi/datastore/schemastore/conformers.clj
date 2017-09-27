@@ -20,7 +20,7 @@
   (try
     (Double/valueOf (str s))
     (catch Exception e
-      :clojure.spec/invalid)))
+      :clojure.spec.alpha/invalid)))
 
 (defn str-double->int
   "1, 1. or 1.0...0 will convert to 1"
@@ -37,7 +37,7 @@
     (catch NumberFormatException e
       (or
         (str-double->int s)     
-        :clojure.spec/invalid))))
+        :clojure.spec.alpha/invalid))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer
@@ -48,9 +48,9 @@
         (clojure.core/integer? x) x
         (and (clojure.core/double? x)
              (double->int x))     (double->int x)
-        :else :clojure.spec/invalid))
+        :else :clojure.spec.alpha/invalid))
 
-(def integer? (s/conformer -integer?))
+(def integer? (s/conformer -integer? identity))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -62,9 +62,9 @@
     (clojure.core/double? x) x
     (clojure.core/integer? x) (double x)
     (string? x) (str->double x)
-    :else :clojure.spec/invalid))
+    :else :clojure.spec.alpha/invalid))
 
-(def double? (s/conformer -double?))
+(def double? (s/conformer -double? identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer Range
@@ -73,10 +73,10 @@
   [min max]
   (let [rcheck (fn [v] (if (>= max v min)
                          v
-                         :clojure.spec/invalid))]
+                         :clojure.spec.alpha/invalid))]
     (fn [x]
       (let [r (-integer? x)]
-        (if (= r :clojure.spec/invalid)
+        (if (= r :clojure.spec.alpha/invalid)
           r
           (rcheck r))))))
 
@@ -85,7 +85,7 @@
   (when (or (not (int? min))
             (not (int? max)))
     (throw (IllegalArgumentException. "Both min and max must be integers")))
-  (s/conformer (-integer-range? min max)))
+  (s/conformer (-integer-range? min max) identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Double Range
@@ -94,10 +94,10 @@
   [min max]
   (let [rcheck (fn [v] (if (>= max v min)
                          v
-                         :clojure.spec/invalid))]
+                         :clojure.spec.alpha/invalid))]
     (fn [x]
       (let [r (-double? x)]
-        (if (= r :clojure.spec/invalid)
+        (if (= r :clojure.spec.alpha/invalid)
           r
           (rcheck r))))))
 
@@ -106,7 +106,7 @@
   (when (or (not (clojure.core/double? min))
             (not (clojure.core/double? max)))
     (throw (IllegalArgumentException. "Both min and max must be doubles")))
-  (s/conformer (-double-range? min max)))
+  (s/conformer (-double-range? min max) identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Set
@@ -114,11 +114,11 @@
 (defn -set?
   [sargs]
   (fn [x]
-    (if (sargs x) x :clojure.spec/invalid)))
+    (if (sargs x) x :clojure.spec.alpha/invalid)))
 
 (defn set?
   [& sargs]
-  (s/conformer (-set? (set sargs))))
+  (s/conformer (-set? (set sargs)) identity))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Regex
@@ -128,7 +128,7 @@
   (fn [x]
     (if (and (string? x) (re-find rs x)) 
       x 
-      :clojure.spec/invalid)))
+      :clojure.spec.alpha/invalid)))
 
 (defn regex?
   [rs]
@@ -136,7 +136,7 @@
     (if (or (= (type rs) java.util.regex.Pattern)
             (string? rs))
       (try
-        (s/conformer (-regex? (re-pattern rs)))
+        (s/conformer (-regex? (re-pattern rs)) identity)
         (catch java.util.regex.PatternSyntaxException _
           (throw (IllegalArgumentException. msg))))
       (throw (IllegalArgumentException. msg)))))
@@ -148,8 +148,8 @@
     (string? x) (case x
                   ("true" "TRUE" "t" "T") true
                   ("false" "FALSE" "f" "F") false
-                  :clojure.spec/invalid)
-    :else :clojure.spec/invalid))
+                  :clojure.spec.alpha/invalid)
+    :else :clojure.spec.alpha/invalid))
 
 (def bool? 
   (s/with-gen (s/conformer -bool?)
@@ -164,8 +164,14 @@
 (def time-parser   
   (partial tf/parse time/formatter))
 
+(def time-unparser
+  (partial tf/unparse time/formatter))
+
 (def date-parser   
   (partial tf/parse time/date-formatter))
+
+(def date-unparser
+  (partial tf/unparse time/date-formatter))
 
 (defn timestamp?
   [x]
@@ -174,13 +180,13 @@
     (try
       (if (string? x)
         (time-parser x)
-        :clojure.spec/invalid)
+        :clojure.spec.alpha/invalid)
       (catch IllegalArgumentException e
-        :clojure.spec/invalid))))
+        :clojure.spec.alpha/invalid))))
 
 (def timestamp
   (s/with-gen
-    (s/conformer timestamp?)
+    (s/conformer timestamp? time-unparser)
     #(gen/return (t/now))))
 
 (defn date?
@@ -191,13 +197,13 @@
     (try
       (if (string? x)
         (date-parser x)
-        :clojure.spec/invalid)
+        :clojure.spec.alpha/invalid)
       (catch IllegalArgumentException e
-        :clojure.spec/invalid))))
+        :clojure.spec.alpha/invalid))))
 
 (def date
   (s/with-gen
-    (s/conformer date?)
+    (s/conformer date? date-unparser)
     #(gen/return (t/today-at-midnight))))
 
 (def uuid?
@@ -205,7 +211,7 @@
 
 (def uuid 
   (s/with-gen 
-    (s/conformer uuid?)
+     (s/conformer uuid? identity)
     #(tgen/no-shrink (gen/fmap str (gen/uuid)))))
 
 (def anything 
@@ -221,14 +227,14 @@
                   (let [kw (apply keyword (clojure.string/split x #"/" 2))]
                     (if (namespace kw)
                       kw
-                      :clojure.spec/invalid))
+                      :clojure.spec.alpha/invalid))
                   (catch Exception e
-                    :clojure.spec/invalid))
-    :else :clojure.spec/invalid))
+                    :clojure.spec.alpha/invalid))
+    :else :clojure.spec.alpha/invalid))
 
 (def ns-keyword
   (s/with-gen
-    (s/conformer ns-keyword?)
+    (s/conformer ns-keyword? identity)
     #(gen/such-that namespace (gen/keyword-ns))))
 
 (defn -not-empty-string?
@@ -238,5 +244,5 @@
 
 (def not-empty-string
   (s/with-gen 
-    (s/conformer -not-empty-string?)
+    (s/conformer -not-empty-string? identity)
     #(gen/not-empty (s/gen string?))))

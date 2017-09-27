@@ -200,7 +200,7 @@
       (let [meta-id (get-in metadata-response [:body ::ms/id])
             event (update-metadata
                    uid meta-id
-                   {::ms/file-type "Invalid"})]
+                   {::ms/file-type "Invalid has no command"})]
         (when-event-key event :kixi.datastore.metadatastore/update-rejected
                         (is (= :invalid
                               (get-in event [:kixi.comms.event/payload :reason]))))))))

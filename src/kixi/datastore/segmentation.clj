@@ -1,5 +1,5 @@
 (ns kixi.datastore.segmentation
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [kixi.datastore.schemastore.conformers :refer [uuid anything]]))
 
 (s/def ::id uuid)

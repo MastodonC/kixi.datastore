@@ -1,7 +1,7 @@
 (ns kixi.unit.metadatastore.dynamodb
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
-            [clojure.spec.gen :as gen]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [clojure.data :as data]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [environ.core :refer [env]]

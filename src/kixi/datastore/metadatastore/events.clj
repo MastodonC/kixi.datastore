@@ -1,6 +1,6 @@
 (ns kixi.datastore.metadatastore.events
-  (:require [clojure.spec :as s]
-            [com.gfredericks.schpec :as sh]
+  (:require [clojure.spec.alpha :as s]
+            [kixi.datastore.schemastore.utils :as sh]
             [kixi.comms :as comms]))
 
 (sh/alias 'event 'kixi.event)

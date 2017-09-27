@@ -1,5 +1,5 @@
 (ns kixi.unit.transport-specs-test
-  (:require [clojure.spec.test :as stest]
+  (:require [clojure.spec.test.alpha :as stest]
             [clojure.test :refer :all]
             [environ.core :refer [env]]
             [kixi.datastore
@@ -14,7 +14,7 @@
 (defn check
   [sym]
   (-> sym
-      (stest/check {:clojure.spec.test.check/opts {:num-tests sample-size}})
+      (stest/check {:clojure.spec.test.alpha.check/opts {:num-tests sample-size}})
       first
       stest/abbrev-result
       :failure))

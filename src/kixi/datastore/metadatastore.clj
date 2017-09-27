@@ -1,5 +1,5 @@
 (ns kixi.datastore.metadatastore
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [kixi.datastore
              [schemastore :as schemastore]
              [segmentation :as seg]]
@@ -10,7 +10,7 @@
             [kixi.datastore.metadatastore.events]
             [kixi.datastore.metadatastore.commands]            
             [kixi.datastore.schemastore.conformers :as sc]
-            [clojure.spec.gen :as gen]))
+            [clojure.spec.gen.alpha :as gen]))
 
 (defn valid-file-name?
   "A file name should be at least one valid character long and only have valid characters and start with a digit or letter."
@@ -120,7 +120,7 @@
 (defmulti file-metadata ::type)
 
 (s/def ::tags
-(s/coll-of sc/not-empty-string :distinct true :into #{}))
+  (s/coll-of sc/not-empty-string :distinct true :into #{}))
 
 (defmethod file-metadata "stored"
   [_]

@@ -3,7 +3,7 @@
              [metadatastore :as ms]
              [communication-specs :as cs]]
             [kixi.comms :as c]
-            [com.gfredericks.schpec :as sh]))
+            [kixi.datastore.schemastore.utils :as sh]))
 
 (sh/alias 'ke 'kixi.comms.event)
 

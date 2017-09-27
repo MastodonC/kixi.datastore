@@ -1,7 +1,7 @@
 (ns kixi.datastore.schemastore.inmemory
   (:require [clojure
-             [data :as data]
-             [spec :as s]]
+             [data :as data]]
+            [clojure.spec.alpha :as s]
             [com.stuartsierra.component :as component]
             [kixi.comms :as c]
             [kixi.datastore

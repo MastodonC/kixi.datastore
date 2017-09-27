@@ -1,9 +1,9 @@
 (ns kixi.unit.metadatastore-test
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
-            [clojure.spec.gen :as gen]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [clojure.data :as data]
-            [com.gfredericks.schpec :as sh]
+            [kixi.datastore.schemastore.utils :as sh]
             [com.gfredericks.test.chuck.clojure-test :refer [checking]]
             [environ.core :refer [env]]
             [kixi.datastore.metadatastore :as md]

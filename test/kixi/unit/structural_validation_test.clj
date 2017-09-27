@@ -1,6 +1,6 @@
 (ns kixi.unit.structural-validation-test
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [kixi.datastore.structural-validation :refer :all]
             [kixi.datastore.schemastore.conformers :as sc]
             [kixi.datastore.metadatastore :as ms]))

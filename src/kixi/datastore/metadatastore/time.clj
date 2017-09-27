@@ -1,5 +1,5 @@
 (ns kixi.datastore.metadatastore.time
-  (:require  [clojure.spec :as s]
+  (:require  [clojure.spec.alpha :as s]
              [kixi.datastore.schemastore.conformers :as sc]))
 
 (s/def ::from (s/nilable sc/date))

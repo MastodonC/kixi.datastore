@@ -1,6 +1,6 @@
 (ns kixi.integration.metadata-test
   {:integration true}
-  (:require [clojure.spec.test :refer [with-instrument-disabled]]
+  (:require [clojure.spec.test.alpha :refer [with-instrument-disabled]]
             [clojure.test :refer :all]
             [kixi.datastore
              [metadatastore :as ms]

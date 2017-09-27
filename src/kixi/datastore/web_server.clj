@@ -5,7 +5,7 @@
             [byte-streams :as bs]
             [cheshire.core :as json]
             [clojure.core.async :as async :refer [<!!]]
-            [clojure.spec :as spec]
+            [clojure.spec.alpha :as spec]
             [com.stuartsierra.component :as component]
             [kixi.datastore
              [communication-specs :as cs]

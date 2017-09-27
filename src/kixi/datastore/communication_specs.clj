@@ -1,5 +1,5 @@
 (ns kixi.datastore.communication-specs
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [kixi.comms :as c]
             [kixi.datastore
              [metadatastore :as ms]

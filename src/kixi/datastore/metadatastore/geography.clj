@@ -1,5 +1,5 @@
 (ns kixi.datastore.metadatastore.geography
-  (:require [clojure.spec :as s]))
+  (:require [clojure.spec.alpha :as s]))
 
 (s/def ::level string?)
 (s/def ::type #{"smallest"})
