@@ -246,9 +246,8 @@ the generated 'update' specs.
        ~['_]
        (spec/and (spec/keys :req ~type-fields
                             :opt ~(mapv updates/update-spec-name (keys spec->action)))
-                 (spec/every (fn [[k# v#]]
-                               (~(into (set type-fields) (mapv updates/update-spec-name (keys spec->action)))
-                                k#)))))))
+                 (spec/every-kv ~(into (set type-fields) (mapv updates/update-spec-name (keys spec->action)))
+                                (constantly true))))))
 
 (defmacro define-metadata-update-implementations
   []

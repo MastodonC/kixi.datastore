@@ -29,10 +29,10 @@
   [[map-spec fields]]
   (eval
    `(s/def ~(update-spec-name map-spec)
-      (s/merge (s/keys
-                :opt ~(mapv update-spec-name fields))
-               (s/map-of ~(into #{} (mapv update-spec-name fields))
-                         any?)))))
+      (s/and (s/keys
+              :opt ~(mapv update-spec-name fields))
+             (s/every-kv ~(into #{} (mapv update-spec-name fields))                         
+                         (constantly true))))))
 
 (defn all-specs-with-actions
   [definition-map]

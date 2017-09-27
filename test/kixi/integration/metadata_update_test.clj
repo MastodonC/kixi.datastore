@@ -4,6 +4,7 @@
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]]
+            [kixi.datastore.metadatastore.license :as msl]
             [kixi.integration.base :as base :refer :all]            
             [medley.core :refer [dissoc-in]]))
 
@@ -264,3 +265,42 @@
                                           (let [updated-metadata (get-metadata uid meta-id)]
                                             (is (= #{"orig2" "Tag2" "Tag3"}
                                                    (get-in updated-metadata [:body ::ms/tags])))))))))))
+
+(deftest small-file-update-license-type
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (assoc (create-metadata
+                                   uid
+                                   "./test-resources/metadata-one-valid.csv")
+                                  ::ms/license {:kixi.datastore.metadatastore.license/type "old type"}))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            event (update-metadata
+                   uid meta-id
+                   {:kixi.datastore.metadatastore.license.update/license {:kixi.datastore.metadatastore.license.update/type {:set "new type"}}})]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= "new type"
+                                             (get-in metadata [:body ::msl/license ::msl/type]))))
+                        (let [metadata (get-metadata uid meta-id)]
+                          (prn metadata)
+                          (is (= "new type"
+                                 (get-in metadata [:body ::msl/license ::msl/type])))))))))
+
+(deftest small-file-remove-license-type
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (assoc (create-metadata
+                                   uid
+                                   "./test-resources/metadata-one-valid.csv")
+                                  ::ms/license {:kixi.datastore.metadatastore.license/type "old type"}))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            event (update-metadata
+                   uid meta-id
+                   {:kixi.datastore.metadatastore.license.update/license {:kixi.datastore.metadatastore.license.update/type :rm}})]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (nil? (get-in metadata [:body ::msl/license ::msl/type]))))
+                        (let [metadata (get-metadata uid meta-id)]
+                          (is (nil? (get-in metadata [:body ::msl/license ::msl/type])))))))))
