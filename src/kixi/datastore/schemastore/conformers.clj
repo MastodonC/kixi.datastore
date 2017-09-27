@@ -1,11 +1,15 @@
 (ns kixi.datastore.schemastore.conformers
   (:require [clojure.core :exclude [integer? double? set?]]
-            [clojure.spec :as s]
-            [clojure.spec.gen :as gen]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [clojure.test.check.generators :as tgen]
             [clj-time.core :as t]
             [clj-time.format :as tf]
             [kixi.datastore.time :as time]))
+
+(s/fdef alias
+        :args (s/cat :alias simple-symbol? :ns simple-symbol?)
+        :ret nil?)
 
 (defn double->int
   "1.0 will convert to 1; anything else will be rejected"

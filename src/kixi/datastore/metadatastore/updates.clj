@@ -21,9 +21,9 @@
         ~(if (:rm actions)
            (s/or :r #{:rm}
                  :o (s/map-of rmless-actions
-                              #(s/valid? spec %)))
+                              spec))
            (s/map-of rmless-actions
-                     #(s/valid? spec %)))))))
+                     spec))))))
 
 (defn update-map-spec
   [[map-spec fields]]

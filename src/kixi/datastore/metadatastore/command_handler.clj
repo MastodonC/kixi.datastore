@@ -244,10 +244,11 @@ the generated 'update' specs.
     `(defmethod metadata-update
        ~dispatch-value
        ~['_]
-       (spec/merge (spec/keys :req ~type-fields
-                              :opt ~(mapv updates/update-spec-name (keys spec->action)))
-                   (spec/map-of ~(into (set type-fields) (mapv updates/update-spec-name (keys spec->action)))
-                                any?)))))
+       (spec/and (spec/keys :req ~type-fields
+                            :opt ~(mapv updates/update-spec-name (keys spec->action)))
+                 (spec/every (fn [[k# v#]]
+                               (~(into (set type-fields) (mapv updates/update-spec-name (keys spec->action)))
+                                k#)))))))
 
 (defmacro define-metadata-update-implementations
   []
@@ -297,7 +298,10 @@ the generated 'update' specs.
                      (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::mdu/metadata-update typed-payload)
                      :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
                                 invalid-event
-                                (updated (assoc (dissoc-types typed-payload)
+                                (updated (assoc (dissoc-types 
+                                                 (spec/unform ::mdu/metadata-update
+                                                              (spec/conform ::mdu/metadata-update
+                                                                            typed-payload)))
                                                 ::cs/file-metadata-update-type ::cs/file-metadata-update
                                                 :kixi/user (::kc/user cmd))))))))))
 
