@@ -1,5 +1,5 @@
 (ns kixi.datastore.metadatastore.inmemory
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [com.stuartsierra.component :as component]
             [kixi.datastore.metadatastore
              :refer [MetaDataStore] :as ms]

@@ -1,7 +1,7 @@
 (ns kixi.datastore.structural-validation
   (:require [byte-streams :as bs]
             [clojure-csv.core :as csv :refer [parse-csv]]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [com.stuartsierra.component :as component]
             [kixi.comms :as c
              :refer [attach-event-handler!]]

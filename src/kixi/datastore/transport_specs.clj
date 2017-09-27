@@ -1,7 +1,7 @@
 (ns kixi.datastore.transport-specs
   (:require [clojure
-             [spec :as s]
              [walk :as walk]]
+            [clojure.spec.alpha :as s]
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]

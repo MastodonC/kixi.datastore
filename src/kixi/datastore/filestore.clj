@@ -1,5 +1,5 @@
 (ns kixi.datastore.filestore
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [kixi.comms :as c]))
 
 (s/def ::id string?)

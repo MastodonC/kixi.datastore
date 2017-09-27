@@ -1,6 +1,6 @@
 (ns kixi.datastore.schema-creator
-  (:require [clojure.spec :as s]
-            [clojure.spec.gen :as gen]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [kixi.datastore.transport-specs :as ts]
             [kixi.comms :as c]
             [kixi.datastore.schemastore :as ss]))

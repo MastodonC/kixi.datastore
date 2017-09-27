@@ -1,5 +1,5 @@
 (ns kixi.datastore.metadatastore.updates
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [com.rpl.specter :as sp]
             [kixi.datastore.metadatastore :as md]
             [kixi.datastore.schemastore.conformers :as sc]

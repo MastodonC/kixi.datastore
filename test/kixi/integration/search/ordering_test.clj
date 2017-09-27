@@ -1,9 +1,9 @@
 (ns kixi.integration.search.ordering-test
   {:integration true}
   (:require [clojure.test :refer :all]
-            [clojure.spec.test :refer [with-instrument-disabled]]
+            [clojure.spec.test.alpha :refer [with-instrument-disabled]]
             [clojure.core.async :as async]
-            [clojure.spec.gen :as gen]
+            [clojure.spec.gen.alpha :as gen]
             [environ.core :refer [env]]
             [clj-http.client :as client]
             [clj-time.coerce :as tc]

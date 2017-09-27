@@ -1,5 +1,5 @@
 (ns kixi.datastore.schemastore.validator
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]))
 

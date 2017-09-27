@@ -2,12 +2,12 @@
   (:require [kixi.datastore.schemastore :as ss]
             [kixi.datastore.schemastore.conformers :as conformers]
             [kixi.integration.base :refer :all]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [clojure.test :refer :all]))
 
 (defn valid?
   [p r]
-  (if (= r :clojure.spec/invalid)
+  (if (= r :clojure.spec.alpha/invalid)
     false
     (if (not (p r))
       (throw (Exception. (format "Conformer returned a result but failed predicate (%s)" r)))
@@ -113,6 +113,6 @@
   (is (valid? boolean? (s/conform conformers/bool? "true")))
   (is (true? (s/conform conformers/bool? "true")))
   (is (= (s/conform conformers/bool? "foo")
-         :clojure.spec/invalid))
+         :clojure.spec.alpha/invalid))
   (is (not (valid? boolean? (s/conform conformers/bool? 123))))
   (is (not (valid? boolean? (s/conform conformers/bool? "foo")))))

@@ -1,7 +1,7 @@
 (ns kixi.datastore.metadatastore.command-handler
   (:require [com.stuartsierra.component :as component]
-            [clojure.spec :as spec]
-            [com.gfredericks.schpec :as sh]
+            [clojure.spec.alpha :as spec]
+            [kixi.datastore.schemastore.utils :as sh]
             [kixi.comms :as c]
             [kixi.datastore
              [communication-specs :as cs]
@@ -15,7 +15,7 @@
              [time :as mdt]
              [updates :as updates]]
             [kixi.datastore.schemastore :as ss]
-            [clojure.spec :as s]))
+            [clojure.spec.alpha :as s]))
 
 (sh/alias 'ke 'kixi.comms.event)
 (sh/alias 'kc 'kixi.comms.command)

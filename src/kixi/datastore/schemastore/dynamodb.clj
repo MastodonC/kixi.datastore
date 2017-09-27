@@ -1,5 +1,5 @@
 (ns kixi.datastore.schemastore.dynamodb
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [com.stuartsierra.component :as component]
             [kixi.comms :as c]
             [kixi.datastore
