@@ -15,7 +15,6 @@
                                                    com.fasterxml.jackson.core/jackson-core
                                                    org.apache.httpcomponents/httpclient
                                                    joda-time]]
-                 [com.amazonaws/aws-java-sdk "1.11.203" :exclusions [joda-time]]
                  [bidi "2.0.12"]
                  [byte-streams "0.2.3"]
                  [kixi/clj-http "3.5.1-SNAPSHOT"]
