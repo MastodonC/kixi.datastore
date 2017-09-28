@@ -7,7 +7,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[aero "1.1.2"]
                  [aleph "0.4.2-alpha8"]
-                 [amazonica "0.3.112" :exclusions [ch.qos.logback/logback-classic
+                 [amazonica "0.3.92" :exclusions [ch.qos.logback/logback-classic
                                                    com.amazonaws/aws-java-sdk
                                                    com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                                    commons-logging
@@ -15,6 +15,7 @@
                                                    com.fasterxml.jackson.core/jackson-core
                                                    org.apache.httpcomponents/httpclient
                                                    joda-time]]
+                 [com.amazonaws/aws-java-sdk "1.11.53" :exclusions [joda-time]]
                  [bidi "2.0.12"]
                  [byte-streams "0.2.3"]
                  [kixi/clj-http "3.5.1-SNAPSHOT"]
@@ -32,7 +33,7 @@
                  [com.taoensso/encore "2.92.0"]
                  [digest "1.4.6"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.2.24"]
+                 [kixi/kixi.comms "0.2.25"]
                  [kixi/kixi.log "0.1.4"]
                  [kixi/kixi.metrics "0.4.1"]
                  [kixi/joplin.core "0.3.10-SNAPSHOT"]
