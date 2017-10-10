@@ -8,7 +8,7 @@
              [license :as l]
              [time :as t]]
             [kixi.datastore.metadatastore.events]
-            [kixi.datastore.metadatastore.commands]            
+            [kixi.datastore.metadatastore.commands]
             [kixi.datastore.schemastore.conformers :as sc]
             [clojure.spec.gen.alpha :as gen]))
 
@@ -27,6 +27,7 @@
                 #(gen/such-that (fn [x] (and (< 0 (count x) 512)
                                              (re-matches #"^[\p{Digit}\p{IsAlphabetic}]" ((comp str first) x)))) (gen/string) 100)))
 (s/def ::description sc/not-empty-string)
+(s/def ::logo sc/url)
 (s/def ::size-bytes int?)
 (s/def ::source #{"upload" "segmentation"})
 (s/def ::line-count int?)
@@ -125,7 +126,7 @@
 (defmethod file-metadata "stored"
   [_]
   (s/keys :req [::type ::file-type ::id ::name ::provenance ::size-bytes ::sharing]
-          :opt [::schema ::segmentations ::segment ::structural-validation ::description
+          :opt [::schema ::segmentations ::segment ::structural-validation ::description ::logo
                 ::tags ::geo/geography ::t/temporal-coverage
                 ::maintainer ::author ::source ::l/license
                 ::source-created ::source-updated]))
@@ -135,7 +136,7 @@
 (defmethod bundle-metadata "datapack"
   [_]
   (s/keys :req [::type ::id ::name ::provenance ::sharing ::bundled-ids ::bundle-type]
-          :opt [::description
+          :opt [::description ::logo
                 ::tags ::geo/geography ::t/temporal-coverage
                 ::maintainer ::author ::source ::l/license]))
 

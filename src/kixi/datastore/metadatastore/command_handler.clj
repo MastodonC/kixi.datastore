@@ -63,7 +63,7 @@
 (defn sharing-change-invalid
   [{:keys [::kc/payload] :as cmd}]
   (sharing-change-rejected {:reason :invalid
-                            :explanation (spec/explain-data 
+                            :explanation (spec/explain-data
                                           ::sharing-change-cmd-payload payload)
                             :original payload
                             :kixi/user (::kc/user cmd)}))
@@ -113,7 +113,7 @@
   [cmd]
   (get-in cmd [::kc/user :kixi.user/id]))
 
-(defmulti metadata-handler 
+(defmulti metadata-handler
   (fn [metadatastore filestore schemastore
        {:keys [::kc/payload] :as cmd}]
     [(::ms/type payload) (::ms/bundle-type payload)]))
@@ -197,7 +197,7 @@ The map defines dispatch values for the metadata-update multimethod, which backs
 ::metadata-update multispec. The values of the map define which fields are available for
 modification and the actions allowable for the modification.
 
-updates/create-update-specs creates new spec definitions for all the fields specified, with 
+updates/create-update-specs creates new spec definitions for all the fields specified, with
 an 'update' appended to the namespace. Each is map-spec of the declared actions to a valid
 value of the original spec.
 
@@ -208,6 +208,7 @@ the generated 'update' specs.
 (def metadata-types->field-actions
   {["stored" nil] {::ms/name #{:set}
                    ::ms/description #{:set :rm}
+                   ::ms/logo #{:set :rm}
                    ::ms/source #{:set :rm}
                    ::ms/author #{:set :rm}
                    ::ms/maintainer #{:set :rm}
@@ -223,6 +224,7 @@ the generated 'update' specs.
 
    ["bundle" "datapack"] {::ms/name #{:set}
                           ::ms/description #{:set :rm}
+                          ::ms/logo #{:set :rm}
                           ::ms/source #{:set :rm}
                           ::ms/author #{:set :rm}
                           ::ms/maintainer #{:set :rm}
@@ -232,7 +234,7 @@ the generated 'update' specs.
                           ::geo/geography {::geo/level #{:set :rm}
                                            ::geo/type #{:set :rm}}
                           ::mdt/temporal-coverage {::mdt/from #{:set :rm}
-                                                 ::mdt/to #{:set :rm}}}})
+                                                   ::mdt/to #{:set :rm}}}})
 
 (updates/create-update-specs metadata-types->field-actions)
 
@@ -271,7 +273,7 @@ the generated 'update' specs.
     (when-let [unauthed-ids (unauthorised-ids metadatastore (get-user-groups cmd)
                                               (concat (get-in typed-payload [::mdu/bundled-ids :conj])
                                                       (get-in typed-payload [::mdu/bundled-ids :disj])))]
-      (invalid cmd {::ms/type "bundle" 
+      (invalid cmd {::ms/type "bundle"
                     :unauthorised-bundled-ids unauthed-ids}))))
 
 (defn get-metadata-types
@@ -281,7 +283,7 @@ the generated 'update' specs.
 
 (defn dissoc-types
   [md]
-  (dissoc md      
+  (dissoc md
           ::ms/type ::ms/bundle-type))
 
 (defn create-metadata-update-handler
@@ -295,9 +297,9 @@ the generated 'update' specs.
                                             (get-metadata-types metadatastore id))]
                    (cond
                      (not (structurally-valid metadatastore typed-payload)) (invalid cmd ::mdu/metadata-update typed-payload)
-                     :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)] 
+                     :default (if-let [invalid-event (not-semantically-valid metadatastore cmd typed-payload)]
                                 invalid-event
-                                (updated (assoc (dissoc-types 
+                                (updated (assoc (dissoc-types
                                                  (spec/unform ::mdu/metadata-update
                                                               (spec/conform ::mdu/metadata-update
                                                                             typed-payload)))
@@ -426,7 +428,7 @@ the generated 'update' specs.
      (update c h-kw
              #(when %
                 (c/detach-handler! communications %)
-                nil)))   
+                nil)))
    component
    handler-kws))
 
