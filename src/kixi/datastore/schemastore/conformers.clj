@@ -235,13 +235,13 @@
   (s/with-gen
     (s/conformer url? identity)
     (fn []
-      (tgen/no-shrink (gen/fmap fmt-url
-                                (gen/tuple
-                                 (gen/boolean)
-                                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
-                                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
-                                 (gen/one-of [(gen/such-that #(< 1 (count %)) (gen/string-alphanumeric))
-                                              (gen/return nil)])))))))
+      (gen/fmap fmt-url
+                (gen/tuple
+                 (gen/boolean)
+                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                 (gen/one-of [(gen/such-that #(< 1 (count %)) (gen/string-alphanumeric))
+                              (gen/return nil)]))))))
 
 (def anything
   (s/with-gen (constantly true)
