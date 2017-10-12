@@ -116,3 +116,9 @@
          :clojure.spec.alpha/invalid))
   (is (not (valid? boolean? (s/conform conformers/bool? 123))))
   (is (not (valid? boolean? (s/conform conformers/bool? "foo")))))
+
+(deftest url-conformer
+  (is (valid? string? (s/conform conformers/url? "https://tfl.gov.uk/cdn/static/cms/images/boroughs-map-static.gif")))
+  (is (valid? string? (s/conform conformers/url? "http://tfl.gov.uk/cdn/static/cms/images/boroughs-map-static.gif")))
+  (is (valid? string? (s/conform conformers/url? "http://tfl.gov.uk/cdn/static/cms/images")))
+  (is (valid? string? (s/conform conformers/url? "http://tfl.gov.uk/cdn/static/cms/images/boroughs-map-static"))))

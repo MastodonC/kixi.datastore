@@ -40,8 +40,8 @@
     (Integer/valueOf s)
     (catch NumberFormatException e
       (or
-        (str-double->int s)     
-        :clojure.spec.alpha/invalid))))
+       (str-double->int s)
+       :clojure.spec.alpha/invalid))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer
@@ -130,8 +130,8 @@
 (defn -regex?
   [rs]
   (fn [x]
-    (if (and (string? x) (re-find rs x)) 
-      x 
+    (if (and (string? x) (re-find rs x))
+      x
       :clojure.spec.alpha/invalid)))
 
 (defn regex?
@@ -155,7 +155,7 @@
                   :clojure.spec.alpha/invalid)
     :else :clojure.spec.alpha/invalid))
 
-(def bool? 
+(def bool?
   (s/with-gen (s/conformer -bool?)
     (constantly (gen/boolean))))
 
@@ -165,13 +165,13 @@
     (string? x) x
     :else (str x)))
 
-(def time-parser   
+(def time-parser
   (partial tf/parse time/formatter))
 
 (def time-unparser
   (partial tf/unparse time/formatter))
 
-(def date-parser   
+(def date-parser
   (partial tf/parse time/date-formatter))
 
 (def date-unparser
@@ -213,12 +213,37 @@
 (def uuid?
   (-regex? #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
 
-(def uuid 
-  (s/with-gen 
-     (s/conformer uuid? identity)
+(def uuid
+  (s/with-gen
+    (s/conformer uuid? identity)
     #(tgen/no-shrink (gen/fmap str (gen/uuid)))))
 
-(def anything 
+(defn fmt-url
+  [[secure? domains paths extension]]
+  (str "http"
+       (when secure? "s")
+       "://"
+       (clojure.string/join "." domains)
+       "/"
+       (when (not-empty paths) (clojure.string/join "/" paths))
+       (when extension (str "." extension))))
+
+(def url?
+  (-regex? #"^http[s]?:\/\/([^:\/\s]+)((\/\w+)*\/)([\w\-\.]+[^#?\s]+)(.*)?(#[\w\-]+)?$"))
+
+(def url
+  (s/with-gen
+    (s/conformer url? identity)
+    (fn []
+      (gen/fmap fmt-url
+                (gen/tuple
+                 (gen/boolean)
+                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                 (gen/one-of [(gen/such-that #(< 1 (count %)) (gen/string-alphanumeric))
+                              (gen/return nil)]))))))
+
+(def anything
   (s/with-gen (constantly true)
     #(gen/any)))
 
@@ -227,7 +252,7 @@
   (cond
     (and (keyword? x)
          (namespace x)) x
-    (string? x) (try 
+    (string? x) (try
                   (let [kw (apply keyword (clojure.string/split x #"/" 2))]
                     (if (namespace kw)
                       kw
@@ -247,6 +272,6 @@
        (not-empty x)))
 
 (def not-empty-string
-  (s/with-gen 
+  (s/with-gen
     (s/conformer -not-empty-string? identity)
     #(gen/not-empty (s/gen string?))))
