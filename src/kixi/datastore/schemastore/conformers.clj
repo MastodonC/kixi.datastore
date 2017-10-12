@@ -218,11 +218,30 @@
     (s/conformer uuid? identity)
     #(tgen/no-shrink (gen/fmap str (gen/uuid)))))
 
+(defn fmt-url
+  [[secure? domains paths extension]]
+  (str "http"
+       (when secure? "s")
+       "://"
+       (clojure.string/join "." domains)
+       "/"
+       (when (not-empty paths) (clojure.string/join "/" paths))
+       (when extension (str "." extension))))
+
 (def url?
   (-regex? #"^((http[s]?):\/)?\/?([^:\/\s]+)((\/\w+)*\/)([\w\-\.]+[^#?\s]+)(.*)?(#[\w\-]+)?$"))
 
 (def url
-  (s/conformer url? identity))
+  (s/with-gen
+    (s/conformer url? identity)
+    (fn []
+      (tgen/no-shrink (gen/fmap fmt-url
+                                (gen/tuple
+                                 (gen/boolean)
+                                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                                 (gen/vector (gen/such-that #(< 1 (count %))  (gen/string-alphanumeric)) 2 5)
+                                 (gen/one-of [(gen/such-that #(< 1 (count %)) (gen/string-alphanumeric))
+                                              (gen/return nil)])))))))
 
 (def anything
   (s/with-gen (constantly true)
