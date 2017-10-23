@@ -1,16 +1,10 @@
-FROM phusion/baseimage:0.9.19
+FROM zittix/docker-baseimage-java8
 MAINTAINER Tom Coupland <tom.coupland@mastodonc.com>
 
 CMD ["/sbin/my_init"]
 
-RUN apt-get install software-properties-common
-RUN add-apt-repository -y ppa:webupd8team/java \
-&& apt-get update \
-&& echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections \
-&& apt-get install -y \
-software-properties-common \
-oracle-java8-installer \
-oracle-java8-set-default
+RUN apt-get update \
+&&  apt-get install software-properties-common
 
 ENV JAR_LOCATION=/srv/kixi.datastore.jar
 ENV CONFIG_PROFILE=${environment}
