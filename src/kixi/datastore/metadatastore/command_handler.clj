@@ -23,7 +23,6 @@
 (sh/alias 'kdm 'kixi.datastore.metadatastore)
 (sh/alias 'kdfm 'kixi.datastore.file-metadata)
 
-
 (sh/alias 'event 'kixi.event)
 
 (defn reject

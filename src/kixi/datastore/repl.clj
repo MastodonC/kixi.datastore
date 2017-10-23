@@ -7,10 +7,10 @@
 (defrecord ReplServer [port]
   component/Lifecycle
   (start [this]
-    (println "Starting REPL server - port " port)
+    (prn "Starting REPL server - port " port)
     (assoc this :repl-server
            (nrepl-server/start-server :handler cider-nrepl-handler :bind "0.0.0.0" :port port)))
   (stop [this]
-    (println "Stopping REPL server")
+    (prn "Stopping REPL server" this)
     (nrepl-server/stop-server (:repl-server this))
     (dissoc this :repl-server)))
