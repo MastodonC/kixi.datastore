@@ -3,7 +3,7 @@
             [byte-streams :as bs]
             [cheshire.core :as json]
             [clj-http.client :as client]
-            [clojure data 
+            [clojure data
              [test :refer :all]]
             [clojure.core.async :as async]
             [clojure.java.io :as io]
@@ -19,7 +19,9 @@
              [metadatastore :as ms]
              [schemastore :as ss]]
             [user :as user]
-            [kixi.datastore.metadatastore :as md])
+            [kixi.datastore.metadatastore :as md]
+            [kixi.datastore.filestore
+             [upload :as fsupload]])
   (:import [java.io File FileNotFoundException]))
 
 (sh/alias 'cmd 'kixi.command)
@@ -125,7 +127,7 @@
          (let [kinesis-conf (select-keys (:communications @app/system)
                                          [:endpoint :dynamodb-endpoint :streams
                                           :profile :app :teardown-kinesis :teardown-dynamodb])]
-           (user/stop)          
+           (user/stop)
            (tear-down-kinesis kinesis-conf)))))
 
 (defn uuid
@@ -472,7 +474,7 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    (assoc new-metadata 
+    (assoc new-metadata
            ::ms/id metadata-id))))
 
 (defn send-update-event
@@ -496,11 +498,45 @@
      :kixi.user/groups (vec-if-not ugroup)}
     spec)))
 
+
+(def ^:dynamic *multi-part-upload-count* 2)
+
+(defn send-multi-part-upload-link-cmd
+  ([uid]
+   (send-multi-part-upload-link-cmd uid uid))
+  ([uid ugroup]
+   (let [id (uuid)]
+     (c/send-valid-command!
+      @comms
+      {::cmd/type :kixi.datastore.filestore/create-multi-part-upload-link
+       ::cmd/version "1.0.0"
+       :kixi/user {:kixi.user/id uid
+                   :kixi.user/groups (vec-if-not ugroup)}
+       ::cmd/id id
+       ::fsupload/part-count *multi-part-upload-count*}
+      {:partition-key id}))))
+
+(defn send-complete-multi-part-upload-cmd
+  ([uid etags upload-id file-id]
+   (send-complete-multi-part-upload-cmd uid uid etags upload-id file-id))
+  ([uid ugroup etags upload-id file-id]
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore.filestore/complete-multi-part-upload
+     ::cmd/version "1.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}
+     :kixi.datastore.metadatastore/id file-id
+     ::fsupload/part-ids etags
+     ::fsupload/id upload-id
+     ::fs/id file-id}
+    {:partition-key file-id})))
+
 (defn event-for
   [uid event]
   (= uid
      (or (get-in event [:kixi/user :kixi.user/id])
-         ;old formats
+                                        ;old formats
          (get-in event [:kixi.comms.event/payload :schema ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ss/provenance :kixi.user/id])
          (get-in event [:kixi.comms.event/payload ::ms/file-metadata ::ms/provenance :kixi.user/id])
@@ -552,8 +588,8 @@
           (catch org.apache.http.ProtocolException e
             (if (clojure.string/starts-with? (.getMessage e) "Redirect URI does not specify a valid host name: file:///")
               {:status 302
-               :headers {"Location" (subs (.getMessage e) 
-                                          (clojure.string/index-of 
+               :headers {"Location" (subs (.getMessage e)
+                                          (clojure.string/index-of
                                            (.getMessage e)
                                            "file://"))}}
               (throw e)))))))
@@ -563,11 +599,21 @@
   (send-upload-link-cmd user-id)
   (wait-for-events user-id :kixi.datastore.filestore/upload-link-created))
 
+(defn get-multi-part-upload-links-event
+  [user-id]
+  (send-multi-part-upload-link-cmd user-id)
+  (wait-for-events user-id :kixi.datastore.filestore/multi-part-upload-links-created))
+
 (defn get-upload-link
   [user-id]
   (let [link-event (get-upload-link-event user-id)]
     [(get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/upload-link])
      (get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/id])]))
+
+(defn get-multi-part-upload-links
+  [user-id]
+  (let [multi-part-links-event (get-multi-part-upload-links-event user-id)]
+    multi-part-links-event))
 
 (defn get-dload-link-event
   [user-id user-groups id]
@@ -584,17 +630,17 @@
    (let [link-event (get-dload-link-event user-id user-groups id)]
      (get-in link-event [:kixi.comms.event/payload ::fs/link]))))
 
-(defmulti upload-file
-  (fn [^String target file-name]
-    (subs target 0
-          (.indexOf target
-                    ":"))))
-
 (defn strip-protocol
   [^String path]
   (subs path
         (+ 3 (.indexOf path
                        ":"))))
+
+(defmulti upload-file
+  (fn [^String target file-name]
+    (subs target 0
+          (.indexOf target
+                    ":"))))
 
 (defmethod upload-file "file"
   [target file-name]
@@ -606,6 +652,44 @@
   [target file-name]
   (client/put target
               {:body (io/file file-name)}))
+
+(defmulti upload-multi-part-file-request
+  (fn [^String target file-name]
+    (subs target 0
+          (.indexOf target
+                    ":"))))
+
+(defmethod upload-multi-part-file-request "file"
+  [target buffer]
+  (io/copy buffer
+           (doto (io/file (strip-protocol target))
+             (.createNewFile)))
+  ;; return a fake etag
+  (uuid))
+
+(defmethod upload-multi-part-file-request "https"
+  [target buffer]
+  (get-in
+   (client/put target {:body buffer})
+   [:headers "ETag"]))
+
+(defn upload-multi-part-file
+  [links uid file-name file-id upload-id]
+  (let [file (io/file file-name)
+        file-size (.length file)
+        part-size (long (Math/ceil (/ file-size *multi-part-upload-count*)))
+        upload-part (fn [^java.io.InputStream reader link]
+                      (let [buffer (byte-array part-size)]
+                        (.read reader buffer 0 part-size)
+                        (upload-multi-part-file-request link buffer)))
+        send-complete (fn [etags]
+                        (send-complete-multi-part-upload-cmd uid etags upload-id file-id)
+                        (wait-for-events uid :kixi.datastore.filestore/multi-part-upload-completed))]
+    (with-open [r (io/input-stream file)]
+      (->> links
+           (map (partial upload-part r))
+           doall
+           send-complete))))
 
 (defn create-metadata
   ([uid file-name]
@@ -657,6 +741,31 @@
                             md-with-id))
        md-with-id))))
 
+(defn send-multi-part-file-and-metadata-no-wait
+  ([metadata]
+   (send-multi-part-file-and-metadata-no-wait
+    (metadata->user-id metadata)
+    (metadata->user-id metadata)
+    metadata))
+  ([uid ugroup metadata]
+   (let [links (get-multi-part-upload-links ugroup)
+         {:keys [:kixi.datastore.filestore/id
+                 :kixi.datastore.filestore.upload/part-urls]} links
+         upload-id (:kixi.datastore.filestore.upload/id links)]
+     (is upload-id)
+     (is id)
+     (is (not-empty part-urls))
+     (let [md-with-id (assoc metadata ::ms/id id)]
+       (when (not-empty part-urls)
+         (upload-multi-part-file part-urls
+                                 uid
+                                 (::ms/name md-with-id)
+                                 id
+                                 upload-id)
+         (send-metadata-cmd ugroup
+                            md-with-id))
+       md-with-id))))
+
 (defn send-file-and-metadata
   ([metadata]
    (send-file-and-metadata
@@ -674,8 +783,25 @@
                                                           ::ms/id]))
        event))))
 
+(defn send-multi-part-file-and-metadata
+  ([metadata]
+   (send-multi-part-file-and-metadata
+    (metadata->user-id metadata)
+    (metadata->user-id metadata)
+    metadata))
+  ([uid ugroup metadata]
+   (send-multi-part-file-and-metadata-no-wait uid ugroup metadata)
+   (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
+     (if (= :kixi.datastore.file-metadata/updated
+            (:kixi.comms.event/key event))
+       (wait-for-metadata-to-be-searchable ugroup
+                                           (get-in event [:kixi.comms.event/payload
+                                                          ::ms/file-metadata
+                                                          ::ms/id]))
+       event))))
 
-(defn create-datapack  
+
+(defn create-datapack
   ([uid ugroup pack-name bundled-ids]
    (create-datapack
     {:type "bundle"
@@ -822,8 +948,8 @@
 
 (defmacro created
   [resp]
- `(has-status 201
-              ~resp))
+  `(has-status 201
+               ~resp))
 
 
 (defmacro accepted
@@ -872,8 +998,8 @@
      (is (= ~k
             k-val#))
      (when (= ~k
-            k-val#)
-        ~@rest)))
+              k-val#)
+       ~@rest)))
 
 (defmacro when-event-type
   [event k & rest]
@@ -881,8 +1007,8 @@
      (is (= ~k
             k-val#))
      (when (= ~k
-            k-val#)
-        ~@rest)))
+              k-val#)
+       ~@rest)))
 
 
 (defn is-file-metadata-rejected

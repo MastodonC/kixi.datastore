@@ -18,7 +18,7 @@
 
 (deftest round-trip-small-file
   (let [uid (uuid)
-        md-resp (send-file-and-metadata 
+        md-resp (send-file-and-metadata
                  (create-metadata uid
                                   "./test-resources/metadata-one-valid.csv"))]
     (when-success md-resp
@@ -29,7 +29,7 @@
 
 (deftest round-trip-12M-file
   (let [uid (uuid)
-        md-resp (send-file-and-metadata 
+        md-resp (send-file-and-metadata
                  (create-metadata uid
                                   "./test-resources/metadata-12MB-valid.csv"))]
     (when-success md-resp
@@ -38,9 +38,9 @@
              "./test-resources/metadata-12MB-valid.csv"
              (dload-file uid locat)))))))
 
-(deftest round-trip-344M-file  
+(deftest round-trip-344M-file
   (let [uid (uuid)
-        md-resp (send-file-and-metadata 
+        md-resp (send-file-and-metadata
                  (create-metadata uid
                                   "./test-resources/metadata-344MB-valid.csv"))]
     (when-success md-resp
@@ -49,9 +49,20 @@
              "./test-resources/metadata-344MB-valid.csv"
              (dload-file uid locat)))))))
 
+(deftest multi-part-round-trip-12MB-file
+  (let [uid (uuid)
+        md-resp (send-multi-part-file-and-metadata
+                 (create-metadata uid
+                                  "./test-resources/metadata-12MB-valid.csv"))]
+    (when-success md-resp
+      (let [locat (file-url (get-in md-resp [:body ::ms/id]))]
+        (is (files-match?
+             "./test-resources/metadata-12MB-valid.csv"
+             (dload-file uid locat)))))))
+
 (deftest rejected-when-file-not-uploaded
   (let [uid (uuid)]
-    (is-file-metadata-rejected 
+    (is-file-metadata-rejected
      uid
      #(send-metadata-cmd uid
                          (assoc (create-metadata uid
@@ -61,7 +72,7 @@
 
 (deftest rejected-when-size-incorrect
   (let [uid (uuid)]
-    (is-file-metadata-rejected 
+    (is-file-metadata-rejected
      uid
      #(send-file-and-metadata-no-wait
        (assoc (create-metadata uid

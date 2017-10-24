@@ -1,13 +1,23 @@
 (ns kixi.datastore.filestore
   (:require [clojure.spec.alpha :as s]
-            [kixi.comms :as c]))
+            [kixi.datastore.schemastore.conformers :as sc]
+            [kixi.datastore.filestore.commands]
+            [kixi.datastore.filestore.events]
+            [kixi.comms :as comms]))
 
-(s/def ::id string?)
-(s/def ::link string?)
+(s/def ::id sc/uuid)
+(s/def ::upload-link sc/not-empty-string)
+(s/def ::link sc/not-empty-string)
 
-(defn uuid
-  []
-  (str (java.util.UUID/randomUUID)))
+(defmethod comms/command-type->event-types
+  [:kixi.datastore.filestore/create-multi-part-upload-link "1.0.0"]
+  [_]
+  #{[:kixi.datastore.filestore/multi-part-upload-links-created "1.0.0"]})
+
+(defmethod comms/command-type->event-types
+  [:kixi.datastore.filestore/complete-multi-part-upload "1.0.0"]
+  [_]
+  #{[:kixi.datastore.filestore/multi-part-upload-completed "1.0.0"]})
 
 (defprotocol FileStore
   (exists [this id]
@@ -18,24 +28,3 @@
     "Returns an inputstream for read a files contents from")
   (create-link [this id file-name]
     "Returns a link from which the file can be downloaded"))
-
-(defn create-upload-cmd-handler
-  [link-fn]
-  (fn [e]
-    (let [id (uuid)]
-      {:kixi.comms.event/key :kixi.datastore.filestore/upload-link-created
-       :kixi.comms.event/version "1.0.0"
-       :kixi.comms.event/partition-key id
-       :kixi.comms.event/payload {::upload-link (link-fn id)
-                                  ::id id
-                                  :kixi.user/id (get-in e [:kixi.comms.command/user :kixi.user/id])}})))
-
-(defn attach-command-handlers
-  [comms {:keys [link-creator
-                 file-checker
-                 file-size-checker]}]
-  (c/attach-command-handler!
-   comms
-   :kixi.datastore/filestore
-   :kixi.datastore.filestore/create-upload-link
-   "1.0.0" (create-upload-cmd-handler link-creator)))

@@ -32,7 +32,7 @@
                                :staging :json
                                :prod :json}}
  :filestore #profile {:default {:local {:base-dir "/kixi-datastore"}
-                                :local-kinesis {:base-dir "/kixi-datastore"}
+                                #_:local-kinesis #_{:base-dir "/kixi-datastore"}
                                         ;To use S3 locally, remove :local config and set some keys.
                                 #_:s3 #_{:bucket "kixi-data-store-file-store-staging"
                                          :endpoint "s3.eu-central-1.amazonaws.com"
