@@ -41,8 +41,8 @@
 (defn config
   "Read EDN config, with the given profile. See Aero docs at
   https://github.com/juxt/aero for details."
-  [profile]
-  (aero/read-config (io/resource "config.edn") {:profile profile}))
+  [config-location profile]
+  (aero/read-config (io/resource config-location) {:profile profile}))
 
 (def component-dependencies
   {:metrics []
@@ -123,8 +123,8 @@
       (comms/set-verbose-logging! true))))
 
 (defn new-system
-  [profile]
-  (let [config (config profile)]
+  [config-location profile]
+  (let [config (config config-location profile)]
     (configure-logging config)
     (-> (new-system-map config)
         (configure-components config profile)

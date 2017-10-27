@@ -9,15 +9,16 @@
 (defn -main
   [& args]
   (let [config-profile (keyword (first args))
+        config-location (or (second args) "config.edn")
         _ (reset! application/profile config-profile)
-        system (kixi.datastore.system/new-system config-profile)]
+        system (kixi.datastore.system/new-system config-location config-profile)]
     (.addShutdownHook
      (Runtime/getRuntime)
      (Thread. #(do (component/stop-system system)
                    (reset! application/system nil)
                    (reset! application/profile nil))))
-    (try      
-      (reset! application/system 
+    (try
+      (reset! application/system
               (component/start-system system))
       (.. (Thread/currentThread) join)
       (catch Throwable t

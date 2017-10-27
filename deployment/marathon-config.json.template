@@ -6,6 +6,7 @@
             "privileged": true,
             "parameters": [
                 {"key": "env", "value": "ENVIRONMENT=@@ENVIRONMENT@@"},
+                {"key": "env", "value": "EVENT_STREAM=@@EVENT_STREAM@@"},
                 {"key": "env", "value": "JAVA_OPTS=@@JAVA_OPTS@@"},
                 {"key": "label", "value": "cluster=@@ENVIRONMENT@@"},
                 {"key": "label", "value": "application=@@APP_NAME@@"}
