@@ -8,13 +8,13 @@
   ([]
    (start {} nil))
   ([overrides component-subset]
-   (start "local" overrides component-subset))
-  ([profile overrides component-subset]
+   (start "config.edn" "local" overrides component-subset))
+  ([config-location profile overrides component-subset]
    (when-not @app/system
      (reset! app/profile (keyword (env :system-profile profile)))
      (try
        (prn "Starting system")
-       (->> (system/new-system (keyword (env :system-profile profile)))           
+       (->> (system/new-system config-location (keyword (env :system-profile profile)))
             (#(merge % overrides))
             (#(if component-subset
                 (select-keys % component-subset)
