@@ -60,34 +60,42 @@
 
 (defn new-system-map
   [config]
-  (system-map
-   :web-server (web-server/map->WebServer {})
-   :metrics (metrics/map->Metrics {})
-   :repl (repl/->ReplServer {})
-   :logging (logging/map->Log {})
-   :metadata-creator (md-creator/map->MetadataCreator {})
-   :filestore (case (first (keys (:filestore config)))
-                :local (local/map->Local {})
-                :s3 (s3/map->S3 {}))
-   :metadatastore (case (first (keys (:metadatastore config)))
-                    :inmemory (md-inmemory/map->InMemory {})
-                    :dynamodb (md-dd/map->DynamoDb {}))
-   :schemastore (case (first (keys (:schemastore config)))
-                  :inmemory (ss-inmemory/map->InMemory {})
-                  :dynamodb (ss-dd/map->DynamoDb {}))
-   :segmentation (case (first (keys (:segmentation config)))
-                   :inmemory (segementation-inmemory/map->InMemory {}))
-   :communications (case (first (keys (:communications config)))
-                     :kinesis (kinesis/map->Kinesis {})
-                     :coreasync (coreasync/map->CoreAsync {}))
-                                        ;  :schema-extracter (se/map->SchemaExtracter {})
-   :structural-validator (sv/map->StructuralValidator {})))
+  (apply system-map
+         ((comp flatten seq merge)
+          {:web-server (web-server/map->WebServer {})
+           :metrics (metrics/map->Metrics {})
+           :repl (repl/->ReplServer {})
+           :logging (logging/map->Log {})
+           :metadatastore (case (first (keys (:metadatastore config)))
+                            :inmemory (md-inmemory/map->InMemory {})
+                            :dynamodb (md-dd/map->DynamoDb {}))
+           :communications (case (first (keys (:communications config)))
+                             :kinesis (kinesis/map->Kinesis {})
+                             :coreasync (coreasync/map->CoreAsync {}))}
+          (when (:filestore config)
+            {:filestore
+             (case (first (keys (:filestore config)))
+               :local (local/map->Local {})
+               :s3 (s3/map->S3 {}))})
+          (when (:schemastore config)
+            {:schemastore
+             (case (first (keys (:schemastore config)))
+               :inmemory (ss-inmemory/map->InMemory {})
+               :dynamodb (ss-dd/map->DynamoDb {}))})
+          (when (get-in config [:metadata-creator :enabled])
+            {:metadata-creator (md-creator/map->MetadataCreator {})})
+          (when (get-in config [:structural-validator :enabled])
+            {:structural-validator (sv/map->StructuralValidator {})})
+          (when (:segmentation config)
+            {:segmentation (case (first (keys (:segmentation config)))
+                             :inmemory (segementation-inmemory/map->InMemory {}))}))))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"
   [m k]
-  (assoc m k
-         (first (vals (k m)))))
+  (if-let [v (first (vals (k m)))]
+          (assoc m k v)
+          m))
 
 (defn configure-components
   "Merge configuration to its corresponding component (prior to the
@@ -122,10 +130,18 @@
       (log/info "Switching on Kixi Comms verbose logging...")
       (comms/set-verbose-logging! true))))
 
+(defn system-using-available
+  [system-map dependencies]
+  (system-using system-map
+                (med/map-vals
+                 #(filterv (set (keys system-map)) %)
+                 (select-keys dependencies
+                              (keys system-map)))))
+
 (defn new-system
   [config-location profile]
   (let [config (read-config config-location profile)]
     (configure-logging config)
     (-> (new-system-map config)
         (configure-components config profile)
-        (system-using component-dependencies))))
+        (system-using-available component-dependencies))))

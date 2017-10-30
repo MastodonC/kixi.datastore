@@ -94,7 +94,7 @@
       (if-not client
         (let [client (assoc (select-keys component
                                          dynamodb-client-kws)
-                            :profile profile)              
+                            :profile profile)
               joplin-conf {:migrators {:migrator "joplin/kixi/datastore/schemastore/migrators/dynamodb"}
                            :databases {:dynamodb (merge
                                                   {:type :dynamo
@@ -107,9 +107,10 @@
                                    :kixi.datastore/schemastore
                                    :kixi.datastore.schema/created
                                    "1.0.0"
-                                   (comp response-event (persist-new-schema 
+                                   (comp response-event (persist-new-schema
                                                          (partial db/insert-data client (primary-schemastore-table profile) id-col))
                                          :kixi.comms.event/payload))
+          ;; This Command Handler should be factored out into separate component, like metadatas
           (sc/attach-command-handler communications)
           (-> component
               (assoc :client client)
