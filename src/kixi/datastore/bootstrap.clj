@@ -11,6 +11,7 @@
   (let [config-profile (keyword (first args))
         config-location (or (second args) "config.edn")
         _ (reset! application/profile config-profile)
+        _ (reset! application/config-location config-location)
         system (kixi.datastore.system/new-system config-location config-profile)]
     (.addShutdownHook
      (Runtime/getRuntime)

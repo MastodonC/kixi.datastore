@@ -38,7 +38,7 @@
  [{:keys [profile] :as opts} tag value]
   (str (java.util.UUID/randomUUID)))
 
-(defn config
+(defn read-config
   "Read EDN config, with the given profile. See Aero docs at
   https://github.com/juxt/aero for details."
   [config-location profile]
@@ -124,7 +124,7 @@
 
 (defn new-system
   [config-location profile]
-  (let [config (config config-location profile)]
+  (let [config (read-config config-location profile)]
     (configure-logging config)
     (-> (new-system-map config)
         (configure-components config profile)

@@ -14,3 +14,4 @@
 ;; See https://github.com/stuartsierra/component
 (def system (atom nil))
 (def profile (atom nil))
+(def config-location (atom nil))
