@@ -17,11 +17,20 @@
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:default true
-                                                 :staging-replay true
                                                  :prod true}
            :appender #profile {:default :println
                                :staging-replay :json
                                :prod :json}}
+ :web-server #profile {:default {:vhost #or [#env VHOST "localhost"]
+                                 :port  #long #or [#env PORT "8080"]
+                                 :request-logging? true}
+                       :staging-replay {:vhost "kixi.datastore-replay.marathon.mesos"
+                                 :port 18080
+                                 :request-logging? true}
+                       :prod {:vhost "kixi.datastore.marathon.mesos"
+                              :port 18080
+                              :request-logging? true}}
+ :filestore #profile {:default {:local {:base-dir "/kixi-datastore"}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :staging-replay-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
