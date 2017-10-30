@@ -12,6 +12,7 @@
   ([config-location profile overrides component-subset]
    (when-not @app/system
      (reset! app/profile (keyword (env :system-profile profile)))
+     (reset! app/config-location config-location)
      (try
        (prn "Starting system")
        (->> (system/new-system config-location (keyword (env :system-profile profile)))

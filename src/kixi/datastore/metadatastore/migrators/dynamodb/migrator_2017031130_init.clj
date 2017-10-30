@@ -1,6 +1,6 @@
 (ns kixi.datastore.metadatastore.migrators.dynamodb.migrator-2017031130-init
-  (:require [kixi.datastore.system :refer [config]]
-            [kixi.datastore.application :refer [profile]]
+  (:require [kixi.datastore.system :refer [read-config]]
+            [kixi.datastore.application :refer [profile config-location]]
             [kixi.datastore.metadatastore.dynamodb :as mdb]
             [kixi.datastore.metadatastore :as md]
             [kixi.datastore.dynamodb :as db]
@@ -19,7 +19,7 @@
 
 (defn get-alerts-config
   [profile]
-  (:alerts (config profile)))
+  (:alerts (read-config @config-location profile)))
 
 (defn up
   [db]
