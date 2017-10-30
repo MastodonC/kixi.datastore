@@ -30,18 +30,11 @@
                        :prod {:vhost "kixi.datastore.marathon.mesos"
                               :port 18080
                               :request-logging? true}}
- :filestore #profile {:default {:local {:base-dir "/kixi-datastore"}}}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :staging-replay-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                      :staging-replay {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                      :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
- :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
-                                   :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
-                                   :staging-replay-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
-                                   :staging-replay {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
-                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
- :segmentation {:inmemory {}}
  :communications #profile {:local {:coreasync {:app "kixi.datastore-replay"
                                                :metrics-level :NONE}}
                            :local-kinesis {:kinesis {:app "kixi.datastore-replay"

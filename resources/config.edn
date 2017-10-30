@@ -46,6 +46,7 @@
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
                                   :endpoint "s3-eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
+ :metadata-creator {:enabled true}
  :metadatastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
@@ -56,7 +57,7 @@
                                    :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                    :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                    :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
- :segmentation {:inmemory {}}
+ :structural-validator {:enabled true}
  :communications #profile {:local {:coreasync {:app "kixi.datastore"
                                                :metrics-level :NONE}}
                            :local-kinesis {:kinesis {:app "kixi.datastore"
