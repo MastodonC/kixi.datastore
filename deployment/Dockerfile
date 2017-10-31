@@ -4,7 +4,7 @@ MAINTAINER Tom Coupland <tom.coupland@mastodonc.com>
 CMD ["/sbin/my_init"]
 
 RUN apt-get update \
-&&  apt-get install software-properties-common
+&&  apt-get -y install software-properties-common
 
 ENV JAR_LOCATION=/srv/kixi.datastore.jar
 ENV CONFIG_PROFILE=${environment}
