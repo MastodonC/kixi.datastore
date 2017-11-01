@@ -32,7 +32,7 @@
     "cpus": @@CPUS@@,
     "mem": @@MEM@@,
     "healthChecks": [{
-        "protocol": "MESOS_HTTP",
+        "protocol": "HTTP",
         "path": "/healthcheck",
         "gracePeriodSeconds": 600,
         "intervalSeconds": 30,
