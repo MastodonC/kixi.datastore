@@ -16,7 +16,7 @@
                 {
                     "containerPort": 18080,
                     "hostPort": @@HOST_PORT@@,
-                    "protocol": "tcp"
+                    "protocol": "http"
                 },
                 {
                     "containerPort": 5002,
@@ -32,7 +32,7 @@
     "cpus": @@CPUS@@,
     "mem": @@MEM@@,
     "healthChecks": [{
-        "protocol": "TCP",
+        "protocol": "HTTP",
         "path": "/healthcheck",
         "gracePeriodSeconds": 600,
         "intervalSeconds": 30,
