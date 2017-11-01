@@ -15,7 +15,7 @@
           {
               "containerPort": 18080,
               "hostPort": 18080,
-              "protocol": "http"
+              "protocol": "tcp"
           },
           {
               "containerPort": 5002,

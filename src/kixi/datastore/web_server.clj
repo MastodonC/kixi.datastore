@@ -342,16 +342,13 @@
     [true (yada/handler nil)]]])
 
 (defrecord WebServer
-    [port vhost listener log-config metrics filestore metadatastore communications schemastore request-logging?]
+    [port listener log-config metrics filestore metadatastore communications schemastore request-logging?]
   component/Lifecycle
   (start [component]
     (if listener
       component
-      (let [vhosts-model (vhosts-model
-                          [{:scheme :http
-                            :host (str vhost ":" port)}
-                           (routes metrics filestore metadatastore communications schemastore request-logging?)])
-            listener (yada/listener vhosts-model {:port port})]
+      (let [listener (yada/listener (routes metrics filestore metadatastore communications schemastore request-logging?)
+                                    {:port port})]
         (infof "Started web-server on port %s" port)
         (assoc component :listener listener))))
   (stop [component]
