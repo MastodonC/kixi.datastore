@@ -8,13 +8,13 @@
   :dependencies [[aero "1.1.2"]
                  [aleph "0.4.2-alpha8"]
                  [amazonica "0.3.92" :exclusions [ch.qos.logback/logback-classic
-                                                   com.amazonaws/aws-java-sdk
-                                                   com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
-                                                   commons-logging
-                                                   com.fasterxml.jackson.core/jackson-databind
-                                                   com.fasterxml.jackson.core/jackson-core
-                                                   org.apache.httpcomponents/httpclient
-                                                   joda-time]]
+                                                  com.amazonaws/aws-java-sdk
+                                                  com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
+                                                  commons-logging
+                                                  com.fasterxml.jackson.core/jackson-databind
+                                                  com.fasterxml.jackson.core/jackson-core
+                                                  org.apache.httpcomponents/httpclient
+                                                  joda-time]]
                  [com.amazonaws/aws-java-sdk "1.11.53" :exclusions [joda-time]]
                  [bidi "2.0.12"]
                  [byte-streams "0.2.3"]

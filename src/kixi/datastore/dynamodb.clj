@@ -8,6 +8,9 @@
              [timbre :as timbre :refer [info]]]
             [kixi.datastore.metadatastore :as md]))
 
+(def client-kws
+  #{:endpoint})
+
 (defn migrate
   [env migration-conf]
   (->>
@@ -30,7 +33,7 @@
   (= 1 (count v)))
 
 (defmulti dynamo-col
-  (fn [target] 
+  (fn [target]
     (cond
       (string? target) :str
       (keyword? target) :kw
@@ -66,21 +69,21 @@
     (fn [acc k v]
       (cond
         (and (map? v)
-             (not-empty v)) 
+             (not-empty v))
         (merge acc
-               (flatten-map 
+               (flatten-map
                 (str prefix (flat-kw k) map-depth-separator)
                 v))
         (and (sequential? v)
              (not-empty v)
              (every? map? v))
-        (assoc acc (str prefix (flat-kw k)) 
+        (assoc acc (str prefix (flat-kw k))
                (mapv (partial flatten-map nil) v))
         :else (assoc acc (str prefix (flat-kw k)) v)))
     {}
     m)))
 
-(def remove-empty-str-vals 
+(def remove-empty-str-vals
   (partial remove-vals #(and (string? %) (empty? %))))
 
 (def remove-empty-sets
@@ -104,7 +107,7 @@
      (cond
        (and (sequential? v)
             (every? map? v))
-       (assoc-in            
+       (assoc-in
         acc
         (split-to-kws k)
         (mapv #(inflate-map (map-keys name %)) v))
@@ -171,7 +174,7 @@
    (get-item conn table id-column id nil))
   ([conn table id-column id options]
    (let [result (if options
-                  (far/get-item conn table {id-column id} 
+                  (far/get-item conn table {id-column id}
                                 (options->db-opts (update options :projection
                                                           #(conj % (dynamo-col ::md/tombstone)))))
                   (far/get-item conn table {id-column id}
@@ -186,7 +189,7 @@
   (->> (far/batch-get-item conn
                            {table {:prim-kvs {pk-col ids}
                                    :consistent? true}})
-       vals 
+       vals
        first
        (mapv (comp inflate-map (partial map-keys name)))
        (remove ::md/tombstone)))
@@ -204,9 +207,9 @@
 
 (defn query
   [conn table pks projection]
-  (->> (far/query conn table 
+  (->> (far/query conn table
                   (map-vals #(vector "eq" %) pks)
-                  {:return (doall (mapv dynamo-col 
+                  {:return (doall (mapv dynamo-col
                                         (conj projection
                                               ::md/tombstone)))
                    :consistent? true})
@@ -215,7 +218,7 @@
 
 (defn query-index
   [conn table index pks projection sort-order]
-  (->> (far/query conn table 
+  (->> (far/query conn table
                   (map-vals #(vector "eq" %) pks)
                   {:return (doall (mapv dynamo-col
                                         (conj projection
@@ -337,7 +340,7 @@
 (defn concat-update-expr
   [operand->exprs]
   (->> operand->exprs
-       (map 
+       (map
         (fn [[op exprs]]
           (apply str
                  op
@@ -348,12 +351,12 @@
 (defn map->flat-vectors
   [x]
   (if (map? x)
-    (vec 
-     (mapcat 
-      (fn [[k v]] 
-        (map 
+    (vec
+     (mapcat
+      (fn [[k v]]
+        (map
          #(vec (cons k %))
-         (map->flat-vectors v))) 
+         (map->flat-vectors v)))
       x))
     [[x]]))
 
@@ -413,4 +416,3 @@
       (far/update-item conn table
                        {id-column id}
                        update-expr)))
-

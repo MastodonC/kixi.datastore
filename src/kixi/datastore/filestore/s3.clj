@@ -5,11 +5,12 @@
             [byte-streams :as bs]
             [clojure.core.async :as async :refer [go]]
             [com.stuartsierra.component :as component]
-            [kixi.datastore.filestore :as fs :refer [FileStore]]
+            [kixi.datastore.filestore :as fs :refer [FileStore FileStoreUploadCache]]
             [kixi.datastore.filestore.command-handler :as ch]
+            [kixi.datastore.filestore.upload :as up]
             [kixi.datastore.time :as t]
             [kixi.comms :as c]
-            [taoensso.timbre :as timbre :refer [error]])
+            [taoensso.timbre :as log :refer [error]])
   (:import [com.amazonaws.services.s3.model AmazonS3Exception GeneratePresignedUrlRequest PartETag CompleteMultipartUploadRequest]))
 
 (defn ensure-bucket
@@ -17,30 +18,40 @@
   (when-not (s3/does-bucket-exist creds bucket)
     (s3/create-bucket creds bucket)))
 
-(defn multi-part-upload-creator
+(defn init-multi-part-upload-creator
   [creds bucket]
-  (fn [id part-count]
-    (let [{:keys [upload-id] :as initate-resp} (s3/initiate-multipart-upload creds
-                                                                             :bucket-name bucket
-                                                                             :key id)
+  (fn [id part-ranges]
+    (let [{:keys [upload-id] :as initate-resp}
+          (s3/initiate-multipart-upload creds :bucket-name bucket :key id)
           client (com.amazonaws.services.s3.AmazonS3ClientBuilder/defaultClient)
-          links (vec (doall
-                      (for [i (range 1 (inc part-count))]
-                        (let [^org.joda.time.DateTime exp (t/minutes-from-now (* 60 24)) ;; 24hrs
-                              req (doto (GeneratePresignedUrlRequest. bucket id com.amazonaws.HttpMethod/PUT)
-                                    (.setExpiration (.toDate exp))
-                                    (.addRequestParameter "partNumber" (str i))
-                                    (.addRequestParameter "uploadId" upload-id))]
-                          (str (.generatePresignedUrl client req))))))]
+          links (vec (map-indexed
+                      (fn [i p]
+                        (assoc p :url
+                               (let [^org.joda.time.DateTime exp (t/minutes-from-now (* 60 24)) ;; 24hrs
+                                     req (doto (GeneratePresignedUrlRequest. bucket id com.amazonaws.HttpMethod/PUT)
+                                           (.setExpiration (.toDate exp))
+                                           (.addRequestParameter "partNumber" (str (inc i)))
+                                           (.addRequestParameter "uploadId" upload-id))]
+                                 (str (.generatePresignedUrl client req))))) part-ranges))]
       {:upload-id upload-id
-       :upload-part-urls links})))
+       :upload-parts links})))
 
 (defn complete-multi-part-upload-creator
   [creds bucket]
-  (fn [id etags upload-id]
-    (let [req (CompleteMultipartUploadRequest. bucket id upload-id (map-indexed #(PartETag. (inc %1) %2) etags))
-          client (com.amazonaws.services.s3.AmazonS3ClientBuilder/defaultClient)]
-      (.completeMultipartUpload client req))))
+  (fn [id etags upload]
+    (try (let [upload-id (::up/id upload)
+               req (CompleteMultipartUploadRequest. bucket id upload-id (map-indexed #(PartETag. (inc %1) %2) etags))
+               client (com.amazonaws.services.s3.AmazonS3ClientBuilder/defaultClient)]
+           (.completeMultipartUpload client req)
+           [true nil nil])
+         (catch com.amazonaws.services.s3.model.AmazonS3Exception e
+           (cond
+             (clojure.string/starts-with? (.getMessage e) "Your proposed upload is smaller than the minimum allowed size")
+             [false :data-too-small (.getMessage e)]
+             (clojure.string/starts-with? (.getMessage e) "One or more of the specified parts could not be found")
+             [false :file-missing (.getMessage e)]
+             :else
+             (throw e))))))
 
 (defn create-link
   [creds bucket]
@@ -94,8 +105,16 @@
                                    :response-headers header-overrides)
         str)))
 
+(defn complete-small-file-upload-creator
+  [creds bucket]
+  (fn [id part-ids _]
+    (if (s3/does-object-exist creds bucket id)
+      [true nil nil]
+      [false :file-missing nil])))
+
 (defrecord S3
-    [communications logging region endpoint access-key secret-key link-expiration-mins bucket client-options creds]
+    [communications filestore-upload-cache logging region endpoint access-key secret-key link-expiration-mins bucket client-options
+     creds]
   FileStore
   (exists [this id]
     (s3/does-object-exist creds bucket id))
@@ -116,27 +135,37 @@
                        {:secret-key secret-key})
                      (when access-key
                        {:access-key access-key}))]
+        (log/info "Starting S3 FileStore - bucket:" bucket)
         (ensure-bucket c bucket)
+        ;; LEGACY
         (c/attach-command-handler!
          communications
          :kixi.datastore/filestore
          :kixi.datastore.filestore/create-upload-link
          "1.0.0" (ch/create-upload-cmd-handler (create-link c bucket)))
+        ;;
         (c/attach-validating-command-handler!
          communications
          :kixi.datastore/filestore-multi-part
-         :kixi.datastore.filestore/create-multi-part-upload-link
-         "1.0.0" (ch/create-multi-part-upload-cmd-handler (multi-part-upload-creator c bucket)))
+         :kixi.datastore.filestore/initiate-file-upload
+         "1.0.0" (ch/create-initiate-file-upload-cmd-handler
+                  (create-link c bucket)
+                  (init-multi-part-upload-creator c bucket)
+                  filestore-upload-cache))
         (c/attach-validating-command-handler!
          communications
          :kixi.datastore/filestore-multi-part-completed
-         :kixi.datastore.filestore/complete-multi-part-upload
-         "1.0.0" (ch/create-complete-multi-part-upload-cmd-handler (complete-multi-part-upload-creator c bucket)))
+         :kixi.datastore.filestore/complete-file-upload
+         "1.0.0" (ch/create-complete-file-upload-cmd-handler
+                  (complete-small-file-upload-creator c bucket)
+                  (complete-multi-part-upload-creator c bucket)
+                  filestore-upload-cache))
         (assoc component
                :creds
                c))
       component))
   (stop [component]
+    (log/info "Stopping S3 FileStore")
     (if creds
       (dissoc component
               :creds)

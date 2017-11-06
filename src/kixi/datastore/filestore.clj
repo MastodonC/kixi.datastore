@@ -6,18 +6,18 @@
             [kixi.comms :as comms]))
 
 (s/def ::id sc/uuid)
-(s/def ::upload-link sc/not-empty-string)
-(s/def ::link sc/not-empty-string)
 
 (defmethod comms/command-type->event-types
-  [:kixi.datastore.filestore/create-multi-part-upload-link "1.0.0"]
+  [:kixi.datastore.filestore/initiate-file-upload "1.0.0"]
   [_]
-  #{[:kixi.datastore.filestore/multi-part-upload-links-created "1.0.0"]})
+  #{[:kixi.datastore.filestore/file-upload-initiated "1.0.0"]})
 
 (defmethod comms/command-type->event-types
-  [:kixi.datastore.filestore/complete-multi-part-upload "1.0.0"]
+  [:kixi.datastore.filestore/complete-file-upload
+   "1.0.0"]
   [_]
-  #{[:kixi.datastore.filestore/multi-part-upload-completed "1.0.0"]})
+  #{[:kixi.datastore.filestore/file-upload-completed "1.0.0"]
+    [:kixi.datastore.filestore/file-upload-rejected "1.0.0"]})
 
 (defprotocol FileStore
   (exists [this id]
@@ -28,3 +28,9 @@
     "Returns an inputstream for read a files contents from")
   (create-link [this id file-name]
     "Returns a link from which the file can be downloaded"))
+
+(defprotocol FileStoreUploadCache
+  (get-item [this file-id]
+    "Gets an item with this upload ID")
+  (put-item! [this file-id mup? user upload-id]
+    "Puts an item into the cache"))

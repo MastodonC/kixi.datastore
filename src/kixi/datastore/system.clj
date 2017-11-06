@@ -16,6 +16,9 @@
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
+            [kixi.datastore.filestore.upload-cache
+             [inmemory :as fscache-inmemory]
+             [dynamodb :as fscache-dd]]
             [kixi.comms :as comms]
             [kixi.comms.components
              [kinesis :as kinesis]
@@ -50,7 +53,8 @@
    :logging [:metrics]
    :communications []
    :web-server [:metrics :logging :filestore :metadatastore :schemastore :communications]
-   :filestore [:logging :communications]
+   :filestore-upload-cache []
+   :filestore [:logging :communications :filestore-upload-cache]
    :metadatastore [:communications]
    :metadata-creator [:communications :filestore :schemastore :metadatastore]
    :schemastore [:communications]
@@ -72,6 +76,11 @@
            :communications (case (first (keys (:communications config)))
                              :kinesis (kinesis/map->Kinesis {})
                              :coreasync (coreasync/map->CoreAsync {}))}
+          (when (:filestore-upload-cache config)
+            {:filestore-upload-cache
+             (case (first (keys (:filestore-upload-cache config)))
+               :inmemory (fscache-inmemory/map->InMemory {})
+               :dynamodb (fscache-dd/map->DynamoDb {}))})
           (when (:filestore config)
             {:filestore
              (case (first (keys (:filestore config)))
