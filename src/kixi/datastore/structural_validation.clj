@@ -67,7 +67,8 @@
              :kixi.comms.event/version "1.0.0"
              :kixi.comms.event/payload {::cs/file-metadata-update-type ::cs/file-metadata-structural-validation-checked
                                         ::ms/id (::ms/id metadata)
-                                        ::ms/structural-validation result}})
+                                        ::ms/structural-validation result}
+             :kixi.comms.event/partition-key (::ms/id metadata)})
           (finally
             (.delete file)))))))
 

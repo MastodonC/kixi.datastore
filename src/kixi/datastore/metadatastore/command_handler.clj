@@ -79,7 +79,8 @@
    ::ke/version "1.0.0"
    ::ke/payload payload
    ::ke/partition-key (or (::ms/id payload)
-                          (get-in payload [:original ::ms/id]))})
+                          (get-in payload [:original ::ms/id])
+                          (get-in payload [:original ::ms/payload ::kc/payload ::ms/id]))})
 
 (defn invalid
   ([cmd speccy data]
@@ -100,7 +101,8 @@
   [payload]
   {::ke/key ::kdfm/updated
    ::ke/version "1.0.0"
-   ::ke/partition-key (::ms/id payload)
+   ::ke/partition-key (or (get-in payload [::ms/id])
+                          (get-in payload [::ms/file-metadata ::ms/id]))
    ::ke/payload payload})
 
 (defn get-user-groups
@@ -141,7 +143,8 @@
            (not (ss/authorised schemastore ::ss/use schema-id user-groups))) (reject metadata :unauthorised)
       :default [{::ke/key :kixi.datastore.file/created
                  ::ke/version "1.0.0"
-                 ::ke/payload metadata}
+                 ::ke/payload metadata
+                 ::ke/partition-key id}
                 (updated {::ms/file-metadata metadata
                           ::cs/file-metadata-update-type
                           ::cs/file-metadata-created})])))
