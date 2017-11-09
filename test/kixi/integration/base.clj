@@ -371,7 +371,7 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    {})))
+    {:kixi.comms.command/partition-key uid})))
 
 (defn trim-file-name
   [md]
@@ -391,7 +391,8 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    (trim-file-name metadata))))
+    (trim-file-name metadata)
+    {:kixi.comms.command/partition-key uid})))
 
 (defn send-bundle-delete-cmd
   ([uid meta-id]
@@ -447,7 +448,8 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    (trim-file-name metadata))))
+    (trim-file-name metadata)
+    {:kixi.comms.command/partition-key uid})))
 
 (defn send-metadata-sharing-change-cmd
   ([uid metadata-id change-type activity target-group]
@@ -462,7 +464,8 @@
     {::ms/id metadata-id
      ::ms/sharing-update change-type
      ::ms/activity activity
-     :kixi.group/id target-group})))
+     :kixi.group/id target-group}
+    {:kixi.comms.command/partition-key uid})))
 
 (defn send-metadata-update-cmd
   ([uid metadata-id new-metadata]
@@ -475,7 +478,8 @@
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
     (assoc new-metadata
-           ::ms/id metadata-id))))
+           ::ms/id metadata-id)
+    {:kixi.comms.command/partition-key metadata-id})))
 
 (defn send-update-event
   [uid ugroup event]
