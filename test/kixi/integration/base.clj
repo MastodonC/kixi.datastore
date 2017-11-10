@@ -501,7 +501,8 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
-    spec)))
+    spec
+    {:kixi.comms.command/partition-key uid})))
 
 
 (def ^:dynamic *multi-part-upload-count* 2)
