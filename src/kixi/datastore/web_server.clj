@@ -176,6 +176,7 @@
   [ctx link file-id]
   {::cs/event :kixi.datastore.filestore/download-link-created
    ::cs/version "1.0.0"
+   ::cs/partition-key file-id
    ::ms/id file-id
    :kixi/user (ctx->user ctx)
    ::ds/link link})
@@ -184,6 +185,7 @@
   [ctx file-id]
   {::cs/event :kixi.datastore.filestore/download-link-rejected
    ::cs/version "1.0.0"
+   ::cs/partition-key file-id
    :reason :unauthorised
    ::ms/id file-id
    :kixi/user (ctx->user ctx)})
@@ -270,6 +272,7 @@
                                 (cs/send-event! communications
                                                 {::cs/event :kixi.datastore/file-segmentation-created
                                                  ::cs/version"1.0.0"
+                                                 ::cs/partition-key file-id
                                                  :kixi.datastore.request/type ::seg/group-rows-by-column
                                                  ::seg/id id
                                                  ::ms/id file-id

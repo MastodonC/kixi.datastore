@@ -75,8 +75,10 @@
 (defn send-event!
   [comms payload-plus]
   (c/send-event! comms
-                 (::event payload-plus) 
+                 (::event payload-plus)
                  (::version payload-plus)
                  (dissoc payload-plus
                          ::event
-                         ::version)))
+                         ::version
+                         ::partition-key)
+                 {:kixi.comms.event/partition-key (::partition-key payload-plus)}))
