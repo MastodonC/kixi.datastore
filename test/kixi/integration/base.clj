@@ -371,6 +371,7 @@
     "1.0.0"
     {:kixi.user/id uid
      :kixi.user/groups (vec-if-not ugroup)}
+    {}
     {:kixi.comms.command/partition-key uid})))
 
 (defn trim-file-name
