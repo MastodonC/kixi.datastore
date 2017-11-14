@@ -19,7 +19,7 @@
           },
           {
               "containerPort": 5002,
-              "hostPort": 10012,
+              "hostPort": 10016,
               "protocol": "tcp"
           }
       ]
