@@ -2,27 +2,23 @@
   (:require [clojure.test :refer :all]
             [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
+            [clojure.spec.test.alpha :as stest]
+            [clojure.test.check :as tc]
             [kixi.datastore.filestore.command-handler :refer :all]))
 
-(deftest calc-chunk-ranges-test
-  (testing "single result"
-    (let [ranges (calc-chunk-ranges 10 9)]
-      (is (= [{:start-byte 0  :length-bytes 9}] ranges))))
-  (testing "small range"
-    (let [ranges (calc-chunk-ranges 10 34)]
-      (is (= [{:start-byte 0  :length-bytes 10}
-              {:start-byte 10 :length-bytes 10}
-              {:start-byte 20 :length-bytes 10}
-              {:start-byte 30 :length-bytes 4}] ranges))))
-  (testing "bigger range"
-    (let [ranges (calc-chunk-ranges 100 648)]
-      (is (= [{:start-byte 0  :length-bytes 100}
-              {:start-byte 100 :length-bytes 100}
-              {:start-byte 200 :length-bytes 100}
-              {:start-byte 300 :length-bytes 100}
-              {:start-byte 400 :length-bytes 100}
-              {:start-byte 500 :length-bytes 100}
-              {:start-byte 600 :length-bytes 48}] ranges)))))
+(def sample-size 100)
+
+(defn check
+  [sym]
+  (-> sym
+      (stest/check {:clojure.spec.test.alpha.check/opts {:num-tests sample-size}})
+      first
+      stest/abbrev-result
+      :failure))
+
+(deftest check-calc-chunk-ranges
+  (is (nil?
+       (check `calc-chunk-ranges))))
 
 (deftest add-ns-test
   (let [x (add-ns :foo {:a 1 :b 2 :c {:x 3}})]

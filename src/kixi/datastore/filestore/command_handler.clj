@@ -1,5 +1,6 @@
 (ns kixi.datastore.filestore.command-handler
-  (:require [clojure.spec.alpha :as spec]
+  (:require [clojure.spec.alpha :as s]
+            [clojure.spec.gen.alpha :as gen]
             [medley.core :as m]
             [taoensso.timbre :as log]
             [kixi.datastore.schemastore.utils :as sh]
@@ -10,21 +11,54 @@
 (sh/alias 'up 'kixi.datastore.filestore.upload)
 (sh/alias 'up-reject 'kixi.event.file.upload.rejection)
 
+(def small-file-size 10000000) ;; 10MB
+(def largest-file-size 5000000000) ;; 5GB
+
 (defn uuid
   []
   (str (java.util.UUID/randomUUID)))
 
+(s/def ::start-byte
+  (s/with-gen int?
+    #(gen/such-that (partial <= 0) (gen/large-integer) 100)))
+
+(s/def ::length-bytes
+  (s/with-gen int?
+    #(gen/such-that (fn [x] (<= 0 x small-file-size)) (gen/large-integer) 100)))
+
+(s/def ::file-size (s/int-in 0 largest-file-size))
+
+(s/fdef calc-chunk-ranges
+        :args (s/cat :file-size ::file-size)
+        :fn (fn [{{:keys [file-size]} :args ret :ret}]
+              (and
+               (= (:start-byte (first ret)) 0)
+               (= file-size (->> ret
+                                 (map :length-bytes)
+                                 (reduce + 0)))
+               (if (= 1 (count ret))
+                 (= (get-in ret [0 :length-bytes]) file-size)
+                 (= (count ret) (inc (int (/ file-size small-file-size)))))))
+        :ret (s/coll-of (s/keys :req-un [::start-byte ::length-bytes]) :min-count 1))
+
 (defn calc-chunk-ranges
-  [size-per-part file-size]
-  (let [num-chunks (/ file-size size-per-part)
-        num-major-chunks (Math/floor num-chunks)
-        get-start (fn [x]
-                    (+ (get x :start-byte 0) (get x :length-bytes 0)))
-        chunk-ranges (reduce (fn [a x]
-                               (conj a {:start-byte (get-start (last a))
-                                        :length-bytes size-per-part})) [] (range num-major-chunks))]
-    (conj chunk-ranges {:start-byte (get-start (last chunk-ranges))
-                        :length-bytes (- file-size (* (count chunk-ranges) size-per-part))})))
+  [file-size]
+  (if (pos? file-size)
+    (let [size-per-part small-file-size
+          num-chunks (/ file-size size-per-part)
+          num-major-chunks (Math/floor num-chunks)
+          get-start (fn [x]
+                      (+ (get x :start-byte 0) (get x :length-bytes 0)))
+          chunk-ranges (reduce (fn [a x]
+                                 (conj a {:start-byte (get-start (last a))
+                                          :length-bytes size-per-part})) [] (range num-major-chunks))
+          remaining-length (- file-size (* (count chunk-ranges) size-per-part))]
+      (if (> remaining-length 0)
+        (conj chunk-ranges {:start-byte (get-start (last chunk-ranges))
+                            :length-bytes remaining-length})
+        chunk-ranges))
+    [{:start-byte 0
+      :length-bytes 0}]))
 
 (defn add-ns
   [ns m]
@@ -53,8 +87,6 @@
              {::up-reject/message message}))
     {:partition-key file-id}]))
 
-(def small-file-size 10000000) ;; 10MB
-
 (defn create-initiate-file-upload-cmd-handler
   [init-small-file-upload-creator-fn
    init-multi-part-file-upload-creator-fn
@@ -62,12 +94,12 @@
   (fn [cmd]
     (let [size-bytes (::up/size-bytes cmd)
           id (uuid)
-          part-ranges (calc-chunk-ranges small-file-size size-bytes)
+          part-ranges (calc-chunk-ranges size-bytes)
           mup? (> (count part-ranges) 1)
           {:keys [upload-parts upload-id]}
           (if mup?
             (init-multi-part-file-upload-creator-fn id part-ranges)
-            {:upload-id "local"
+            {:upload-id (uuid)
              :upload-parts (update part-ranges 0 assoc :url (init-small-file-upload-creator-fn id))})]
       (fs/put-item! cache id mup? (:kixi/user cmd) upload-id)
       [{::event/type ::fs/file-upload-initiated
@@ -86,7 +118,7 @@
                   kixi/user]} cmd]
       (let [upload (not-empty (fs/get-item cache id))]
         (cond
-          (not (spec/valid? :kixi/command cmd)) (reject-file-upload id :invalid-cmd)
+          (not (s/valid? :kixi/command cmd)) (reject-file-upload id :invalid-cmd)
           (not upload) (reject-file-upload id :unauthorised)
           (not (= (:kixi.user/id user) (get-in upload [:kixi/user :kixi.user/id]))) (reject-file-upload id :unauthorised)
           :else (let [[ok? reason msg] (if (::up/mup? upload)
