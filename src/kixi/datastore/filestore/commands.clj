@@ -7,13 +7,12 @@
 (sh/alias 'up 'kixi.datastore.filestore.upload)
 
 (defmethod comms/command-payload
-  [:kixi.datastore.filestore/create-multi-part-upload-link "1.0.0"]
+  [:kixi.datastore.filestore/initiate-file-upload "1.0.0"]
   [_]
-  (s/keys :req [::up/part-count]))
+  (s/keys :req [::up/size-bytes]))
 
 (defmethod comms/command-payload
-  [:kixi.datastore.filestore/complete-multi-part-upload "1.0.0"]
+  [:kixi.datastore.filestore/complete-file-upload "1.0.0"]
   [_]
   (s/keys :req [::up/part-ids
-                ::up/id
                 ::f/id]))

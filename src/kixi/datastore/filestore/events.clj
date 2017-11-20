@@ -3,19 +3,32 @@
             [kixi.comms :as comms]
             [kixi.datastore.schemastore.utils :as sh]))
 
-(sh/alias 'ms 'kixi.datastore.metadatastore)
-(sh/alias 'f 'kixi.datastore.filestore)
-(sh/alias 'up 'kixi.datastore.filestore.upload)
+(sh/alias 'fs  'kixi.datastore.filestore)
+(sh/alias 'up  'kixi.datastore.filestore.upload)
+(sh/alias 'up-reject 'kixi.event.file.upload.rejection)
 
 (defmethod comms/event-payload
-  [:kixi.datastore.filestore/multi-part-upload-links-created "1.0.0"]
+  [:kixi.datastore.filestore/file-upload-initiated "1.0.0"]
   [_]
   (s/keys :req [::up/part-urls
-                ::up/id
-                ::f/id]))
+                ::fs/id]))
 
 (defmethod comms/event-payload
-  [:kixi.datastore.filestore/multi-part-upload-completed "1.0.0"]
+  [:kixi.datastore.filestore/file-upload-completed "1.0.0"]
   [_]
-  (s/keys :req [::up/id
-                ::f/id]))
+  (s/keys :req [::fs/id]))
+
+(s/def ::up-reject/reason
+  #{:invalid-cmd
+    :file-missing
+    :unauthorised
+    :data-too-small})
+
+(s/def ::up-reject/message string?)
+
+(defmethod comms/event-payload
+  [:kixi.datastore.filestore/file-upload-rejected "1.0.0"]
+  [_]
+  (s/keys :req [::fs/id
+                ::up-reject/reason]
+          :opt [::up-reject/message]))

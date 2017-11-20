@@ -21,14 +21,15 @@
             [user :as user]
             [kixi.datastore.metadatastore :as md]
             [kixi.datastore.filestore
-             [upload :as fsupload]])
+             [upload :as fsupload]]
+            [taoensso.timbre :as log])
   (:import [java.io File FileNotFoundException]))
 
 (sh/alias 'cmd 'kixi.command)
 (sh/alias 'event 'kixi.event)
 
-(def wait-tries (Integer/parseInt (env :wait-tries "10")))
-(def wait-per-try (Integer/parseInt (env :wait-per-try "500")))
+(def wait-tries (Integer/parseInt (env :wait-tries "100")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "300")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 
@@ -504,37 +505,33 @@
     spec
     {:kixi.comms.command/partition-key uid})))
 
-
-(def ^:dynamic *multi-part-upload-count* 2)
-
 (defn send-multi-part-upload-link-cmd
-  ([uid]
-   (send-multi-part-upload-link-cmd uid uid))
-  ([uid ugroup]
+  ([uid size-bytes]
+   (send-multi-part-upload-link-cmd uid uid size-bytes))
+  ([uid ugroup size-bytes]
    (let [id (uuid)]
      (c/send-valid-command!
       @comms
-      {::cmd/type :kixi.datastore.filestore/create-multi-part-upload-link
+      {::cmd/type :kixi.datastore.filestore/initiate-file-upload
        ::cmd/version "1.0.0"
        :kixi/user {:kixi.user/id uid
                    :kixi.user/groups (vec-if-not ugroup)}
        ::cmd/id id
-       ::fsupload/part-count *multi-part-upload-count*}
+       ::fsupload/size-bytes size-bytes}
       {:partition-key id}))))
 
 (defn send-complete-multi-part-upload-cmd
-  ([uid etags upload-id file-id]
-   (send-complete-multi-part-upload-cmd uid uid etags upload-id file-id))
-  ([uid ugroup etags upload-id file-id]
+  ([uid etags file-id]
+   (send-complete-multi-part-upload-cmd uid uid etags file-id))
+  ([uid ugroup etags file-id]
    (c/send-valid-command!
     @comms
-    {::cmd/type :kixi.datastore.filestore/complete-multi-part-upload
+    {::cmd/type :kixi.datastore.filestore/complete-file-upload
      ::cmd/version "1.0.0"
      :kixi/user {:kixi.user/id uid
                  :kixi.user/groups (vec-if-not ugroup)}
      :kixi.datastore.metadatastore/id file-id
      ::fsupload/part-ids etags
-     ::fsupload/id upload-id
      ::fs/id file-id}
     {:partition-key file-id})))
 
@@ -606,9 +603,9 @@
   (wait-for-events user-id :kixi.datastore.filestore/upload-link-created))
 
 (defn get-multi-part-upload-links-event
-  [user-id]
-  (send-multi-part-upload-link-cmd user-id)
-  (wait-for-events user-id :kixi.datastore.filestore/multi-part-upload-links-created))
+  [user-id size-bytes]
+  (send-multi-part-upload-link-cmd user-id size-bytes)
+  (wait-for-events user-id :kixi.datastore.filestore/file-upload-initiated))
 
 (defn get-upload-link
   [user-id]
@@ -617,8 +614,8 @@
      (get-in link-event [:kixi.comms.event/payload :kixi.datastore.filestore/id])]))
 
 (defn get-multi-part-upload-links
-  [user-id]
-  (let [multi-part-links-event (get-multi-part-upload-links-event user-id)]
+  [user-id size-bytes]
+  (let [multi-part-links-event (get-multi-part-upload-links-event user-id size-bytes)]
     multi-part-links-event))
 
 (defn get-dload-link-event
@@ -680,17 +677,20 @@
    [:headers "ETag"]))
 
 (defn upload-multi-part-file
-  [links uid file-name file-id upload-id]
+  [links uid file-name file-id]
   (let [file (io/file file-name)
-        file-size (.length file)
-        part-size (long (Math/ceil (/ file-size *multi-part-upload-count*)))
-        upload-part (fn [^java.io.InputStream reader link]
-                      (let [buffer (byte-array part-size)]
-                        (.read reader buffer 0 part-size)
-                        (upload-multi-part-file-request link buffer)))
+        upload-part (fn [^java.io.InputStream reader
+                         {:keys [::fsupload/url
+                                 ::fsupload/start-byte
+                                 ::fsupload/length-bytes]}]
+                      (let [buffer (byte-array length-bytes)]
+                        (log/info "...uploading" start-byte ":" length-bytes)
+                        (.read reader buffer 0 length-bytes)
+                        (upload-multi-part-file-request url buffer)))
         send-complete (fn [etags]
-                        (send-complete-multi-part-upload-cmd uid etags upload-id file-id)
-                        (wait-for-events uid :kixi.datastore.filestore/multi-part-upload-completed))]
+                        (send-complete-multi-part-upload-cmd uid etags file-id)
+                        (wait-for-events uid :kixi.datastore.filestore/file-upload-completed :kixi.datastore.filestore/file-upload-rejected))]
+    (log/info "Uploading file" file-name file-id "in" (count links) "parts." )
     (with-open [r (io/input-stream file)]
       (->> links
            (map (partial upload-part r))
@@ -754,11 +754,9 @@
     (metadata->user-id metadata)
     metadata))
   ([uid ugroup metadata]
-   (let [links (get-multi-part-upload-links ugroup)
+   (let [links (get-multi-part-upload-links ugroup (::ms/size-bytes metadata))
          {:keys [:kixi.datastore.filestore/id
-                 :kixi.datastore.filestore.upload/part-urls]} links
-         upload-id (:kixi.datastore.filestore.upload/id links)]
-     (is upload-id)
+                 :kixi.datastore.filestore.upload/part-urls]} links]
      (is id)
      (is (not-empty part-urls))
      (let [md-with-id (assoc metadata ::ms/id id)]
@@ -766,8 +764,7 @@
          (upload-multi-part-file part-urls
                                  uid
                                  (::ms/name md-with-id)
-                                 id
-                                 upload-id)
+                                 id)
          (send-metadata-cmd ugroup
                             md-with-id))
        md-with-id))))

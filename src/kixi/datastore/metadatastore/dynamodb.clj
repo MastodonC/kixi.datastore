@@ -10,9 +10,6 @@
              [timbre :as timbre :refer [info error]]]
             [kixi.datastore.metadatastore :as ms]))
 
-(def dynamodb-client-kws
-  #{:endpoint})
-
 (def id-col (db/dynamo-col ::md/id))
 
 (def all-sharing-columns
@@ -28,7 +25,7 @@
   [profile]
   (str profile "-kixi.datastore-metadatastore.activity"))
 
-(defn activity-metadata-created-index 
+(defn activity-metadata-created-index
   []
   "provenance-created")
 
@@ -71,7 +68,7 @@
 (defn remove-activity-row
   [conn group-id activity md-id]
   (let [id (activity-table-id group-id activity)]
-    (try  
+    (try
       (db/delete-item conn
                       (activity-metadata-table (:profile conn))
                       {activity-table-pk id
@@ -159,7 +156,7 @@
   [client]
   (fn [event]
     (info "Deleting: " event)
-    (db/delete-data client              
+    (db/delete-data client
                     (primary-metadata-table (:profile client))
                     id-col
                     (::md/id event))))
@@ -168,7 +165,7 @@
   [client]
   (fn [event]
     (info "Added files to bundle: " event)
-    (db/update-set client        
+    (db/update-set client
                    (primary-metadata-table (:profile client))
                    id-col
                    (::md/id event)
@@ -180,7 +177,7 @@
   [client]
   (fn [event]
     (info "Removed files from bundle: " event)
-    (db/update-set client        
+    (db/update-set client
                    (primary-metadata-table (:profile client))
                    id-col
                    (::md/id event)
@@ -221,7 +218,7 @@
                       (when new-candidate
                         (lazy-seq
                          (process (rest remain) 1 new-candidate)))))
-              (when-let [t (first remaining)]                   
+              (when-let [t (first remaining)]
                 (if (= t candidate)
                   (recur (rest remaining) (inc acc) candidate)
                   (recur (rest remaining) 1 t)))))]
@@ -240,7 +237,7 @@
           (more-data [seqs]
             (some identity (map first seqs)))
           (process [seqs]
-            (when (more-data seqs) 
+            (when (more-data seqs)
               (let [firsts (mapv first seqs)
                     [head-dex head-val] (head-element firsts)]
                 (cons head-val
@@ -248,13 +245,13 @@
                        (process (update seqs head-dex rest)))))))]
     (process (vec seqs-l))))
 
-(defn all-ids-ordered 
+(defn all-ids-ordered
   [client group-ids activities sort-cols sort-order]
   (->> (for [g group-ids
              a activities]
          (db/query-index client
                          (activity-metadata-table (:profile client))
-                         (activity-metadata-created-index) 
+                         (activity-metadata-created-index)
                          {activity-table-pk
                           (activity-table-id g a)}
                          [sort-cols ::md/id]
@@ -287,79 +284,79 @@
   {::ms/bundled-ids #{}})
 
 (defrecord DynamoDb
-    [communications profile endpoint cluster discover
+    [communications profile endpoint
      client get-item]
-    MetaDataStore
-    (authorised
+  MetaDataStore
+  (authorised
       [this action id user-groups]
-      (when-let [item (get-item id {:projection all-sharing-columns})]
-        (not-empty (clojure.set/intersection (set (get-in item [::md/sharing action]))
-                                             (set user-groups)))))
-    (exists [this id]
-      (get-item id {:projection [id-col]}))
-    (retrieve [this id]
-      (let [item (get-item id)]
-        (merge (default-values item)
-               item)))
-    (query [this criteria from-index cnt sort-cols sort-order]
-      (when-not (= [::md/provenance ::md/created]
-                   sort-cols)
-        (throw (new Exception "Only created timestamp sort supported")))
-      (let [group-ids (:kixi.user/groups criteria)
-            activities (criteria->activities criteria)
-            all-ids-ordered (all-ids-ordered client group-ids activities sort-cols sort-order)
-            target-ids (get-subvector all-ids-ordered from-index cnt)
-            items (if (not-empty target-ids)
-                    (db/get-bulk-ordered client
-                                         (primary-metadata-table profile)
-                                         id-col
-                                         target-ids)
-                    [])]
-        {:items items
-         :paging {:total (count all-ids-ordered)
-                  :count (count items)
-                  :index from-index}}))
+    (when-let [item (get-item id {:projection all-sharing-columns})]
+      (not-empty (clojure.set/intersection (set (get-in item [::md/sharing action]))
+                                           (set user-groups)))))
+  (exists [this id]
+    (get-item id {:projection [id-col]}))
+  (retrieve [this id]
+    (let [item (get-item id)]
+      (merge (default-values item)
+             item)))
+  (query [this criteria from-index cnt sort-cols sort-order]
+    (when-not (= [::md/provenance ::md/created]
+                 sort-cols)
+      (throw (new Exception "Only created timestamp sort supported")))
+    (let [group-ids (:kixi.user/groups criteria)
+          activities (criteria->activities criteria)
+          all-ids-ordered (all-ids-ordered client group-ids activities sort-cols sort-order)
+          target-ids (get-subvector all-ids-ordered from-index cnt)
+          items (if (not-empty target-ids)
+                  (db/get-bulk-ordered client
+                                       (primary-metadata-table profile)
+                                       id-col
+                                       target-ids)
+                  [])]
+      {:items items
+       :paging {:total (count all-ids-ordered)
+                :count (count items)
+                :index from-index}}))
 
-    component/Lifecycle
-    (start [component]
-      (if-not client
-        (let [client (assoc (select-keys component
-                                         dynamodb-client-kws)
-                            :profile profile)              
-              joplin-conf {:migrators {:migrator "joplin/kixi/datastore/metadatastore/migrators/dynamodb"}
-                           :databases {:dynamodb (merge
-                                                  {:type :dynamo
-                                                   :migration-table (str profile "-kixi.datastore-metadatastore.migrations")}
-                                                  client)}
-                           :environments {:env [{:db :dynamodb :migrator :migrator}]}}]
-          (info "Starting File Metadata DynamoDb Store - " profile)
-          (migrate :env joplin-conf)
-          (c/attach-event-handler! communications
-                                   :kixi.datastore/metadatastore
-                                   :kixi.datastore.file-metadata/updated
-                                   "1.0.0"
-                                   (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
-          (c/attach-validating-event-handler! communications
-                                              :kixi.datastore/metadatastore-bundle-delete
-                                              :kixi.datastore/bundle-deleted
-                                              "1.0.0"
-                                              (bundle-deleted-handler client))
-          (c/attach-validating-event-handler! communications
-                                              :kixi.datastore/metadatastore-add-files-to-bundle
-                                              :kixi.datastore/files-added-to-bundle
-                                              "1.0.0"
-                                              (files-added-to-bundle-handler client))
-          (c/attach-validating-event-handler! communications
-                                              :kixi.datastore/metadatastore-remove-files-from-bundle
-                                              :kixi.datastore/files-removed-from-bundle
-                                              "1.0.0"
-                                              (files-removed-from-bundle-handler client))
-          (assoc component 
-                 :client client
-                 :get-item (partial db/get-item client (primary-metadata-table profile) id-col)))
-        component))
-    (stop [component]
-      (if client
-        (do (info "Destroying File Metadata DynamoDb Store")
-            (dissoc component :client :get-item))
-        component)))
+  component/Lifecycle
+  (start [component]
+    (if-not client
+      (let [client (assoc (select-keys component
+                                       db/client-kws)
+                          :profile profile)
+            joplin-conf {:migrators {:migrator "joplin/kixi/datastore/metadatastore/migrators/dynamodb"}
+                         :databases {:dynamodb (merge
+                                                {:type :dynamo
+                                                 :migration-table (str profile "-kixi.datastore-metadatastore.migrations")}
+                                                client)}
+                         :environments {:env [{:db :dynamodb :migrator :migrator}]}}]
+        (info "Starting File Metadata DynamoDb Store - " profile)
+        (migrate :env joplin-conf)
+        (c/attach-event-handler! communications
+                                 :kixi.datastore/metadatastore
+                                 :kixi.datastore.file-metadata/updated
+                                 "1.0.0"
+                                 (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
+        (c/attach-validating-event-handler! communications
+                                            :kixi.datastore/metadatastore-bundle-delete
+                                            :kixi.datastore/bundle-deleted
+                                            "1.0.0"
+                                            (bundle-deleted-handler client))
+        (c/attach-validating-event-handler! communications
+                                            :kixi.datastore/metadatastore-add-files-to-bundle
+                                            :kixi.datastore/files-added-to-bundle
+                                            "1.0.0"
+                                            (files-added-to-bundle-handler client))
+        (c/attach-validating-event-handler! communications
+                                            :kixi.datastore/metadatastore-remove-files-from-bundle
+                                            :kixi.datastore/files-removed-from-bundle
+                                            "1.0.0"
+                                            (files-removed-from-bundle-handler client))
+        (assoc component
+               :client client
+               :get-item (partial db/get-item client (primary-metadata-table profile) id-col)))
+      component))
+  (stop [component]
+    (if client
+      (do (info "Destroying File Metadata DynamoDb Store")
+          (dissoc component :client :get-item))
+      component)))
