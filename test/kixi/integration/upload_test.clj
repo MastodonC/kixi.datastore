@@ -147,7 +147,7 @@
   (let [uid (uuid)
         _ (with-redefs
             [clojure.spec.alpha/valid? (constantly true)]
-            (send-bad-multi-part-upload-cmd uid))
+            (send-malformed-multi-part-upload-cmd uid))
         x (wait-for-events uid :kixi.datastore.filestore/file-upload-failed)]
     (is-submap {:kixi.event/type :kixi.datastore.filestore/file-upload-failed
                 :kixi.event.file.upload.failure/reason :invalid-cmd} x)))

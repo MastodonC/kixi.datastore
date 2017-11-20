@@ -535,7 +535,8 @@
      ::fs/id file-id}
     {:partition-key file-id})))
 
-(defn send-bad-multi-part-upload-cmd
+(defn send-malformed-multi-part-upload-cmd
+  "This command misses the required `size-bytes` filed which should trigger a failed event"
   ([uid]
    (send-bad-multi-part-upload-cmd uid uid))
   ([uid ugroup]
