@@ -535,6 +535,19 @@
      ::fs/id file-id}
     {:partition-key file-id})))
 
+(defn send-malformed-multi-part-upload-cmd
+  "This command misses the required `size-bytes` filed which should trigger a failed event"
+  ([uid]
+   (send-malformed-multi-part-upload-cmd uid uid))
+  ([uid ugroup]
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore.filestore/initiate-file-upload
+     ::cmd/version "1.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}}
+    {:partition-key uid})))
+
 (defn event-for
   [uid event]
   (= uid

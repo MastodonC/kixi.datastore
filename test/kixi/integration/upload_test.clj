@@ -142,3 +142,12 @@
         x (wait-for-events uid2 :kixi.datastore.filestore/file-upload-rejected)]
     (is-submap {:kixi.event/type :kixi.datastore.filestore/file-upload-rejected
                 :kixi.event.file.upload.rejection/reason :unauthorised} x)))
+
+(deftest new-file-failed
+  (let [uid (uuid)
+        _ (with-redefs
+            [clojure.spec.alpha/valid? (constantly true)]
+            (send-malformed-multi-part-upload-cmd uid))
+        x (wait-for-events uid :kixi.datastore.filestore/file-upload-failed)]
+    (is-submap {:kixi.event/type :kixi.datastore.filestore/file-upload-failed
+                :kixi.event.file.upload.failure/reason :invalid-cmd} x)))

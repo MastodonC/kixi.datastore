@@ -10,7 +10,8 @@
 (defmethod comms/command-type->event-types
   [:kixi.datastore.filestore/initiate-file-upload "1.0.0"]
   [_]
-  #{[:kixi.datastore.filestore/file-upload-initiated "1.0.0"]})
+  #{[:kixi.datastore.filestore/file-upload-initiated "1.0.0"]
+    [:kixi.datastore.filestore/file-upload-failed "1.0.0"]})
 
 (defmethod comms/command-type->event-types
   [:kixi.datastore.filestore/complete-file-upload
