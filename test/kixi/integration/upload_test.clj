@@ -128,6 +128,7 @@
   (let [uid (uuid)
         links (get-multi-part-upload-links uid 15000000)
         {:keys [:kixi.datastore.filestore/id]} links
+        _ (Thread/sleep 1000)
         _ (send-complete-multi-part-upload-cmd uid ["1" "2" "3"] id)
         x (wait-for-events uid :kixi.datastore.filestore/file-upload-rejected)]
     (is-submap {:kixi.event/type :kixi.datastore.filestore/file-upload-rejected

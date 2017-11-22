@@ -64,7 +64,7 @@
   :exclusions [cheshire]
 
   :test-selectors {:integration :integration
-                   :acceptance :acceptance}
+                   :acceptance :acceptance} ;; `acceptance` not run in test-staging
 
   :global-vars {*warn-on-reflection* true
                 *assert* false}

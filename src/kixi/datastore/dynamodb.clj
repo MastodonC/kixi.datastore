@@ -167,7 +167,7 @@
 
 (defn delete-item
   [conn table pks]
-  (far/delete-item conn table pks))
+  (far/delete-item conn table (map-keys dynamo-col pks)))
 
 (defn get-item
   ([conn table id-column id]
