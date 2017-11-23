@@ -262,9 +262,13 @@
    (wait-for-pred p tries wait-per-try))
   ([p tries ms]
    (loop [try tries]
-     (when (and (pos? try) (not (p)))
-       (Thread/sleep ms)
-       (recur (dec try))))))
+     (when (and (pos? try))
+       (let [result (p)]
+         (if (not result)
+           (do
+             (Thread/sleep ms)
+             (recur (dec try)))
+           result))))))
 
 (defn search-metadata
   ([group-ids activities]
