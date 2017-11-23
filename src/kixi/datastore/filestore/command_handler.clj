@@ -116,11 +116,11 @@
               (init-multi-part-file-upload-creator-fn id part-ranges)
               {:upload-id (uuid)
                :upload-parts (update part-ranges 0 assoc :url (init-small-file-upload-creator-fn id))})]
-        (fs/put-item! cache id mup? (:kixi/user cmd) upload-id)
         [{::event/type ::fs/file-upload-initiated
           ::event/version "1.0.0"
           ::up/part-urls (m/map-vals (partial add-ns :kixi.datastore.filestore.upload) upload-parts)
-          ::fs/id id}
+          ::fs/id id
+          ::up/id upload-id}
          {:partition-key id}]))))
 
 (defn create-complete-file-upload-cmd-handler

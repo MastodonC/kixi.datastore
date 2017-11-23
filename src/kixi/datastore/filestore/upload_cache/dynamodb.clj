@@ -14,19 +14,21 @@
 
 (defrecord DynamoDb
     [communications profile
-     client get-item-fn put-item-fn]
+     client get-item-fn put-item-fn delete-item-fn]
   FileStoreUploadCache
   (get-item [this file-id]
     (log/debug "Getting upload item from Dynamo" file-id)
-    (get-item-fn file-id))
-  (put-item! [this file-id mup? user upload-id]
+    (not-empty (get-item-fn file-id)))
+  (put-item! [this file-id mup? user upload-id created-at]
     (log/debug "Putting upload item into Dynamo" file-id mup?)
     (put-item-fn {::fs/id file-id
                   ::up/id upload-id
                   ::up/mup? mup?
                   :kixi/user user
-                  ::up/started-at (t/timestamp)
-                  ::up/finished-at nil}))
+                  ::up/created-at created-at}))
+  (delete-item! [this file-id]
+    (log/debug "Deleting upload item from Dynamo" file-id)
+    (delete-item-fn {::fs/id file-id}))
   component/Lifecycle
   (start [component]
     (if-not client
@@ -44,11 +46,12 @@
         (assoc component
                :client client
                :put-item-fn (partial db/put-item client (primary-upload-cache-table profile))
-               :get-item-fn (partial db/get-item client (primary-upload-cache-table profile) id-col)))
+               :get-item-fn (partial db/get-item client (primary-upload-cache-table profile) id-col)
+               :delete-item-fn (partial db/delete-item client (primary-upload-cache-table profile))))
       component))
   (stop [component]
     (if client
       (do
         (log/info "Stopping DynamoDb FileStoreUploadCache")
-        (dissoc component :client :get-item-fn :put-item-fn))
+        (dissoc component :client :get-item-fn :put-item-fn :delete-item-fn))
       component)))

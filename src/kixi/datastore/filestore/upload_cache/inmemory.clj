@@ -10,16 +10,17 @@
      cache]
   FileStoreUploadCache
   (get-item [this file-id]
-    (get @cache file-id))
-  (put-item! [this file-id mup? user upload-id]
+    (not-empty (get @cache file-id)))
+  (put-item! [this file-id mup? user upload-id created-at]
     (let [m {::fs/id file-id
              ::up/id upload-id
              ::up/mup? mup?
              :kixi/user user
-             ::up/started-at (t/timestamp)
-             ::up/finished-at nil}]
+             ::up/created-at created-at}]
       (log/info "Adding" m "for upload" file-id)
       (swap! cache assoc file-id m)))
+  (delete-item! [this file-id]
+    (swap! cache dissoc file-id))
   component/Lifecycle
   (start [component]
     (log/info "Starting InMemory FileStoreUploadCache")

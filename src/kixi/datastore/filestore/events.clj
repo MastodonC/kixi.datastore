@@ -24,7 +24,8 @@
   [:kixi.datastore.filestore/file-upload-initiated "1.0.0"]
   [_]
   (s/keys :req [::up/part-urls
-                ::fs/id]))
+                ::fs/id
+                ::up/id]))
 
 (defmethod comms/event-payload
   [:kixi.datastore.filestore/file-upload-completed "1.0.0"]
@@ -42,4 +43,5 @@
   [:kixi.datastore.filestore/file-upload-failed "1.0.0"]
   [_]
   (s/keys :req [::up-fail/reason]
-          :opt [::up-fail/message]))
+          :opt [::fs/id
+                ::up-fail/message]))

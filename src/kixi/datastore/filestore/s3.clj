@@ -7,6 +7,7 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as fs :refer [FileStore FileStoreUploadCache]]
             [kixi.datastore.filestore.command-handler :as ch]
+            [kixi.datastore.filestore.event-handler :as eh]
             [kixi.datastore.filestore.upload :as up]
             [kixi.datastore.time :as t]
             [kixi.comms :as c]
@@ -143,7 +144,7 @@
          :kixi.datastore/filestore
          :kixi.datastore.filestore/create-upload-link
          "1.0.0" (ch/create-upload-cmd-handler (create-link c bucket)))
-        ;;
+        ;; NEW
         (c/attach-validating-command-handler!
          communications
          :kixi.datastore/filestore-multi-part
@@ -159,6 +160,30 @@
          "1.0.0" (ch/create-complete-file-upload-cmd-handler
                   (complete-small-file-upload-creator c bucket)
                   (complete-multi-part-upload-creator c bucket)
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-initiated
+         :kixi.datastore.filestore/file-upload-initiated
+         "1.0.0" (eh/create-file-upload-initiated-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-completed
+         :kixi.datastore.filestore/file-upload-completed
+         "1.0.0" (eh/create-file-upload-completed-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-failed
+         :kixi.datastore.filestore/file-upload-failed
+         "1.0.0" (eh/create-file-upload-failed-or-rejected-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-rejected
+         :kixi.datastore.filestore/file-upload-rejected
+         "1.0.0" (eh/create-file-upload-failed-or-rejected-event-handler
                   filestore-upload-cache))
         (assoc component
                :creds

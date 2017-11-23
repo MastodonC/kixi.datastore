@@ -118,9 +118,15 @@
     (kinesis/delete-streams! endpoint (vals streams))))
 
 (defn cycle-system-fixture
-  [all-tests]
-  (if run-against-staging
+  [all-tests & [components]]
+  (cond
+    (not-empty components)
+    (user/start {} components)
+
+    run-against-staging
     (user/start {} [:communications])
+
+    :else
     (user/start))
   (try (instrument-specd-functions)
        (all-tests)
@@ -130,6 +136,11 @@
                                           :profile :app :teardown-kinesis :teardown-dynamodb])]
            (user/stop)
            (tear-down-kinesis kinesis-conf)))))
+
+(defn create-cycle-system-fixture
+  [components]
+  (fn [all-tests]
+    (cycle-system-fixture all-tests components)))
 
 (defn uuid
   []
@@ -251,9 +262,13 @@
    (wait-for-pred p tries wait-per-try))
   ([p tries ms]
    (loop [try tries]
-     (when (and (pos? try) (not (p)))
-       (Thread/sleep ms)
-       (recur (dec try))))))
+     (when (and (pos? try))
+       (let [result (p)]
+         (if (not result)
+           (do
+             (Thread/sleep ms)
+             (recur (dec try)))
+           result))))))
 
 (defn search-metadata
   ([group-ids activities]

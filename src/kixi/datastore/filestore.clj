@@ -33,5 +33,7 @@
 (defprotocol FileStoreUploadCache
   (get-item [this file-id]
     "Gets an item with this upload ID")
-  (put-item! [this file-id mup? user upload-id]
-    "Puts an item into the cache"))
+  (put-item! [this file-id mup? user upload-id created-at]
+    "Puts an item into the cache")
+  (delete-item! [this file-id]
+    "Removes an item from the cache"))

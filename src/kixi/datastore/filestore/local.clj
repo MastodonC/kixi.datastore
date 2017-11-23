@@ -4,8 +4,9 @@
             [com.stuartsierra.component :as component]
             [kixi.datastore.filestore :as fs :refer [FileStore FileStoreUploadCache]]
             [kixi.datastore.filestore.command-handler :as ch]
+            [kixi.datastore.filestore.event-handler :as eh]
             [kixi.comms :as c]
-            [taoensso.timbre :as timbre :refer [error info infof]]))
+            [taoensso.timbre :as log :refer [error info infof]]))
 
 (defn uuid
   []
@@ -81,6 +82,7 @@
   (start [component]
     (if-not dir
       (let [dir (io/file (str (System/getProperty "java.io.tmpdir") base-dir))]
+        (log/info "Starting Local FileStore - dir:" dir)
         (.mkdirs dir)
         ;; LEGACY
         (c/attach-command-handler!
@@ -88,7 +90,7 @@
          :kixi.datastore/filestore
          :kixi.datastore.filestore/create-upload-link
          "1.0.0" (ch/create-upload-cmd-handler (create-link dir)))
-        ;;
+        ;; NEW
         (c/attach-validating-command-handler!
          communications
          :kixi.datastore/filestore-initiate-file-upload
@@ -105,11 +107,35 @@
                   (complete-small-file-upload-creator dir)
                   (complete-multi-part-upload-creator dir)
                   filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-initiated
+         :kixi.datastore.filestore/file-upload-initiated
+         "1.0.0" (eh/create-file-upload-initiated-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-completed
+         :kixi.datastore.filestore/file-upload-completed
+         "1.0.0" (eh/create-file-upload-completed-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-failed
+         :kixi.datastore.filestore/file-upload-failed
+         "1.0.0" (eh/create-file-upload-failed-or-rejected-event-handler
+                  filestore-upload-cache))
+        (c/attach-validating-event-handler!
+         communications
+         :kixi.datastore/filestore-file-upload-rejected
+         :kixi.datastore.filestore/file-upload-rejected
+         "1.0.0" (eh/create-file-upload-failed-or-rejected-event-handler
+                  filestore-upload-cache))
         (assoc component
                :dir dir))
       component))
   (stop [component]
-    (info "Destroying Local File Datastore")
+    (info "Stopping Local FileStore")
     (if dir
       (do (doseq [^java.io.File f (.listFiles dir)]
             (.delete f))

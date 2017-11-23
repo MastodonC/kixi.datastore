@@ -128,10 +128,14 @@
   (let [uid (uuid)
         links (get-multi-part-upload-links uid 15000000)
         {:keys [:kixi.datastore.filestore/id]} links
-        _ (send-complete-multi-part-upload-cmd uid ["1" "2" "3"] id)
-        x (wait-for-events uid :kixi.datastore.filestore/file-upload-rejected)]
-    (is-submap {:kixi.event/type :kixi.datastore.filestore/file-upload-rejected
-                :kixi.event.file.upload.rejection/reason :file-missing} x)))
+        expected {:kixi.event/type :kixi.datastore.filestore/file-upload-rejected
+                  :kixi.event.file.upload.rejection/reason :file-missing}]
+    (is (wait-for-pred
+         #(do
+            (send-complete-multi-part-upload-cmd uid ["1" "2" "3"] id)
+            (let [x (wait-for-events uid :kixi.datastore.filestore/file-upload-rejected)
+                  [in-a _ _] (clojure.data/diff expected x)]
+              (not in-a)))))))
 
 (deftest new-file-rejected-when-not-authorised
   (let [uid (uuid)
