@@ -24,6 +24,7 @@
 (sh/alias 'kdfm 'kixi.datastore.file-metadata)
 
 (sh/alias 'event 'kixi.event)
+(sh/alias 'command 'kixi.command)
 
 (defn reject
   ([metadata reason]
@@ -314,6 +315,10 @@ the generated 'update' specs.
   #{[:kixi.datastore/file-deleted "1.0.0"]
     [:kixi.datastore/file-delete-rejected "1.0.0"]})
 
+(defn uuid
+  []
+  (str (java.util.UUID/randomUUID)))
+
 (defn invalid-file-delete
   ([cmd reason id]
    (invalid-file-delete cmd reason id nil))
@@ -321,30 +326,56 @@ the generated 'update' specs.
    [(merge
      {::event/type :kixi.datastore/file-delete-rejected
       ::event/version "1.0.0"
-      :reason reason
-      ::ms/id id}
+      :reason reason}
+     (when id
+       {::ms/id id})
      (when explain
        {:spec-explain explain}))
-    {:partition-key id}]))
+    {:partition-key (or id (uuid))}]))
 
 (defn file?
   [metadatastore id]
-  (let [md (ms/retrieve metadatastore id)]
+  (let [md (ms/retrieve-fn metadatastore id)]
     (= "stored"
        (::ms/type md))))
 
+(s/fdef create-delete-file-handler-inner
+        :args (s/cat :ms ::ms/metadatastore
+                     :label-command (s/or :invalid-cmd :kixi/command
+                                          :valid-cmd (s/and :kixi/command
+                                                            #(= [:kixi.datastore/delete-file "1.0.0"]
+                                                                ((juxt ::command/type ::command/version) %)))))
+        :fn (fn [{{:keys [label-command]} :args
+                  {:keys [event options]} :ret}]
+              (let [[_ command] label-command]
+                (if (::ms/id command)
+                  (= (::ms/id command)
+                     (::ms/id event)
+                     (:partition-key options))
+                  (and (= [:kixi.datastore/file-delete-rejected "1.0.0"]
+                          ((juxt ::event/type ::event/version) event))
+                       (= :invalid-cmd
+                          (:reason event))))))
+        :ret (s/cat :event ::event/payload
+                    :options (s/keys :req-un [:kixi.comms/partition-key])))
+
+(defn create-delete-file-handler-inner
+  [metadatastore {:keys [::ms/id] :as cmd}]
+  (let [cmd-spec  (s/and :kixi/command
+                         #(= [:kixi.datastore/delete-file "1.0.0"]
+                             ((juxt ::command/type ::command/version) %)))]
+    (cond
+      (not (spec/valid? cmd-spec cmd)) (invalid-file-delete cmd :invalid-cmd id (s/explain-data cmd-spec cmd))
+      (not (ms/authorised-fn metadatastore ::ms/meta-update id (get-user-groups cmd))) (invalid-file-delete cmd :unauthorised id)
+      (not (file? metadatastore id)) (invalid-file-delete cmd :incorrect-metadata-type id)
+      :default [{::event/type :kixi.datastore/file-deleted
+                 ::event/version "1.0.0"
+                 ::ms/id id}
+                {:partition-key id}])))
+
 (defn create-delete-file-handler
   [metadatastore]
-  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
-    (fn [{:keys [::ms/id] :as cmd}]
-      (cond
-        (not (spec/valid? :kixi/command cmd)) (invalid-file-delete cmd :invalid-cmd id (s/explain-data :kixi/command cmd))
-        (not (authorised id (get-user-groups cmd))) (invalid-file-delete cmd :unauthorised id)
-        (not (file? metadatastore id)) (invalid-file-delete cmd :incorrect-type id)
-        :default [{::event/type :kixi.datastore/file-deleted
-                   ::event/version "1.0.0"
-                   ::ms/id id}
-                  {:partition-key id}]))))
+  (partial create-delete-file-handler-inner metadatastore))
 
 (defmethod c/command-type->event-types
   [:kixi.datastore/delete-bundle "1.0.0"]

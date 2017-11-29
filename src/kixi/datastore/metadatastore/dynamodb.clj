@@ -306,7 +306,7 @@
   (exists [this id]
     (get-item id {:projection [id-col]}))
   (retrieve [this id]
-    (let [item (get-item id)]
+    (when-let [item (get-item id)]
       (merge (default-values item)
              item)))
   (query [this criteria from-index cnt sort-cols sort-order]

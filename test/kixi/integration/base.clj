@@ -28,8 +28,8 @@
 (sh/alias 'cmd 'kixi.command)
 (sh/alias 'event 'kixi.event)
 
-(def wait-tries (Integer/parseInt (env :wait-tries "100")))
-(def wait-per-try (Integer/parseInt (env :wait-per-try "300")))
+(def wait-tries (Integer/parseInt (env :wait-tries "3000")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "10")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 

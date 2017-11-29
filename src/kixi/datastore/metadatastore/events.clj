@@ -27,13 +27,13 @@
 (defmethod comms/event-payload
   [:kixi.datastore/file-delete-rejected "1.0.0"]
   [_]
-  (s/and (s/keys :req [::md/id]
-                 :req-un [::fd-reject/reason]
+  (s/and (s/keys :req-un [::fd-reject/reason]
+                 :opt [::md/id]
                  :opt-un [::spec-explain])
          (fn invalid-cmd-is-explained?
            [m]
            (if (= (:reason m) :invalid-cmd)
-             (contains? m ::spec-explain)
+             (contains? m :spec-explain)
              true))))
 
 ;; Bundles

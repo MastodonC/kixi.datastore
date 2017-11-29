@@ -159,3 +159,34 @@
   (retrieve [this id])
   (create-link [this id])
   (query [this criteria from-index count sort-by sort-order]))
+
+(s/def ::metadatastore
+  (let [ex #(ex-info "Use stubbed fn version." {:fn %})]
+    (s/with-gen
+      (partial satisfies? MetaDataStore)
+      #(gen/return (reify MetaDataStore
+                     (authorised [this action id user-groups] (throw (ex "auth")))
+                     (exists [this id] (throw (ex "exists")))
+                     (retrieve [this id] (throw (ex "retrieve")))
+                     (create-link [this id] (throw (ex "link")))
+                     (query [this criteria from-index count sort-by sort-order] (throw (ex "query"))))))))
+
+(s/fdef authorised-fn
+        :args (s/cat :impl ::metadatastore
+                     :action ::activity
+                     :id ::id
+                     :user-groups :kixi.user/groups)
+        :ret (s/or :nil nil? :set set?))
+
+(defn authorised-fn
+  [impl action id user-groups]
+  (authorised impl action id user-groups))
+
+(s/fdef retrieve-fn
+        :args (s/cat :impl ::metadatastore
+                     :id ::id)
+        :ret (s/or :nil nil? :metadata ::file-metadata))
+
+(defn retrieve-fn
+  [impl id]
+  (retrieve impl id))
