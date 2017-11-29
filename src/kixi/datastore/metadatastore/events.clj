@@ -8,6 +8,36 @@
 (sh/alias 'user 'kixi.user)
 (sh/alias 'md 'kixi.datastore.metadatastore)
 
+(s/def ::spec-explain any?)
+
+;; Files
+
+(defmethod comms/event-payload
+  [:kixi.datastore/file-deleted "1.0.0"]
+  [_]
+  (s/keys :req [::md/id]))
+
+(sh/alias 'fd-reject 'kixi.event.file.delete.rejection)
+
+(s/def ::fd-reject/reason
+  #{:unauthorised
+    :incorrect-metadata-type
+    :invalid-cmd})
+
+(defmethod comms/event-payload
+  [:kixi.datastore/file-delete-rejected "1.0.0"]
+  [_]
+  (s/and (s/keys :req [::md/id]
+                 :req-un [::fd-reject/reason]
+                 :opt-un [::spec-explain])
+         (fn invalid-cmd-is-explained?
+           [m]
+           (if (= (:reason m) :invalid-cmd)
+             (contains? m ::spec-explain)
+             true))))
+
+;; Bundles
+
 (defmethod comms/event-payload
   [:kixi.datastore/bundle-deleted "1.0.0"]
   [_]
@@ -20,16 +50,12 @@
     :incorrect-type
     :invalid-cmd})
 
-(s/def ::spec-explain any?)
-
 (defmethod comms/event-payload
   [:kixi.datastore/bundle-delete-rejected "1.0.0"]
   [_]
   (s/keys :req [::md/id]
           :req-un [::dd-reject/reason]
           :opt-un [::spec-explain]))
-
-
 
 (defmethod comms/event-payload
   [:kixi.datastore/files-added-to-bundle "1.0.0"]

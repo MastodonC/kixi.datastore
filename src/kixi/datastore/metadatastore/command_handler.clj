@@ -309,6 +309,44 @@ the generated 'update' specs.
                                                 :kixi/user (::kc/user cmd))))))))))
 
 (defmethod c/command-type->event-types
+  [:kixi.datastore/delete-file "1.0.0"]
+  [_]
+  #{[:kixi.datastore/file-deleted "1.0.0"]
+    [:kixi.datastore/file-delete-rejected "1.0.0"]})
+
+(defn invalid-file-delete
+  ([cmd reason id]
+   (invalid-file-delete cmd reason id nil))
+  ([cmd reason id explain]
+   [(merge
+     {::event/type :kixi.datastore/file-delete-rejected
+      ::event/version "1.0.0"
+      :reason reason
+      ::ms/id id}
+     (when explain
+       {:spec-explain explain}))
+    {:partition-key id}]))
+
+(defn file?
+  [metadatastore id]
+  (let [md (ms/retrieve metadatastore id)]
+    (= "stored"
+       (::ms/type md))))
+
+(defn create-delete-file-handler
+  [metadatastore]
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [{:keys [::ms/id] :as cmd}]
+      (cond
+        (not (spec/valid? :kixi/command cmd)) (invalid-file-delete cmd :invalid-cmd id (s/explain-data :kixi/command cmd))
+        (not (authorised id (get-user-groups cmd))) (invalid-file-delete cmd :unauthorised id)
+        (not (file? metadatastore id)) (invalid-file-delete cmd :incorrect-type id)
+        :default [{::event/type :kixi.datastore/file-deleted
+                   ::event/version "1.0.0"
+                   ::ms/id id}
+                  {:partition-key id}]))))
+
+(defmethod c/command-type->event-types
   [:kixi.datastore/delete-bundle "1.0.0"]
   [_]
   #{[:kixi.datastore/bundle-deleted "1.0.0"]
@@ -316,17 +354,15 @@ the generated 'update' specs.
 
 (defn invalid-bundle-delete
   ([cmd reason id]
-   [{::event/type :kixi.datastore/bundle-delete-rejected
-     ::event/version "1.0.0"
-     :reason reason
-     ::ms/id id}
-    {:partition-key id}])
+   (invalid-bundle-delete cmd reason id nil))
   ([cmd reason id explain]
-   [{::event/type :kixi.datastore/bundle-delete-rejected
-     ::event/version "1.0.0"
-     :reason reason
-     ::ms/id id
-     :spec-explain explain}
+   [(merge
+     {::event/type :kixi.datastore/bundle-delete-rejected
+      ::event/version "1.0.0"
+      :reason reason
+      ::ms/id id}
+     (when explain
+       {:spec-explain explain}))
     {:partition-key id}]))
 
 (defn bundle?
@@ -439,70 +475,77 @@ the generated 'update' specs.
      metadata-create-handler sharing-change-handler
      metadata-update-handler bundle-create-handler
      delete-bundle-handler add-files-to-bundle-handler
-     remove-files-from-bundle-handler]
-    component/Lifecycle
-    (start [component]
-      (merge component
-             (when-not metadata-create-handler
-               {:metadata-create-handler
-                (c/attach-command-handler!
-                 communications
-                 :kixi.datastore/metadata-creator
-                 :kixi.datastore.filestore/create-file-metadata
-                 "1.0.0" (partial metadata-handler metadatastore
-                                  filestore
-                                  schemastore))})
-             (when-not bundle-create-handler
-               {:datapack-create-handler
-                (c/attach-command-handler!
-                 communications
-                 :kixi.datastore/datapack-creator
-                 :kixi.datastore/create-datapack
-                 "1.0.0" (partial metadata-handler metadatastore
-                                  filestore
-                                  schemastore))})
-             (when-not delete-bundle-handler
-               {:delete-bundle-handler
-                (c/attach-validating-command-handler!
-                 communications
-                 :kixi.datastore/bundle-deleter
-                 :kixi.datastore/delete-bundle "1.0.0"
-                 (create-delete-bundle-handler metadatastore))})
-             (when-not add-files-to-bundle-handler
-               {:add-files-to-bundle-handler
-                (c/attach-validating-command-handler!
-                 communications
-                 :kixi.datastore/add-files-to-bundler
-                 :kixi.datastore/add-files-to-bundle "1.0.0"
-                 (create-add-files-to-bundle-handler metadatastore))})
-             (when-not remove-files-from-bundle-handler
-               {:remove-files-from-bundle-handler
-                (c/attach-validating-command-handler!
-                 communications
-                 :kixi.datastore/remove-files-from-bundler
-                 :kixi.datastore/remove-files-from-bundle "1.0.0"
-                 (create-remove-files-from-bundle-handler metadatastore))})
-             (when-not sharing-change-handler
-               {:sharing-change-handler
-                (c/attach-command-handler!
-                 communications
-                 :kixi.datastore/metadata-creator-sharing-change
-                 ::kdm/sharing-change
-                 "1.0.0" (create-sharing-change-handler metadatastore))})
-             (when-not metadata-update-handler
-               {:metadata-update-handler
-                (c/attach-command-handler!
-                 communications
-                 :kixi.datastore/metadata-creator-metadata-update
-                 ::kdm/update
-                 "1.0.0" (create-metadata-update-handler metadatastore))})))
-    (stop [component]
-      (detach-handlers communications
-                       component
-                       :metadata-create-handler
-                       :datapack-create-handler
-                       :bundle-delete-handler
-                       :add-files-to-bundle-handler
-                       :remove-files-from-bundle-handler
-                       :sharing-change-handler
-                       :metadata-update-handler)))
+     remove-files-from-bundle-handler delete-file-handler]
+  component/Lifecycle
+  (start [component]
+    (merge component
+           (when-not metadata-create-handler
+             {:metadata-create-handler
+              (c/attach-command-handler!
+               communications
+               :kixi.datastore/metadata-creator
+               :kixi.datastore.filestore/create-file-metadata
+               "1.0.0" (partial metadata-handler metadatastore
+                                filestore
+                                schemastore))})
+           (when-not bundle-create-handler
+             {:datapack-create-handler
+              (c/attach-command-handler!
+               communications
+               :kixi.datastore/datapack-creator
+               :kixi.datastore/create-datapack
+               "1.0.0" (partial metadata-handler metadatastore
+                                filestore
+                                schemastore))})
+           (when-not delete-bundle-handler
+             {:delete-bundle-handler
+              (c/attach-validating-command-handler!
+               communications
+               :kixi.datastore/bundle-deleter
+               :kixi.datastore/delete-bundle "1.0.0"
+               (create-delete-bundle-handler metadatastore))})
+           (when-not add-files-to-bundle-handler
+             {:add-files-to-bundle-handler
+              (c/attach-validating-command-handler!
+               communications
+               :kixi.datastore/add-files-to-bundler
+               :kixi.datastore/add-files-to-bundle "1.0.0"
+               (create-add-files-to-bundle-handler metadatastore))})
+           (when-not remove-files-from-bundle-handler
+             {:remove-files-from-bundle-handler
+              (c/attach-validating-command-handler!
+               communications
+               :kixi.datastore/remove-files-from-bundler
+               :kixi.datastore/remove-files-from-bundle "1.0.0"
+               (create-remove-files-from-bundle-handler metadatastore))})
+           (when-not sharing-change-handler
+             {:sharing-change-handler
+              (c/attach-command-handler!
+               communications
+               :kixi.datastore/metadata-creator-sharing-change
+               ::kdm/sharing-change
+               "1.0.0" (create-sharing-change-handler metadatastore))})
+           (when-not metadata-update-handler
+             {:metadata-update-handler
+              (c/attach-command-handler!
+               communications
+               :kixi.datastore/metadata-creator-metadata-update
+               ::kdm/update
+               "1.0.0" (create-metadata-update-handler metadatastore))})
+           (when-not delete-file-handler
+             {:delete-file-handler
+              (c/attach-validating-command-handler!
+               communications
+               :kixi.datastore/file-deleter
+               :kixi.datastore/delete-file "1.0.0"
+               (create-delete-file-handler metadatastore))})))
+  (stop [component]
+    (detach-handlers communications
+                     component
+                     :metadata-create-handler
+                     :datapack-create-handler
+                     :bundle-delete-handler
+                     :add-files-to-bundle-handler
+                     :remove-files-from-bundle-handler
+                     :sharing-change-handler
+                     :metadata-update-handler)))

@@ -4,7 +4,7 @@
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]]
-            [kixi.integration.base :as base :refer :all]            
+            [kixi.integration.base :as base :refer :all]
             [medley.core :refer [dissoc-in]]))
 
 (use-fixtures :once
@@ -63,7 +63,6 @@
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (get-in metadata [:body ::ms/description])))
                         (let [updated-metadata (get-metadata uid meta-id)]
-                       
                           (is (= "New Description"
                                  (get-in updated-metadata [:body ::ms/description])))
                           (is (= "New Source"
@@ -93,7 +92,7 @@
                                 [:body :paging :count])]
         (is (= 2
                all-visible-cnt))
-        (let [response-event (send-bundle-delete uid meta-id)]        
+        (let [response-event (send-bundle-delete uid meta-id)]
           (when-event-type response-event :kixi.datastore/bundle-deleted
                            (wait-for-pred #(= 401
                                               (:status (get-metadata uid meta-id))))

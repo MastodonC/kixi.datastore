@@ -255,10 +255,12 @@
                  :expr-attr-names {"#id" id-column}}))
 
 (defn delete-data
-  [conn table id-column id]
+  [conn table id-column id timestamp]
   (far/update-item conn table
                    {id-column id}
-                   {:update-map (map->update-map {::md/tombstone true})}))
+                   {:update-map
+                    (map->update-map {::md/tombstone true
+                                      ::md/tombstoned-at timestamp})}))
 
 (def operand->dynamo-op
   {:set ["SET " " = "]

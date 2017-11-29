@@ -152,14 +152,25 @@
                   (::md/id update-event)
                   (dissoc-nonupdates update-event)))
 
-(defn bundle-deleted-handler
+(defn file-deleted-handler
   [client]
   (fn [event]
-    (info "Deleting: " event)
+    (info "Deleting file: " event)
     (db/delete-data client
                     (primary-metadata-table (:profile client))
                     id-col
-                    (::md/id event))))
+                    (::md/id event)
+                    (:kixi.event/created-at event))))
+
+(defn bundle-deleted-handler
+  [client]
+  (fn [event]
+    (info "Deleting bundle: " event)
+    (db/delete-data client
+                    (primary-metadata-table (:profile client))
+                    id-col
+                    (::md/id event)
+                    (:kixi.event/created-at event))))
 
 (defn files-added-to-bundle-handler
   [client]
@@ -288,7 +299,7 @@
      client get-item]
   MetaDataStore
   (authorised
-      [this action id user-groups]
+    [this action id user-groups]
     (when-let [item (get-item id {:projection all-sharing-columns})]
       (not-empty (clojure.set/intersection (set (get-in item [::md/sharing action]))
                                            (set user-groups)))))
@@ -336,6 +347,11 @@
                                  :kixi.datastore.file-metadata/updated
                                  "1.0.0"
                                  (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
+        (c/attach-validating-event-handler! communications
+                                            :kixi.datastore/metadatastore-file-delete
+                                            :kixi.datastore/file-deleted
+                                            "1.0.0"
+                                            (file-deleted-handler client))
         (c/attach-validating-event-handler! communications
                                             :kixi.datastore/metadatastore-bundle-delete
                                             :kixi.datastore/bundle-deleted
