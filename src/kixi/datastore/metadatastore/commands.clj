@@ -8,6 +8,11 @@
 (sh/alias 'md 'kixi.datastore.metadatastore)
 
 (defmethod comms/command-payload
+  [:kixi.datastore/delete-file "1.0.0"]
+  [_]
+  (s/keys :req [::md/id]))
+
+(defmethod comms/command-payload
   [:kixi.datastore/delete-bundle "1.0.0"]
   [_]
   (s/keys :req [::md/id]))
@@ -23,4 +28,3 @@
   [_]
   (s/keys :req [::md/id
                 ::md/bundled-ids]))
-

@@ -28,8 +28,8 @@
 (sh/alias 'cmd 'kixi.command)
 (sh/alias 'event 'kixi.event)
 
-(def wait-tries (Integer/parseInt (env :wait-tries "100")))
-(def wait-per-try (Integer/parseInt (env :wait-per-try "300")))
+(def wait-tries (Integer/parseInt (env :wait-tries "3000")))
+(def wait-per-try (Integer/parseInt (env :wait-per-try "10")))
 (def wait-emit-msg (Integer/parseInt (env :wait-emit-msg "5000")))
 (def run-against-staging (Boolean/parseBoolean (env :run-against-staging "false")))
 
@@ -411,6 +411,20 @@
     (trim-file-name metadata)
     {:kixi.comms.command/partition-key uid})))
 
+(defn send-file-delete-cmd
+  ([uid meta-id]
+   (send-file-delete-cmd uid uid meta-id))
+  ([uid ugroup meta-id]
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore/delete-file
+     ::cmd/version "1.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}
+     ::cmd/id (uuid)
+     ::ms/id meta-id}
+    {:partition-key meta-id})))
+
 (defn send-bundle-delete-cmd
   ([uid meta-id]
    (send-bundle-delete-cmd uid uid meta-id))
@@ -423,7 +437,7 @@
                  :kixi.user/groups (vec-if-not ugroup)}
      ::cmd/id (uuid)
      ::ms/id meta-id}
-    {:partition-key "a"})))
+    {:partition-key meta-id})))
 
 (defn send-add-files-to-bundle-cmd
   ([uid id bundled-ids]
@@ -876,6 +890,13 @@
                                                ::ms/id])
                                 ::ms/id)
          event)))))
+
+(defn send-file-delete
+  ([uid meta-id]
+   (send-file-delete uid uid meta-id))
+  ([uid ugroups meta-id]
+   (send-file-delete-cmd uid ugroups meta-id)
+   (wait-for-events uid :kixi.datastore/file-deleted :kixi.datastore/file-delete-rejected)))
 
 (defn send-bundle-delete
   ([uid meta-id]

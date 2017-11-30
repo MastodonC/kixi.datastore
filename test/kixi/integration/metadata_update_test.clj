@@ -5,7 +5,7 @@
              [metadatastore :as ms]
              [schemastore :as ss]]
             [kixi.datastore.metadatastore.license :as msl]
-            [kixi.integration.base :as base :refer :all]            
+            [kixi.integration.base :as base :refer :all]
             [medley.core :refer [dissoc-in]]))
 
 (defn metadata-file-schema
@@ -38,7 +38,7 @@
             new-group (uuid)
             event (update-metadata-sharing
                    uid "Invalid-Meta-ID"
-                   ::ms/sharing-conj 
+                   ::ms/sharing-conj
                    ::ms/file-read
                    new-group)]
         (when-event-key event :kixi.datastore.metadatastore/sharing-change-rejected
@@ -55,21 +55,21 @@
       (let [meta-id (get-in metadata-response [:body ::ms/id])
             new-group (uuid)
             event (update-metadata-sharing
-                   uid meta-id         
-                   ::ms/sharing-conj 
+                   uid meta-id
+                   ::ms/sharing-conj
                    ::ms/meta-read
                    new-group)]
         (when-event-key event :kixi.datastore.file-metadata/updated
-          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
-                            (= #{uid new-group}
-                               (set (get-in metadata [:body ::ms/sharing ::ms/meta-read])))))
-          (let [updated-metadata (get-metadata uid meta-id)]
-            (is (= #{uid new-group}
-                   (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
-            (is (= #{uid}
-                   (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
-            (is (= #{uid}
-                   (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= #{uid new-group}
+                                             (set (get-in metadata [:body ::ms/sharing ::ms/meta-read])))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid new-group}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
 
 (deftest small-file-add-group-to-new-file-read
   (let [uid (uuid)
@@ -84,7 +84,7 @@
             new-group (uuid)
             event (update-metadata-sharing
                    uid meta-id
-                   ::ms/sharing-conj 
+                   ::ms/sharing-conj
                    ::ms/file-read
                    new-group)]
         (when-event-key event :kixi.datastore.file-metadata/updated
@@ -109,21 +109,21 @@
       (let [meta-id (get-in metadata-response [:body ::ms/id])
             new-group (uuid)
             event (update-metadata-sharing
-                   uid meta-id         
+                   uid meta-id
                    ::ms/sharing-disj
                    ::ms/file-read
                    uid)]
         (when-event-key event :kixi.datastore.file-metadata/updated
-          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
-                            (nil?
-                               (get-in metadata [:body ::ms/sharing ::ms/file-read]))))
-          (let [updated-metadata (get-metadata uid meta-id)]
-            (is (= #{uid}
-                   (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
-            (is (= #{uid}
-                   (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
-            (is (nil?
-                   (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (nil?
+                                           (get-in metadata [:body ::ms/sharing ::ms/file-read]))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (nil?
+                               (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
 
 (deftest small-file-add-metadata
   (let [uid (uuid)
@@ -304,3 +304,59 @@
                                           (nil? (get-in metadata [:body ::msl/license ::msl/type]))))
                         (let [metadata (get-metadata uid meta-id)]
                           (is (nil? (get-in metadata [:body ::msl/license ::msl/type])))))))))
+
+(deftest file-delete
+  (let [uid (uuid)
+        metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-resp
+      (let [meta-id (get-in metadata-resp [:body ::ms/id])
+            response-event (send-file-delete uid meta-id)]
+        (when-event-type response-event :kixi.datastore/file-deleted
+                         (wait-for-pred #(= 401
+                                            (:status (get-metadata uid meta-id))))
+                         (is (= 401
+                                (:status (get-metadata uid meta-id)))))))))
+
+(deftest deleted-files-are-not-returned-in-searches
+  (let [uid (uuid)
+        metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-resp
+      (let [meta-id (get-in metadata-resp [:body ::ms/id])
+            all-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
+                                    [:body :paging :count])]
+        (is (= 1
+               all-visible-cnt))
+        (let [response-event (send-file-delete uid meta-id)]
+          (when-event-type response-event :kixi.datastore/file-deleted
+                           (wait-for-pred #(= 401
+                                              (:status (get-metadata uid meta-id))))
+                           (let [only-file-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
+                                                               [:body :paging :count])]
+                             (is (= 0
+                                    only-file-visible-cnt)))))))))
+
+(deftest file-delete-unauthorised-rejected
+  (let [uid (uuid)
+        metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-resp
+      (let [meta-id (get-in metadata-resp [:body ::ms/id])
+            response-event (send-file-delete (uuid) meta-id)]
+        (when-event-type response-event :kixi.datastore/file-delete-rejected
+                         (is (= :unauthorised
+                                (:reason response-event)))
+                         (is (= 200
+                                (:status (get-metadata uid meta-id)))))))))
+
+(deftest file-delete-incorrect-type-rejected
+  (let [uid (uuid)
+        datapack-resp (small-file-into-datapack uid)]
+    (when datapack-resp
+      (let [metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
+        (when-success metadata-resp
+          (let [file-meta-id (get-in datapack-resp [:body ::ms/id])
+                response-event (send-file-delete uid file-meta-id)]
+            (when-event-type response-event :kixi.datastore/file-delete-rejected
+                             (is (= :incorrect-metadata-type
+                                    (:reason response-event)))
+                             (is (= 200
+                                    (:status (get-metadata uid file-meta-id)))))))))))

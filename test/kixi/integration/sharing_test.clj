@@ -1,5 +1,4 @@
 (ns kixi.integration.sharing-test
-  {:integration true}
   (:require [clojure.test :refer :all]
             [clojure.math.combinatorics :as combo :refer [subsets]]
             [environ.core :refer [env]]
@@ -11,7 +10,7 @@
 
 (def metadata-file-schema {::ss/name ::metadata-file-schema
                            ::ss/provenance {::ss/source "upload"}
-                           ::ss/schema {::ss/type "list"                                        
+                           ::ss/schema {::ss/type "list"
                                         ::ss/definition [:cola {::ss/type "integer"}
                                                          :colb {::ss/type "integer"}]}})
 
@@ -24,11 +23,14 @@
 
 (defn unauthorised
   [event]
-  (if (contains? event :kixi.comms.event/key)
-    (and
-     (.contains (name (:kixi.comms.event/key event)) "rejected")
-     (= :unauthorised (get-in event [:kixi.comms.event/payload :reason])))
-    (= 401 (:status event))))
+  (let [key (or (:kixi.comms.event/key event)
+                (:kixi.event/type event))]
+    (if key
+      (and
+       (.contains (name key) "rejected")
+       (= :unauthorised (or (get-in event [:kixi.comms.event/payload :reason])
+                            (get event :reason))))
+      (= 401 (:status event)))))
 
 (defn get-file
   [schema-id file-id uid ugroups]
@@ -55,7 +57,7 @@
   (let [event (base/update-metadata-sharing
                uid ugroups
                file-id
-               ::ms/sharing-conj 
+               ::ms/sharing-conj
                ::ms/meta-read
                (uuid))]
     (if (= (:kixi.comms.event/key event)
@@ -98,6 +100,16 @@
       {:status 200}
       event)))
 
+(defn delete-file
+  [schema-id file-id uid ugroups]
+  (let [event (base/send-file-delete
+               uid ugroups
+               file-id)]
+    (if (= (:kixi.event/type event)
+           :kixi.datastore/file-deleted)
+      {:status 200}
+      event)))
+
 (defn post-file-using-schema
   [schema-id file-id uid ugroups]
   (base/send-file-and-metadata
@@ -113,7 +125,7 @@
   {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
    [[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata create-datapack-with]
-   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read update-metadata]
+   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read update-metadata delete-file]
    [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]})
 
@@ -183,19 +195,22 @@
           use-ugroup (uuid)
           psr (post-spec shares upload-uid upload-ugroup use-ugroup)]
       (when-success psr
-        (let [schema-id (::ss/id (base/extract-schema psr))
-              pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
-          (when-success pfr
-            (let [file-id (extract-id pfr)
-                  authorised-actions (actions-for shares)
-                  unauthorised-actions (apply disj (set all-actions) authorised-actions)]
-              (doseq [action authorised-actions]
-                (is (authorised
-                     (action
-                      schema-id file-id use-uid use-ugroup))
-                    (str "Is " action " allowed with " shares)))
-              (doseq [action unauthorised-actions]
-                (is (unauthorised
-                     (action
-                      schema-id file-id use-uid use-ugroup))
-                    (str "Is " action " NOT allowed with " (mapv str shares)))))))))))
+        (let [schema-id (::ss/id (base/extract-schema psr))]
+          (let [authorised-actions (actions-for shares)
+                unauthorised-actions (apply disj (set all-actions) authorised-actions)]
+            (doseq [action authorised-actions]
+              (let [pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
+                (when-success pfr
+                  (let [file-id (extract-id pfr)]
+                    (is (authorised
+                         (action
+                          schema-id file-id use-uid use-ugroup))
+                        (str "Is " action " allowed with " (into [] shares)))))))
+            (doseq [action unauthorised-actions]
+              (let [pfr (post-file schema-id nil upload-uid upload-ugroup use-ugroup shares)]
+                (when-success pfr
+                  (let [file-id (extract-id pfr)]
+                    (is (unauthorised
+                         (action
+                          schema-id file-id use-uid use-ugroup))
+                        (str "Is " action " NOT allowed with " (into [] shares)))))))))))))
