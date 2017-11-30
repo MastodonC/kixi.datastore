@@ -26,28 +26,30 @@
 (sh/alias 'event 'kixi.event)
 (sh/alias 'command 'kixi.command)
 
+(defn reject-wrapper
+  [metadata payload]
+  {::ke/key ::kdfm/rejected
+   ::ke/version "1.0.0"
+   ::ke/partition-key (or (::ms/id metadata)
+                          (str (java.util.UUID/randomUUID)))
+   ::ke/payload payload})
+
 (defn reject
   ([metadata reason]
-   {::ke/key ::kdfm/rejected
-    ::ke/version "1.0.0"
-    ::ke/partition-key (::ms/id metadata)
-    ::ke/payload {:reason reason
-                  ::ms/file-metadata metadata}})
+   (reject-wrapper metadata
+                   {:reason reason
+                    ::ms/file-metadata metadata}))
   ([metadata reason explain]
-   {::ke/key ::kdfm/rejected
-    ::ke/version "1.0.0"
-    ::ke/partition-key (::ms/id metadata)
-    ::ke/payload {:reason reason
-                  :explaination explain
-                  ::ms/file-metadata metadata}})
+   (reject-wrapper metadata
+                   {:reason reason
+                    :explaination explain
+                    ::ms/file-metadata metadata}))
   ([metadata reason actual expected]
-   {::ke/key ::kdfm/rejected
-    ::ke/version "1.0.0"
-    ::ke/partition-key (::ms/id metadata)
-    ::ke/payload {:reason reason
-                  :actual actual
-                  :expected expected
-                  ::ms/file-metadata metadata}}))
+   (reject-wrapper metadata
+                   {:reason reason
+                    :actual actual
+                    :expected expected
+                    ::ms/file-metadata metadata})))
 
 (spec/def ::sharing-change-cmd-payload
   (spec/keys :req [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))
@@ -190,8 +192,8 @@
                                  payload))))))
 
 (defmulti metadata-update
-   (fn [payload]
-     [(::ms/type payload) (::ms/bundle-type payload)]))
+  (fn [payload]
+    [(::ms/type payload) (::ms/bundle-type payload)]))
 
 (comment "
 This is a declarative method of defining spec's for our update command payloads.
