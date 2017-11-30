@@ -110,7 +110,7 @@
   (let [uid (uuid)]
     (is-file-metadata-rejected
      uid
-     #(let [metadata (create-metadata uid "./rejected-when-file-not-uploaded.non-file")
+     #(let [metadata (create-metadata uid "./rejected-when-file-not-uploaded-via-mpu.non-file")
             links (get-multi-part-upload-links uid (::ms/size-bytes metadata))
             {:keys [:kixi.datastore.filestore/id]} links
             md-with-id (assoc metadata ::ms/id id)]
