@@ -12,9 +12,7 @@
           {:overrides overrides
            :component-subset component-subset}))
   ([config-location profile options]
-   (let [{:keys [overrides component-subset
-                 ;;TODO ADD OPTION TO MESS WITH CONFIG TO DISABLE THE VERBOSE LOGGING SOMEHOW
-                 ]} options]
+   (let [{:keys [overrides component-subset]} options]
      (when-not @app/system
        (reset! app/profile (keyword (env :system-profile profile)))
        (reset! app/config-location config-location)
