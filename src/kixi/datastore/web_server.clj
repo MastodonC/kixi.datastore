@@ -59,25 +59,23 @@
 
 (comment "under error conditions yada is attempting to log, into json, it's Resource instances, they are
 unparsable and don't contain any routing information, so we'll just drop them")
-(add-encoder yada.resource.Resource
-             (fn [c jsonGenerator]
-               (.writeString jsonGenerator "yada.resource")))
+(add-encoder Class
+             (fn [^Class c
+                  ^com.fasterxml.jackson.core.JsonGenerator jsonGenerator]
+               (.writeString jsonGenerator (.getName c))))
+(add-encoder Object
+             (fn [^Object o
+                  ^com.fasterxml.jackson.core.JsonGenerator jsonGenerator]
+               (try
+                 (.writeObject jsonGenerator o)
+                 (catch java.lang.IllegalStateException e
+                   (.writeString jsonGenerator (str (type o)))))))
 
 (defn yada-timbre-logger
   [request-logging?]
   (fn [ctx]
     (when request-logging?
       (info (ctx->request-log ctx)))
-    (when (= 500 (get-in ctx [:response :status]))
-      (if-let [err (or (get-in ctx [:response :error])
-                       (:error ctx))]
-        (if (instance? Exception err)
-          (error err "Server error")
-          (error (str "Server error: " err)))
-        (if (or ((set (keys (get-in ctx [:response]))) :error)
-                ((set (keys ctx)) :error))
-          (error "Server error, error key available, but set to nil")
-          (error "Server error, no exception available"))))
     ctx))
 
 (defn append-error-interceptor
@@ -100,7 +98,7 @@ unparsable and don't contain any routing information, so we'll just drop them")
                     :unauthorised})
 
 (spec/def ::msg (spec/or :error-map (spec/keys :req []
-                                    :opts [])
+                                               :opts [])
                          :error-str string?))
 
 (spec/def ::error-map
