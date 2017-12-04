@@ -730,8 +730,11 @@
                         (.read reader buffer 0 length-bytes)
                         (upload-multi-part-file-request url buffer)))
         send-complete (fn [etags]
-                        (send-complete-multi-part-upload-cmd uid etags file-id)
-                        (wait-for-events uid :kixi.datastore.filestore/file-upload-completed :kixi.datastore.filestore/file-upload-rejected))]
+                        (wait-for-pred
+                         #(do
+                            (send-complete-multi-part-upload-cmd uid etags file-id)
+                            (let [e (wait-for-events uid :kixi.datastore.filestore/file-upload-completed :kixi.datastore.filestore/file-upload-rejected)]
+                              (= (:kixi.event/type e) :kixi.datastore.filestore/file-upload-completed)))))]
     (log/info "Uploading file" file-name file-id "in" (count links) "parts." )
     (with-open [r (io/input-stream file)]
       (->> links
@@ -819,7 +822,9 @@
     metadata))
   ([uid ugroup metadata]
    (send-file-and-metadata-no-wait uid ugroup metadata)
-   (let [event (wait-for-events uid :kixi.datastore.file-metadata/rejected :kixi.datastore.file-metadata/updated)]
+   (let [event (wait-for-events uid
+                                :kixi.datastore.file-metadata/rejected
+                                :kixi.datastore.file-metadata/updated)]
      (if (= :kixi.datastore.file-metadata/updated
             (:kixi.comms.event/key event))
        (wait-for-metadata-to-be-searchable ugroup
