@@ -23,8 +23,8 @@
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:default true
-                                                 :staging true
-                                                 :prod true}
+                                                 :staging false
+                                                 :prod false}
            :appender #profile {:default :println
                                :staging :json
                                :prod :json}}
