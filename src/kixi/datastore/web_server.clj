@@ -4,6 +4,7 @@
              [vhosts :refer [vhosts-model]]]
             [byte-streams :as bs]
             [cheshire.core :as json]
+            [cheshire.generate :refer [add-encoder]]
             [clojure.core.async :as async :refer [<!!]]
             [clojure.spec.alpha :as spec]
             [com.stuartsierra.component :as component]
@@ -55,6 +56,12 @@
                       :query-string (:query-string req)
                       :user-id (ctx->user-id ctx)
                       :user-groups (ctx->user-groups ctx)})))
+
+(comment "under error conditions yada is attempting to log, into json, it's Resource instances, they are
+unparsable and don't contain any routing information, so we'll just drop them")
+(add-encoder yada.resource.Resource
+             (fn [c jsonGenerator]
+               (.writeString jsonGenerator "yada.resource")))
 
 (defn yada-timbre-logger
   [request-logging?]
