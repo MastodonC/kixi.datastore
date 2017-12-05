@@ -1,5 +1,5 @@
-(ns kixi.integration.failure-injection-test
-  {:integration true}
+(ns kixi.acceptance.failure-injection-test
+  {:acceptance true}
   (:require [clojure.spec.test.alpha :refer [with-instrument-disabled]]
             [clojure.test :refer :all]
             [cheshire.core :as json]
