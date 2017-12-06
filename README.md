@@ -25,7 +25,7 @@ Use the starting index and number of results parameters to appropriately page th
 **To remove sharing information from a file (aka *hide* it):**
 
 ```clojure
-(k/remove-all-sharing "<user-id>" "<file-id>")
+(k/remove-all-sharing "<your-user-uid>" "<file-id>")
 ```
 
 ## License
