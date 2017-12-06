@@ -109,12 +109,6 @@
                   filestore-upload-cache))
         (c/attach-validating-event-handler!
          communications
-         :kixi.datastore/filestore-file-upload-initiated
-         :kixi.datastore.filestore/file-upload-initiated
-         "1.0.0" (eh/create-file-upload-initiated-event-handler
-                  filestore-upload-cache))
-        (c/attach-validating-event-handler!
-         communications
          :kixi.datastore/filestore-file-upload-completed
          :kixi.datastore.filestore/file-upload-completed
          "1.0.0" (eh/create-file-upload-completed-event-handler

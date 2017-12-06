@@ -19,6 +19,7 @@
   (when-not (s3/does-bucket-exist creds bucket)
     (s3/create-bucket creds bucket)))
 
+
 (defn init-multi-part-upload-creator
   [creds bucket]
   (fn [id part-ranges]
@@ -160,12 +161,6 @@
          "1.0.0" (ch/create-complete-file-upload-cmd-handler
                   (complete-small-file-upload-creator c bucket)
                   (complete-multi-part-upload-creator c bucket)
-                  filestore-upload-cache))
-        (c/attach-validating-event-handler!
-         communications
-         :kixi.datastore/filestore-file-upload-initiated
-         :kixi.datastore.filestore/file-upload-initiated
-         "1.0.0" (eh/create-file-upload-initiated-event-handler
                   filestore-upload-cache))
         (c/attach-validating-event-handler!
          communications

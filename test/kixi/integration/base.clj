@@ -730,11 +730,11 @@
                         (.read reader buffer 0 length-bytes)
                         (upload-multi-part-file-request url buffer)))
         send-complete (fn [etags]
-                        (wait-for-pred
-                         #(do
-                            (send-complete-multi-part-upload-cmd uid etags file-id)
-                            (let [e (wait-for-events uid :kixi.datastore.filestore/file-upload-completed :kixi.datastore.filestore/file-upload-rejected)]
-                              (= (:kixi.event/type e) :kixi.datastore.filestore/file-upload-completed)))))]
+                        (send-complete-multi-part-upload-cmd uid etags file-id)
+                        (let [e (wait-for-events uid :kixi.datastore.filestore/file-upload-completed
+                                                 :kixi.datastore.filestore/file-upload-rejected)]
+                          (is (= :kixi.datastore.filestore/file-upload-completed
+                                 (:kixi.event/type e)))))]
     (log/info "Uploading file" file-name file-id "in" (count links) "parts." )
     (with-open [r (io/input-stream file)]
       (->> links
