@@ -4,13 +4,15 @@
             [medley.core :as m]
             [taoensso.timbre :as log]
             [kixi.datastore.schemastore.utils :as sh]
-            [kixi.datastore.filestore :as fs :refer [FileStoreUploadCache]]))
+            [kixi.datastore.filestore :as fs :refer [FileStoreUploadCache]]
+            [kixi.datastore.time :as time]))
 
 (sh/alias 'event 'kixi.event)
 (sh/alias 'ms 'kixi.datastore.metadatastore)
 (sh/alias 'up 'kixi.datastore.filestore.upload)
 (sh/alias 'up-reject 'kixi.event.file.upload.rejection)
 (sh/alias 'up-fail 'kixi.event.file.upload.failure)
+(sh/alias 'user 'kixi.user)
 
 (def small-file-size 10000000) ;; 10MB
 (def largest-file-size 5000000000) ;; 5GB
@@ -100,6 +102,18 @@
        {::up-fail/message msg}))
     {:partition-key (uuid)}]))
 
+
+(defn write-through-mup-cache
+  [cache
+   {part-urls ::up/part-urls
+    file-id ::fs/id
+    upload-id ::up/id :as event}
+   user]
+  (let [upload-id (::up/id event)
+        mup?  (> (count part-urls) 1)]
+    (fs/put-item! cache file-id mup? user upload-id (time/timestamp))
+    event))
+
 (defn create-initiate-file-upload-cmd-handler
   [init-small-file-upload-creator-fn
    init-multi-part-file-upload-creator-fn
@@ -113,14 +127,20 @@
             mup? (> (count part-ranges) 1)
             {:keys [upload-parts upload-id]}
             (if mup?
-              (init-multi-part-file-upload-creator-fn id part-ranges)
+              (init-multi-part-file-upload-creator-fn id
+                                                      part-ranges)
               {:upload-id (uuid)
                :upload-parts (update part-ranges 0 assoc :url (init-small-file-upload-creator-fn id))})]
-        [{::event/type ::fs/file-upload-initiated
-          ::event/version "1.0.0"
-          ::up/part-urls (m/map-vals (partial add-ns :kixi.datastore.filestore.upload) upload-parts)
-          ::fs/id id
-          ::up/id upload-id}
+        [(write-through-mup-cache cache
+                                  {::event/type ::fs/file-upload-initiated
+                                   ::event/version "1.0.0"
+                                   ::up/part-urls (m/map-vals
+                                                   (partial add-ns
+                                                            :kixi.datastore.filestore.upload)
+                                                   upload-parts)
+                                   ::fs/id id
+                                   ::up/id upload-id}
+                                  (:kixi/user cmd))
          {:partition-key id}]))))
 
 (defn create-complete-file-upload-cmd-handler

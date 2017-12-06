@@ -8,13 +8,6 @@
 
 (sh/alias 'up 'kixi.datastore.filestore.upload)
 
-(defn create-file-upload-initiated-event-handler
-  [cache]
-  (fn [{:keys [::up/part-urls ::fs/id kixi/user kixi.event/created-at] :as event}]
-    (let [upload-id (::up/id event)
-          mup?  (> (count part-urls) 1)]
-      (fs/put-item! cache id mup? user upload-id created-at)
-      nil)))
 
 (defn create-file-upload-completed-event-handler
   [cache]
