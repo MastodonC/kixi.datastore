@@ -235,6 +235,27 @@
        (map (comp inflate-map (partial map-keys name)))
        (remove ::md/tombstone)))
 
+(defmulti select-key (fn [_ k] (type k)))
+(defmethod select-key nil [_ _])
+(defmethod select-key
+  clojure.lang.Keyword
+  [m k]
+  (select-keys m [k]))
+
+(defmethod select-key
+  clojure.lang.PersistentVector
+  [m ks]
+  {:pre [(every? keyword? ks)]}
+  (let [r (select-key m (first ks))]
+    (if (next ks)
+      (update r (first ks) select-key (vec (next ks)))
+      r)))
+
+(defn local-projection
+  [ks m]
+  (reduce (fn [a k]
+            (merge a (select-key m k))) {} ks))
+
 (defn query-index
   ([conn table index pks projection sort-order]
    (query-index conn table index pks projection sort-order nil))
@@ -248,12 +269,15 @@
                                              ::md/tombstone)))})
                (options->db-opts
                 {:filter (when filters
-                           (map-keys dynamo-col filters))}))]
-     (->> (far/query conn table
-                     (map-vals #(vector "eq" %) pks)
-                     opts)
-          (map (comp inflate-map (partial map-keys name)))
-          (remove ::md/tombstone)))))
+                           (map-keys dynamo-col filters))}))
+         results (->> (far/query conn table
+                                 (map-vals #(vector "eq" %) pks)
+                                 opts)
+                      (map (comp inflate-map (partial map-keys name)))
+                      (remove ::md/tombstone))]
+     (if filters
+       (map (partial local-projection projection) results)
+       results))))
 
 (defn insert
   [conn table rows]

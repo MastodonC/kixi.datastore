@@ -156,3 +156,11 @@
                                          :acc {:acca 1}}}
                                 :b {:ba 2}
                                 :c 3}))))
+
+(deftest local-projection-test
+  (let [nm {:a 1 :b {:x {:z 6 :k 7} :y 5} :c 3 :d 4}]
+    (is (= {:a 1 :c 3}           (db/local-projection [:a :c] nm)))
+    (is (= {:a 1}                (db/local-projection [:a :x] nm)))
+    (is (= {:a 1 :b {:x {:z 6 :k 7} :y 5}} (db/local-projection [:a :b] nm)))
+    (is (= {:a 1 :b {:x {:z 6 :k 7}}}      (db/local-projection [:a [:b :x]] nm)))
+    (is (= {:a 1 :b {:x {:z 6}}}           (db/local-projection [:a [:b :x :z]] nm)))))
