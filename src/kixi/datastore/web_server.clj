@@ -93,6 +93,7 @@ unparsable and don't contain any routing information, so we'll just drop them")
 (spec/def ::error #{:schema-invalid-request
                     :unknown-schema :file-upload-failed
                     :query-invalid :query-index-invalid
+                    :filters-invalid
                     :query-count-invalid
                     :query-sort-order-invalid
                     :unauthorised})
@@ -239,7 +240,10 @@ unparsable and don't contain any routing information, so we'll just drop them")
                   cnt (Integer/parseInt (or (get-in ctx [:parameters :query "count"] default-query-count)))
                   sort-by (vec-if-not
                            (or (get-in ctx [:parameters :query "sort-by"]) [::md/provenance ::md/created]))
-                  sort-order (or (get-in ctx [:parameters :query "sort-order"]) "desc")]
+                  sort-order (or (get-in ctx [:parameters :query "sort-order"]) "desc")
+                  filters (when-let [f (get-in ctx [:parameters :query "filter"])]
+                            (reduce (fn [a i] (update a i decode-keyword))
+                                    f (take-nth 2 (range (count f)))))]
               (cond
                 explain (return-error ctx
                                       :query-invalid
@@ -250,13 +254,21 @@ unparsable and don't contain any routing information, so we'll just drop them")
                 (neg? cnt) (return-error ctx
                                          :query-count-invalid
                                          "Count must be positive")
+                (and filters (odd? (count filters))) (return-error ctx
+                                                                   :filters-invalid
+                                                                   (str "Filters must be an even amount: " (count filters) filters))
                 ((complement #{"asc" "desc"}) sort-order) (return-error ctx
                                                                         :query-sort-order-invalid
                                                                         "Sort order must be either asc or desc")
                 :default (ms/query metadatastore
                                    query
                                    dex cnt
-                                   sort-by sort-order))))}}})
+                                   sort-by sort-order
+                                   (when filters
+                                     (->> filters
+                                          (partition 2)
+                                          (map vec)
+                                          (into {})))))))}}})
 
 (defn file-segmentation-create
   [metrics communications metadatastore]

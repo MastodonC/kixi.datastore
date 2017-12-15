@@ -36,7 +36,8 @@
   (str group-id "_" activity))
 
 (def activity-table-projection
-  #{::md/id ::md/provenance ::md/schema ::md/file-type ::md/name ::md/description})
+  #{::md/id ::md/provenance ::md/schema ::md/file-type ::md/name ::md/description
+    ::md/type ::md/bundle-type ::md/tombstone})
 
 (defn sharing-columns->sets
   [md]
@@ -257,7 +258,7 @@
     (process (vec seqs-l))))
 
 (defn all-ids-ordered
-  [client group-ids activities sort-cols sort-order]
+  [client group-ids activities sort-cols sort-order filters]
   (->> (for [g group-ids
              a activities]
          (db/query-index client
@@ -266,7 +267,8 @@
                          {activity-table-pk
                           (activity-table-id g a)}
                          [sort-cols ::md/id]
-                         (get sort-order->dynamo-comp sort-order)))
+                         (get sort-order->dynamo-comp sort-order)
+                         filters))
        (knit-ordered-data (get sort-order->knit-comp sort-order))
        (mapv ::md/id)
        (enforce-and-sematics (count activities))
@@ -309,13 +311,13 @@
     (when-let [item (get-item id)]
       (merge (default-values item)
              item)))
-  (query [this criteria from-index cnt sort-cols sort-order]
+  (query [this criteria from-index cnt sort-cols sort-order filters]
     (when-not (= [::md/provenance ::md/created]
                  sort-cols)
       (throw (new Exception "Only created timestamp sort supported")))
     (let [group-ids (:kixi.user/groups criteria)
           activities (criteria->activities criteria)
-          all-ids-ordered (all-ids-ordered client group-ids activities sort-cols sort-order)
+          all-ids-ordered (all-ids-ordered client group-ids activities sort-cols sort-order filters)
           target-ids (get-subvector all-ids-ordered from-index cnt)
           items (if (not-empty target-ids)
                   (db/get-bulk-ordered client

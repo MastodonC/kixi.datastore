@@ -139,13 +139,15 @@
    freeze-column-names))
 
 (defn validify-name
-  [n]
-  (let [^StringBuilder sb (StringBuilder.)]
-    (.append sb \#)
-    (doseq [^char c n]
-      (when-not (#{\- \| \.} c)
-        (.append sb c)))
-    (str sb)))
+  ([n]
+   (validify-name n \#))
+  ([n d]
+   (let [^StringBuilder sb (StringBuilder.)]
+     (.append sb d)
+     (doseq [^char c n]
+       (when-not (#{\- \| \.} c)
+         (.append sb c)))
+     (str sb))))
 
 (defn projection->proj-expr
   [projection]
@@ -154,12 +156,29 @@
        (interpose ", ")
        (apply str)))
 
+(defn filter->filter-expr
+  [filters]
+  (->> filters
+       (map (fn [[k _]] (str (validify-name k)
+                             " = "
+                             (validify-name k \:))))
+       (interpose " AND ")
+       (apply str)))
+
 (defn options->db-opts
-  [options]
-  {:proj-expr (projection->proj-expr (:projection options))
-   :expr-attr-names (zipmap (map validify-name (:projection options))
-                            (:projection options))
-   :consistent? true})
+  [{:keys [projection filter]}]
+  (merge-with merge
+              {:consistent? true}
+              (when projection
+                {:proj-expr (projection->proj-expr projection)
+                 :expr-attr-names (zipmap (map validify-name projection)
+                                          projection)})
+              (when filter
+                {:filter-expr (filter->filter-expr filter)
+                 :expr-attr-names (zipmap (map validify-name (keys filter))
+                                          (keys filter))
+                 :expr-attr-vals (zipmap (map #(validify-name % \:) (keys filter))
+                                         (vals filter))})))
 
 (defn put-item
   [conn table item]
@@ -217,17 +236,24 @@
        (remove ::md/tombstone)))
 
 (defn query-index
-  [conn table index pks projection sort-order]
-  (->> (far/query conn table
-                  (map-vals #(vector "eq" %) pks)
-                  {:return (doall (mapv dynamo-col
-                                        (conj projection
-                                              ::md/tombstone)))
-                   :consistent? true
-                   :order sort-order
-                   :index index})
-       (map (comp inflate-map (partial map-keys name)))
-       (remove ::md/tombstone)))
+  ([conn table index pks projection sort-order]
+   (query-index conn table index pks projection sort-order nil))
+  ([conn table index pks projection sort-order filters]
+   (let [opts (merge
+               {:order sort-order
+                :index index}
+               (when-not filters ;; filter expression and returns are mutually exclusive
+                 {:return (doall (mapv dynamo-col
+                                       (conj projection
+                                             ::md/tombstone)))})
+               (options->db-opts
+                {:filter (when filters
+                           (map-keys dynamo-col filters))}))]
+     (->> (far/query conn table
+                     (map-vals #(vector "eq" %) pks)
+                     opts)
+          (map (comp inflate-map (partial map-keys name)))
+          (remove ::md/tombstone)))))
 
 (defn insert
   [conn table rows]

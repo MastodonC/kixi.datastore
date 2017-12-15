@@ -278,15 +278,24 @@
   ([group-ids activities index count]
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
+   (search-metadata group-ids activities index count order nil))
+  ([group-ids activities index count order filters]
    (client/get (metadata-query-url)
-               {:query-params (merge (zipmap (repeat :activity)
-                                             (map encode-kw activities))
-                                     (when index
-                                       {:index index})
-                                     (when count
-                                       {:count count})
-                                     (when order
-                                       {:sort-order order}))
+               {:query-params
+                (merge (zipmap (repeat :activity)
+                               (map encode-kw activities))
+                       (when index
+                         {:index index})
+                       (when count
+                         {:count count})
+                       (when order
+                         {:sort-order order})
+                       (when filters
+                         {:filter
+                          (reduce (fn [a i]
+                                    (update a i encode-kw))
+                                  filters
+                                  (take-nth 2 (range (clojure.core/count filters))))}))
                 :accept :transit+json
                 :as :transit+json
                 :throw-exceptions false
