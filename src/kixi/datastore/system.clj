@@ -68,7 +68,7 @@
          ((comp flatten seq merge)
           {:web-server (web-server/map->WebServer {})
            :metrics (metrics/map->Metrics {})
-           :repl (repl/->ReplServer {})
+           :repl (repl/map->ReplServer {})
            :logging (logging/map->Log {})
            :metadatastore (case (first (keys (:metadatastore config)))
                             :inmemory (md-inmemory/map->InMemory {})
