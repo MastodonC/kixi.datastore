@@ -1,5 +1,5 @@
 (ns kixi.integration.spec-test
-  {:integration true}
+  {:acceptance true}
   (:require [clojure.test :refer :all]
             [kixi.datastore
              [schemastore :as ss]
@@ -38,7 +38,7 @@
 (deftest good-spec-202
   (let [uid (uuid)]
     (success
-     (send-spec uid 
+     (send-spec uid
                 {::ss/name ::good-spec-a
                  ::ss/provenance {::ss/source "upload"
                                   :kixi.user/id uid}

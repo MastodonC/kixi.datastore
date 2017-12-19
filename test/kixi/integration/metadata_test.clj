@@ -31,14 +31,14 @@
         sr (get-metadata uid "foo")]
     (unauthorised sr)))
 
-(deftest small-file
+(deftest ^:acceptance small-file
   (let [uid (uuid)
-        schema-id (get-schema-id uid)        
+        schema-id (get-schema-id uid)
         metadata-response (send-file-and-metadata
                            (create-metadata
                             uid
-                            "./test-resources/metadata-one-valid.csv" 
-                           schema-id))]
+                            "./test-resources/metadata-one-valid.csv"
+                            schema-id))]
     (when-success metadata-response
       (let [metadata-response (wait-for-metadata-key uid (extract-id metadata-response) ::ms/structural-validation)]
         (is-submap
@@ -75,13 +75,13 @@
                                 ::ms/source "upload"}}}
        metadata-response))))
 
-(deftest small-file-no-schema-empty-description
+(deftest ^:acceptance small-file-no-schema-empty-description
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
                            (assoc
                             (create-metadata
-                                   uid
-                                   "./test-resources/metadata-one-valid.csv")
+                             uid
+                             "./test-resources/metadata-one-valid.csv")
                             ::ms/description ""))]
     (when-success metadata-response
       (is-submap
@@ -118,7 +118,7 @@
                                 ::ms/source "upload"}}}
        metadata-response))))
 
-(deftest small-file-no-header
+(deftest ^:acceptance small-file-no-header
   (let [uid (uuid)
         schema-id (get-schema-id uid)
         metadata-response (send-file-and-metadata
@@ -144,7 +144,7 @@
                  ::ms/structural-validation {::ms/valid true}}}
          metadata-response)))))
 
-(deftest small-file-invalid-schema
+(deftest ^:acceptance small-file-invalid-schema
   (let [uid (uuid)]
     (is-file-metadata-rejected
      uid
