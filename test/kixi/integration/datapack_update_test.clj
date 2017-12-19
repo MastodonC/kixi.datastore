@@ -83,13 +83,13 @@
                          (is (= 401
                                 (:status (get-metadata uid meta-id)))))))))
 
-(deftest deleted-bundles-are-not-returned-in-searches
+(deftest ^:acceptance deleted-bundles-are-not-returned-in-searches
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
     (when-success datapack-resp
       (let [meta-id (get-in datapack-resp [:body ::ms/id])
             all-visible-cnt (get-in (search-metadata uid [::ms/meta-read])
-                                [:body :paging :count])]
+                                    [:body :paging :count])]
         (is (= 2
                all-visible-cnt))
         (let [response-event (send-bundle-delete uid meta-id)]
@@ -126,7 +126,7 @@
                                 (:status (get-metadata uid file-meta-id)))))))))
 
 
-(deftest add-files-to-bundle-incorrect-type-rejected
+(deftest ^:acceptance add-files-to-bundle-incorrect-type-rejected
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
     (when-success datapack-resp
@@ -169,7 +169,7 @@
 
 
 
-(deftest remove-files-from-bundle-incorrect-type-rejected
+(deftest ^:acceptance remove-files-from-bundle-incorrect-type-rejected
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
     (when-success datapack-resp
@@ -179,7 +179,7 @@
                          (is (= :incorrect-type
                                 (:reason response-event))))))))
 
-(deftest remove-files-to-bundle-unauthorised-rejected
+(deftest ^:acceptance remove-files-to-bundle-unauthorised-rejected
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
     (when-success datapack-resp

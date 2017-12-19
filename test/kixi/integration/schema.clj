@@ -1,5 +1,5 @@
 (ns kixi.integration.schema
-  {:integration true}
+  {::acceptance true}
   (:require [clojure.spec.test.alpha :refer [with-instrument-disabled]]
             [clojure.test :refer :all]
             [kixi.datastore

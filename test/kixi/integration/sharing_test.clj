@@ -1,4 +1,5 @@
 (ns kixi.integration.sharing-test
+  {:acceptance true}
   (:require [clojure.test :refer :all]
             [clojure.math.combinatorics :as combo :refer [subsets]]
             [environ.core :refer [env]]

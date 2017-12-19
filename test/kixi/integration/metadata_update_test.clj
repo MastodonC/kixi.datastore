@@ -172,7 +172,7 @@
                                             (is (nil?
                                                    (get-in updated-metadata [:body ::ms/source-created])))))))))))
 
-(deftest remove-on-nonexistant-field-allowed
+(deftest ^:acceptance remove-on-nonexistant-field-allowed
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
                            (create-metadata
@@ -189,9 +189,9 @@
                                           (not (get-in metadata [:body ::ms/source-created]))))
                         (let [updated-metadata (get-metadata uid meta-id)]
                           (is (nil?
-                                 (get-in updated-metadata [:body ::ms/source-created])))))))))
+                               (get-in updated-metadata [:body ::ms/source-created])))))))))
 
-(deftest small-file-add-invalid-metadata
+(deftest ^:acceptance small-file-add-invalid-metadata
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
                            (create-metadata
@@ -204,7 +204,7 @@
                    {::ms/file-type "Invalid has no command"})]
         (when-event-key event :kixi.datastore.metadatastore/update-rejected
                         (is (= :invalid
-                              (get-in event [:kixi.comms.event/payload :reason]))))))))
+                               (get-in event [:kixi.comms.event/payload :reason]))))))))
 
 (deftest small-file-update-tags
   (let [uid (uuid)
@@ -266,7 +266,7 @@
                                             (is (= #{"orig2" "Tag2" "Tag3"}
                                                    (get-in updated-metadata [:body ::ms/tags])))))))))))
 
-(deftest small-file-update-license-type
+(deftest ^:acceptance small-file-update-license-type
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
                            (assoc (create-metadata
@@ -287,7 +287,7 @@
                           (is (= "new type"
                                  (get-in metadata [:body ::msl/license ::msl/type])))))))))
 
-(deftest small-file-remove-license-type
+(deftest ^:acceptance small-file-remove-license-type
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
                            (assoc (create-metadata
@@ -317,7 +317,7 @@
                          (is (= 401
                                 (:status (get-metadata uid meta-id)))))))))
 
-(deftest deleted-files-are-not-returned-in-searches
+(deftest ^:acceptance deleted-files-are-not-returned-in-searches
   (let [uid (uuid)
         metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
     (when-success metadata-resp
@@ -335,7 +335,7 @@
                              (is (= 0
                                     only-file-visible-cnt)))))))))
 
-(deftest file-delete-unauthorised-rejected
+(deftest ^:acceptance file-delete-unauthorised-rejected
   (let [uid (uuid)
         metadata-resp (send-file-and-metadata (create-metadata uid "./test-resources/metadata-one-valid.csv"))]
     (when-success metadata-resp
@@ -347,7 +347,7 @@
                          (is (= 200
                                 (:status (get-metadata uid meta-id)))))))))
 
-(deftest file-delete-incorrect-type-rejected
+(deftest ^:acceptance file-delete-incorrect-type-rejected
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
     (when datapack-resp
