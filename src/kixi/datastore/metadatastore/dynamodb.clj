@@ -7,8 +7,10 @@
              [metadatastore :as md :refer [MetaDataStore]]]
             [taoensso
              [encore :refer [get-subvector]]
-             [timbre :as timbre :refer [info error]]]
-            [kixi.datastore.metadatastore :as ms]))
+             [timbre :as timbre :refer [info error warn]]]
+            [kixi.datastore.metadatastore :as ms]
+            [taoensso.timbre :as log])
+  (:import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException))
 
 (def id-col (db/dynamo-col ::md/id))
 
@@ -62,8 +64,8 @@
       (db/put-item conn
                    (activity-metadata-table (:profile conn))
                    projection)
-      (catch Exception e
-        (error e "Failed to insert activity row: " id projection)))))
+      (catch ConditionalCheckFailedException e
+        (warn e "Activity row already exists: " id projection)))))
 
 (defn remove-activity-row
   [conn group-id activity md-id]
@@ -80,11 +82,14 @@
   [conn update-event]
   (let [metadata (::md/file-metadata update-event)]
     (info "Create: " metadata)
-    (db/insert-data conn
-                    (primary-metadata-table (:profile conn))
-                    id-col
-                    (sharing-columns->sets
-                        metadata))
+    (try
+      (db/insert-data conn
+                      (primary-metadata-table (:profile conn))
+                      id-col
+                      (sharing-columns->sets
+                       metadata))
+      (catch ConditionalCheckFailedException e
+        (log/warn e "Metadata already exists: " metadata)))
     (doseq [activity (keys (::md/sharing metadata))]
       (doseq [group-id (get-in metadata [::md/sharing activity])]
         (insert-activity-row conn group-id activity metadata)))))
