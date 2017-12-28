@@ -16,6 +16,7 @@
              ::up/id upload-id
              ::up/mup? mup?
              :kixi/user user
+             ::up/ttl 0
              ::up/created-at created-at}]
       (log/info "Adding" m "for upload" file-id)
       (swap! cache assoc file-id m)))

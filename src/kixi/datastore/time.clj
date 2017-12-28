@@ -49,3 +49,12 @@
        (zero? (t/hour x))
        (zero? (t/minute x))
        (zero? (t/milli x))))
+
+(defn add-hours
+  [time hours]
+  (t/plus time (t/hours hours)))
+
+(defn since-epoch
+  [time]
+  (t/in-seconds
+   (t/interval (t/epoch) time)))

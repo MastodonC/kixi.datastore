@@ -17,7 +17,7 @@
        (reset! app/profile (keyword (env :system-profile profile)))
        (reset! app/config-location config-location)
        (try
-         (prn "Starting system")
+         (println "Starting system" profile)
          (->> (system/new-system config-location (keyword (env :system-profile profile)))
               (#(merge % overrides))
               (#(if component-subset
@@ -32,7 +32,7 @@
 (defn stop
   []
   (when @app/system
-    (prn "Stopping system")
+    (println "Stopping system")
     (component/stop-system @app/system)
     (reset! app/system nil)))
 

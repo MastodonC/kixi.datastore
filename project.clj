@@ -7,7 +7,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[aero "1.1.2"]
                  [aleph "0.4.2-alpha8"]
-                 [amazonica "0.3.92" :exclusions [ch.qos.logback/logback-classic
+                 [amazonica "0.3.93" :exclusions [ch.qos.logback/logback-classic
                                                   com.amazonaws/aws-java-sdk
                                                   com.fasterxml.jackson.dataformat/jackson-dataformat-cbor
                                                   commons-logging
@@ -15,7 +15,10 @@
                                                   com.fasterxml.jackson.core/jackson-core
                                                   org.apache.httpcomponents/httpclient
                                                   joda-time]]
-                 [com.amazonaws/aws-java-sdk "1.11.53" :exclusions [joda-time]]
+                 [com.amazonaws/aws-java-sdk "1.11.253" :exclusions [joda-time
+                                                                     commons-logging
+                                                                     cheshire
+                                                                     com.amazonaws/aws-java-sdk-kinesisvideo]]
                  [bidi "2.0.12"]
                  [byte-streams "0.2.3"]
                  [clj-http "3.7.0"]
@@ -25,20 +28,20 @@
                  [cider/cider-nrepl "0.15.1"]
                  [com.cognitect/transit-clj "0.8.300"]
                  [com.fzakaria/slf4j-timbre "0.3.7"]
+                 [com.mastodonc/faraday "1.10.0" :exclusions [com.amazonaws/aws-java-sdk-dynamodb
+                                                              com.taoensso/encore]]
                  [com.rpl/specter "1.0.3"]
                  [com.stuartsierra/component "0.3.2"]
-                 [com.taoensso/faraday "1.9.0" :exclusions [com.amazonaws/aws-java-sdk-dynamodb
-                                                            com.taoensso/encore]]
                  [com.taoensso/timbre "4.10.0"]
                  [com.taoensso/encore "2.92.0"]
                  [digest "1.4.6"]
                  [environ "1.1.0"]
-                 [kixi/kixi.comms "0.2.31"]
+                 [kixi/kixi.comms "0.2.31" :exclusions [amazonica]]
                  [kixi/kixi.log "0.1.5"]
                  [kixi/kixi.metrics "0.4.1"]
                  [kixi/joplin.core "0.3.10-SNAPSHOT"]
                  [kixi/joplin.dynamodb "0.3.10-SNAPSHOT"]
-                 [manifold "0.1.6-alpha1"]
+                 [manifold "0.1.6"]
                  [medley "1.0.0"]
                  [metrics-clojure ~metrics-version]
                  [metrics-clojure-jvm ~metrics-version]

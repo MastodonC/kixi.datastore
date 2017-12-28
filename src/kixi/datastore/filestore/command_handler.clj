@@ -119,7 +119,8 @@
    init-multi-part-file-upload-creator-fn
    cache]
   (fn [cmd]
-    (if-not (s/valid? :kixi/command cmd)
+    (if (or (not (s/valid? :kixi/command cmd))
+            (not (::up/size-bytes cmd)))
       (fail-file-upload)
       (let [size-bytes (::up/size-bytes cmd)
             id (uuid)
