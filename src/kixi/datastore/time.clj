@@ -54,11 +54,13 @@
   [time hours]
   (t/plus time (t/hours hours)))
 
+(defn three-days-from
+  [time]
+  (add-hours time 72))
+
 (defn three-days-from-now
-  ([]
-   (three-days-from-now (t/now)))
-  ([time]
-   (add-hours time 72)))
+  []
+  (three-days-from (t/now)))
 
 (defn since-epoch
   [time]
