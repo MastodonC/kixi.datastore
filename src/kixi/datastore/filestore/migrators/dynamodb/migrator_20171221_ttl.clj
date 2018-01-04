@@ -29,7 +29,6 @@
                                {:last-prim-kvs {prim-kv tok}}))))]
     (loop [out []
            r (scan nil)]
-      (println (count r) (count (set out)))
       (if (empty? r)
         out
         (recur (concat out r) (scan (get (last r) prim-kv)))))))
@@ -48,7 +47,7 @@
       (run! #(db/merge-data conn
                             (fsdb/primary-upload-cache-table profile)
                             fsdb/id-col
-                            (get % fsdb/id-col)
+                            (get % (keyword fsdb/id-col))
                             {::fsu/ttl (t/since-epoch (t/three-days-from-now))}) items))))
 (defn down
   [db]
