@@ -26,11 +26,25 @@
   [profile]
   (:alerts (read-config @config-location profile)))
 
+(defn slow-scan
+  [conn table-name prim-kv & [{:keys [limit] :or {limit 5}}]]
+  (letfn [(scan [tok]
+            (far/scan conn table-name
+                      (merge {:limit limit}
+                             (when tok
+                               {:last-prim-kvs {prim-kv tok}}))))]
+    (loop [out []
+           r (scan nil)]
+      (println (count r) (count (set out)))
+      (if (empty? r)
+        out
+        (recur (concat out r) (scan (get (last r) prim-kv)))))))
+
 (defn up
   [db]
   (let [profile (name @profile)
         conn (get-db-config db)
-        items (not-empty (far/scan conn (fsdb/primary-upload-cache-table profile)))]
+        items (not-empty (slow-scan conn (fsdb/primary-upload-cache-table profile) (keyword fsdb/id-col)))]
     ;; Set ttl column
     (when-not (= "local" profile)
       (far/update-ttl conn (fsdb/primary-upload-cache-table profile) true ttl-col))
@@ -40,7 +54,7 @@
       (run! #(db/merge-data conn
                             (fsdb/primary-upload-cache-table profile)
                             fsdb/id-col
-                            (:kixi.datastore.filestore_id %)
+                            (get % fsdb/id-col)
                             {::fsu/ttl (three-days-from-now)}) items))))
 (defn down
   [db]
