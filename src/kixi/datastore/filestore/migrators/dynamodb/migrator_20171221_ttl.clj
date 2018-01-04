@@ -6,17 +6,11 @@
             [kixi.datastore.filestore :as fs]
             [kixi.datastore.dynamodb :as db]
             [kixi.datastore.cloudwatch :refer [table-dynamo-alarms]]
+            [kixi.datastore.time :as t]
             [taoensso.faraday :as far]
-            [taoensso.timbre :as log]
-            [clj-time.core :as t]))
+            [taoensso.timbre :as log]))
 
 (def ttl-col (db/dynamo-col ::fsu/ttl))
-
-(defn three-days-from-now
-  []
-  (t/in-seconds
-   (t/interval (t/epoch)
-               (t/plus (t/now) (t/hours 72)))))
 
 (defn get-db-config
   [db]
@@ -55,7 +49,7 @@
                             (fsdb/primary-upload-cache-table profile)
                             fsdb/id-col
                             (get % fsdb/id-col)
-                            {::fsu/ttl (three-days-from-now)}) items))))
+                            {::fsu/ttl (t/since-epoch (t/three-days-from-now))}) items))))
 (defn down
   [db]
   (let [profile (name @profile)
