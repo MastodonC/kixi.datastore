@@ -12,11 +12,11 @@
 
 (def ttl-col (db/dynamo-col ::fsu/ttl))
 
-(defn ten-mins-from-now
+(defn three-days-from-now
   []
   (t/in-seconds
    (t/interval (t/epoch)
-               (t/plus (t/now) (t/minutes 10)))))
+               (t/plus (t/now) (t/hours 72)))))
 
 (defn get-db-config
   [db]
@@ -41,7 +41,7 @@
                             (fsdb/primary-upload-cache-table profile)
                             fsdb/id-col
                             (:kixi.datastore.filestore_id %)
-                            {::fsu/ttl (ten-mins-from-now)}) items))))
+                            {::fsu/ttl (three-days-from-now)}) items))))
 (defn down
   [db]
   (let [profile (name @profile)
