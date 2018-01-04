@@ -24,6 +24,7 @@
     (put-item-fn {::fs/id file-id
                   ::up/id upload-id
                   ::up/mup? mup?
+                  ::up/ttl (t/since-epoch (t/three-days-from (t/from-str created-at)))
                   :kixi/user user
                   ::up/created-at created-at}))
   (delete-item! [this file-id]
