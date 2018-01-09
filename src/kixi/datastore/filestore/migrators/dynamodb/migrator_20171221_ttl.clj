@@ -39,7 +39,8 @@
         conn (get-db-config db)
         items (not-empty (slow-scan conn (fsdb/primary-upload-cache-table profile) (keyword fsdb/id-col)))]
     ;; Set ttl column
-    (when-not (= "local" profile)
+    (when-not (or (= "local" profile)
+                  (= "local-kinesis" profile))
       (far/update-ttl conn (fsdb/primary-upload-cache-table profile) true ttl-col))
     ;; Then add ttl column
     (when items
@@ -55,7 +56,8 @@
         conn (get-db-config db)
         items (not-empty (far/scan conn (fsdb/primary-upload-cache-table profile)))]
     ;; Set ttl column
-    (when-not (= "local" profile)
+    (when-not (or (= "local" profile)
+                  (= "local-kinesis" profile))
       (far/update-ttl conn (fsdb/primary-upload-cache-table profile) false ttl-col))
     ;; Then add ttl column
     (when items
