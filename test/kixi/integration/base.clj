@@ -279,8 +279,7 @@
    (search-metadata group-ids activities index count nil))
   ([group-ids activities index count order]
    (client/get (metadata-query-url)
-               {:query-params (merge (zipmap (repeat :activity)
-                                             (map encode-kw activities))
+               {:query-params (merge {:activity (map encode-kw activities)}
                                      (when index
                                        {:index index})
                                      (when count

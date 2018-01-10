@@ -19,7 +19,7 @@
 
 (deftest novel-user-finds-nothing
   (is-submap {:items []
-              :paging {:total 0 
+              :paging {:total 0
                        :count 0
                        :index 0}}
              (:body
@@ -204,7 +204,8 @@
         (doseq [search-activities (remove empty? (map set (subsets ms/activities)))]
           (let [search-result (search-metadata (mapv activity->group search-activities) search-activities)]
             (if (and (activities ::ms/meta-read)
-                     (search-activities ::ms/meta-read))
+                     (search-activities ::ms/meta-read)
+                     (clojure.set/subset? search-activities activities))
               (is-submap {:status 200
                           :body {:paging {:total 1 :count 1 :index 0}}}
                          search-result
