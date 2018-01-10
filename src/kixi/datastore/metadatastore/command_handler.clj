@@ -443,7 +443,7 @@ the generated 'update' specs.
 
 (defn create-add-files-to-bundle-handler
   [metadatastore]
-  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+  (let [authorised (partial ms/authorised metadatastore ::ms/bundle-add)]
     (fn [{:keys [::ms/id ::ms/bundled-ids] :as cmd}]
       (cond
         (not (spec/valid? :kixi/command cmd)) (reject-add-files-to-bundle cmd :invalid-cmd id bundled-ids (s/explain-data :kixi/command cmd))

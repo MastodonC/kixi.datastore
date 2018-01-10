@@ -167,6 +167,28 @@
                                (is (= #{first-file-id extra-file-id}
                                       bundled-ids))))))))))
 
+(deftest add-files-to-bundle-bundle-add-only
+  (let [owner (uuid)
+        contributor (uuid)
+        datapack-resp (send-datapack owner "Empty Datapack" #{})]
+    (when-success datapack-resp
+      (let [bundle-id (get-in datapack-resp [:body ::ms/id])
+            _ (update-metadata-sharing owner bundle-id ::ms/sharing-conj ::ms/bundle-add contributor)
+            metadata-response (send-file-and-metadata
+                               contributor contributor
+                               (create-metadata
+                                contributor
+                                "./test-resources/metadata-one-valid.csv"))]
+        (when-success metadata-response
+          (let [file-id (get-in metadata-response [:body ::ms/id])
+                response-event (send-add-files-to-bundle contributor bundle-id #{file-id})]
+            (when-event-type response-event :kixi.datastore/files-added-to-bundle
+                             (wait-for-pred #(= 1
+                                                (count (get-in (get-metadata owner bundle-id) [:body ::ms/bundled-ids]))))
+                             (let [bundled-ids (get-in (get-metadata owner bundle-id) [:body ::ms/bundled-ids])]
+                               (is (= #{file-id}
+                                      bundled-ids))))))))))
+
 
 
 (deftest ^:acceptance remove-files-from-bundle-incorrect-type-rejected

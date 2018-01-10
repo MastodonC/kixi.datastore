@@ -859,7 +859,8 @@
      :pack-name pack-name
      :sharing {::ms/file-read (vec-if-not ugroup)
                ::ms/meta-read (vec-if-not ugroup)
-               ::ms/meta-update (vec-if-not ugroup)}
+               ::ms/meta-update (vec-if-not ugroup)
+               ::ms/bundle-add (vec-if-not ugroup)}
      :bundled-ids bundled-ids
      :provenance {::ms/source "upload"
                   :kixi.user/id uid}}))
