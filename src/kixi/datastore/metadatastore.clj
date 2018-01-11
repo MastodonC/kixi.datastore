@@ -158,7 +158,7 @@
   (exists [this id])
   (retrieve [this id])
   (create-link [this id])
-  (query [this criteria from-index count sort-by sort-order]))
+  (query [this criteria from-index count sort-by sort-order filters]))
 
 (s/def ::metadatastore
   (let [ex #(ex-info "Use stubbed fn version." {:fn %})]
@@ -169,7 +169,7 @@
                      (exists [this id] (throw (ex "exists")))
                      (retrieve [this id] (throw (ex "retrieve")))
                      (create-link [this id] (throw (ex "link")))
-                     (query [this criteria from-index count sort-by sort-order] (throw (ex "query"))))))))
+                     (query [this criteria from-index count sort-by sort-order filters] (throw (ex "query"))))))))
 
 (s/fdef authorised-fn
         :args (s/cat :impl ::metadatastore

@@ -41,7 +41,8 @@
             from-dex
             page-count
             [::ms/provenance ::ms/created]
-            "desc"))
+            "desc"
+            nil))
 
 (defn send-sharing-update
   "Issues an event with sharing matrix changes, bypasses the command level user authorization."
@@ -50,7 +51,7 @@
   (c/send-event!
    (comms)
    :kixi.datastore.file-metadata/updated
-   "1.0.0"   
+   "1.0.0"
    {::cs/file-metadata-update-type ::cs/file-metadata-sharing-updated
     ::ms/id metadata-id
     ::ms/sharing-update change-type
