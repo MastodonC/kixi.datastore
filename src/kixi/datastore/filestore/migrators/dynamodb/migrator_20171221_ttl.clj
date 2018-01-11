@@ -20,24 +20,11 @@
   [profile]
   (:alerts (read-config @config-location profile)))
 
-(defn slow-scan
-  [conn table-name prim-kv & [{:keys [limit] :or {limit 5}}]]
-  (letfn [(scan [tok]
-            (far/scan conn table-name
-                      (merge {:limit limit}
-                             (when tok
-                               {:last-prim-kvs {prim-kv tok}}))))]
-    (loop [out []
-           r (scan nil)]
-      (if (empty? r)
-        out
-        (recur (concat out r) (scan (get (last r) prim-kv)))))))
-
 (defn up
   [db]
   (let [profile (name @profile)
         conn (get-db-config db)
-        items (not-empty (slow-scan conn (fsdb/primary-upload-cache-table profile) (keyword fsdb/id-col)))]
+        items (not-empty (db/slow-scan conn (fsdb/primary-upload-cache-table profile) (keyword fsdb/id-col)))]
     ;; Set ttl column
     (when-not (or (= "local" profile)
                   (= "local-kinesis" profile))

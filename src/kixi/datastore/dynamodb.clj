@@ -6,7 +6,8 @@
             [taoensso
              [faraday :as far]
              [timbre :as timbre :refer [info]]]
-            [kixi.datastore.metadatastore :as md]))
+            [kixi.datastore.metadatastore :as md]
+            [taoensso.timbre :as log]))
 
 (def client-kws
   #{:endpoint})
@@ -21,6 +22,29 @@
 
 (def map-depth-separator "|")
 (def namespace-separator "_")
+
+(defn slow-scan
+  [conn table-name prim-kv & [{:keys [limit verbose?
+                                      filter-expr
+                                      expr-attr-vals expr-attr-names]
+                               :or {limit 5
+                                    verbose? false}}]]
+  (letfn [(scan [tok]
+            (far/scan conn table-name
+                      (merge {:limit limit}
+                             (when (and filter-expr expr-attr-vals expr-attr-names)
+                               {:filter-expr filter-expr
+                                :expr-attr-vals expr-attr-vals
+                                :expr-attr-names expr-attr-names})
+                             (when tok
+                               {:last-prim-kvs {prim-kv tok}}))))]
+    (loop [out []
+           r (scan nil)]
+      (when verbose?
+        (println "Slow scan:" (count out) "results"))
+      (if (empty? r)
+        out
+        (recur (concat out r) (scan (get (last r) prim-kv)))))))
 
 (defn flat-kw
   [k]
