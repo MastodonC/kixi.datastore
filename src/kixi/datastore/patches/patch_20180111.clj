@@ -5,6 +5,16 @@
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.kaylee :as k]))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Patch -
+;; Date: 11/01/2018
+;; Created by: AW, TC, JB
+;;
+;; This patch will update the event stream and add the user id of the user
+;; executing the patch. It will scan the table and add the bundle add permission
+;; to users with metaupdate on a bundle. The patch must be run manually.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn- db
   []
   (:client (:metadatastore @kixi.datastore.application/system)))
