@@ -54,7 +54,8 @@
                 :kixi.user/groups]))
 
 (def activities
-  [::file-read ::meta-visible ::meta-read ::meta-update])
+  [::file-read ::meta-visible ::meta-read ::meta-update
+   ::bundle-add])
 
 (s/def ::activities
   (s/coll-of (set activities)))

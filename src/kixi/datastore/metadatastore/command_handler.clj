@@ -443,12 +443,16 @@ the generated 'update' specs.
 
 (defn create-add-files-to-bundle-handler
   [metadatastore]
-  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+  ;; There are two authorised objects created to check for the patch fix on bundle add.
+  ;; This is a temporary fix until the event stream is patched.
+  (let [authorised1 (partial ms/authorised metadatastore ::ms/bundle-add)
+        authorised2 (partial ms/authorised metadatastore ::ms/meta-update)]
     (fn [{:keys [::ms/id ::ms/bundled-ids] :as cmd}]
       (cond
         (not (spec/valid? :kixi/command cmd)) (reject-add-files-to-bundle cmd :invalid-cmd id bundled-ids (s/explain-data :kixi/command cmd))
-        (not (authorised id (get-user-groups cmd))) (reject-add-files-to-bundle cmd :unauthorised id bundled-ids)
         (not (bundle? metadatastore id)) (reject-add-files-to-bundle cmd :incorrect-type id bundled-ids)
+        (not (or (authorised1 id (get-user-groups cmd))
+                 (authorised2 id (get-user-groups cmd)))) (reject-add-files-to-bundle cmd :unauthorised id bundled-ids)
         :default [{::event/type :kixi.datastore/files-added-to-bundle
                    ::event/version "1.0.0"
                    ::ms/id id
