@@ -39,10 +39,9 @@
 
 (defn- grant-bundle-add!
   [user-id bundle]
-  (let [id (get bundle (db/dynamo-col ::ms/id))
-        mu (get bundle (db/dynamo-col [::ms/sharing ::ms/meta-update]))]
-    (run! (partial k/send-sharing-update user-id id ::ms/sharing-conj ::ms/bundle-add) mu))
-  )
+  (let [id (get bundle (db/dynamo-col-k ::ms/id))
+        mu (get bundle (db/dynamo-col-k [::ms/sharing ::ms/meta-update]))]
+    (run! (partial k/send-sharing-update user-id id ::ms/sharing-conj ::ms/bundle-add) mu)))
 
 (defn apply-patch!
   [your-user-id]
