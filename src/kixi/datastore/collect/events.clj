@@ -15,7 +15,8 @@
 
 (s/def ::c-reject/reason
   #{:invalid-cmd
-    :unauthorised})
+    :unauthorised
+    :incorrect-type})
 
 (s/def ::c-reject/message string?)
 

@@ -1078,6 +1078,11 @@
       (is-submap rejection-submap
                  (:kixi.comms.event/payload e)))))
 
+(defn empty-datapack
+  [uid]
+  (let [datapack-response (send-datapack uid "Empty Datapack" #{})]
+    datapack-response))
+
 (defn small-file-into-datapack
   ([uid]
    (small-file-into-datapack uid {}))
@@ -1090,3 +1095,10 @@
        (let [datapack-resp (send-datapack (merge (create-datapack uid uid "small-file-into-a-datapack" #{(extract-id metadata-response)})
                                                  extra-dp-meta))]
          datapack-resp)))))
+
+(defn send-collection-request-cmd
+  ([uid message groups bid]
+   (send-collection-request-cmd uid uid message groups bid))
+  ([uid ugroup message groups bid]
+   (let [x {:kixi/user {:kixi.user/id uid
+                        :kixi.user/groups (vec-if-not ugroup)}}])))

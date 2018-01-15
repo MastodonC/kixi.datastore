@@ -13,7 +13,7 @@
 
 (deftest datapack-create-empty
   (let [uid (uuid)
-        datapack-resp (send-datapack uid "Empty Datapack" #{})]
+        datapack-resp (empty-datapack uid)]
     (when-success datapack-resp
       (is (= #{}
              (get-in datapack-resp [:body ::ms/bundled-ids]))))))

@@ -190,3 +190,6 @@
 (defn retrieve-fn
   [impl id]
   (retrieve impl id))
+
+(def bundle?
+  #(= "bundle" (get % ::type)))
