@@ -36,7 +36,7 @@
 (s/def ::sharing
   (s/map-of (set activities)
             (s/with-gen
-              (s/coll-of :kixi.user-group/id)
+              (s/coll-of :kixi.group/id)
               #(gen/vector (s/gen uuid) 1 10))))
 
 (s/def ::definition
@@ -75,7 +75,7 @@
 (defmethod schema-type "string" [_]
   (s/keys :req [::type]))
 
-(s/def ::primitive-schema 
+(s/def ::primitive-schema
   (s/multi-spec schema-type ::type))
 
 (s/def ::schema
@@ -95,6 +95,6 @@
 (defprotocol SchemaStore
   (authorised
     [this action id user-groups])
-  (exists [this spec-name])  
+  (exists [this spec-name])
   (fetch-with [this sub-schema])
   (retrieve [this id]))
