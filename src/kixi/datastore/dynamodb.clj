@@ -78,6 +78,8 @@
        (interpose map-depth-separator)
        (apply str)))
 
+(def dynamo-col-k (comp keyword dynamo-col))
+
 (defn inflate-kw
   [^String s]
   (if-let [dex (clojure.string/index-of s namespace-separator)]
@@ -230,15 +232,19 @@
     (keep (partial get pk->r) ids)))
 
 (defn query
-  [conn table pks projection]
-  (->> (far/query conn table
-                  (map-vals #(vector "eq" %) pks)
-                  {:return (doall (mapv dynamo-col
-                                        (conj projection
-                                              ::md/tombstone)))
-                   :consistent? true})
-       (map (comp inflate-map (partial map-keys name)))
-       (remove ::md/tombstone)))
+  ([conn table pks]
+   (query conn table pks nil))
+  ([conn table pks projection]
+   (->> (far/query conn table
+                   (map-vals #(vector "eq" %) pks)
+                   {:return (if projection
+                              (doall (mapv dynamo-col
+                                           (conj projection
+                                                 ::md/tombstone)))
+                              :all-attributes)
+                    :consistent? true})
+        (map (comp inflate-map (partial map-keys name)))
+        (remove ::md/tombstone))))
 
 (defn query-index
   [conn table index pks projection sort-order]
