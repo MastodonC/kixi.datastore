@@ -131,10 +131,11 @@
                    [::md/sharing (::md/activity update-event)]
                    (:kixi.group/id update-event))
     (case (::md/sharing-update update-event)
-      ::md/sharing-conj (let [metadata (db/get-item conn
-                                                    (primary-metadata-table (:profile conn))
-                                                    id-col
-                                                    metadata-id)]
+      ::md/sharing-conj (let [metadata (db/get-item-ignore-tombstone
+                                        conn
+                                        (primary-metadata-table (:profile conn))
+                                        id-col
+                                        metadata-id)]
                           (insert-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata))
       ::md/sharing-disj (remove-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata-id))))
 
