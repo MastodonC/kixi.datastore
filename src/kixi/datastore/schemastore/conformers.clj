@@ -268,8 +268,9 @@
 
 (defn -not-empty-string?
   [x]
-  (and (string? x)
-       (not-empty x)))
+  (if (and (string? x)
+           (not-empty x)) x
+      :clojure.spec.alpha/invalid))
 
 (def not-empty-string
   (s/with-gen

@@ -12,7 +12,8 @@
              [web-server :as web-server]
              [schemaextracter :as se]
              [structural-validation :as sv]
-             [repl :as repl]]
+             [repl :as repl]
+             [collect :as collect]]
             [kixi.datastore.filestore
              [local :as local]
              [s3 :as s3]]
@@ -60,7 +61,8 @@
    :schemastore [:communications]
                                         ;   :schema-extracter [:communications :filestore]
    :segmentation [:communications :metadatastore :filestore]
-   :structural-validator [:communications :filestore :schemastore]})
+   :structural-validator [:communications :filestore :schemastore]
+   :collect [:communications :metadatastore]})
 
 (defn new-system-map
   [config]
@@ -97,7 +99,9 @@
             {:structural-validator (sv/map->StructuralValidator {})})
           (when (:segmentation config)
             {:segmentation (case (first (keys (:segmentation config)))
-                             :inmemory (segementation-inmemory/map->InMemory {}))}))))
+                             :inmemory (segementation-inmemory/map->InMemory {}))})
+          (when (get-in config [:collect-and-share :enabled])
+            {:collect (collect/map->CollectAndShare {})}))))
 
 (defn raise-first
   "Updates the keys value in map to that keys current first value"

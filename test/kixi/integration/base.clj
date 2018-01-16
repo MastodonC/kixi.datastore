@@ -17,7 +17,8 @@
              [application :as app]
              [filestore :as fs]
              [metadatastore :as ms]
-             [schemastore :as ss]]
+             [schemastore :as ss]
+             [collect :as collect]]
             [user :as user]
             [kixi.datastore.metadatastore :as md]
             [kixi.datastore.filestore
@@ -1100,5 +1101,13 @@
   ([uid message groups bid]
    (send-collection-request-cmd uid uid message groups bid))
   ([uid ugroup message groups bid]
-   (let [x {:kixi/user {:kixi.user/id uid
-                        :kixi.user/groups (vec-if-not ugroup)}}])))
+   (c/send-valid-command!
+    @comms
+    {::cmd/type :kixi.datastore.collect/request-collection
+     ::cmd/version "1.0.0"
+     ::collect/message message
+     ::collect/groups groups
+     ::md/id bid
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}}
+    {:partition-key uid})))

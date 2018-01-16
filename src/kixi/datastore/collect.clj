@@ -3,7 +3,10 @@
             [kixi.datastore.schemastore.conformers :as sc]
             [kixi.datastore.collect.commands]
             [kixi.datastore.collect.events]
-            [kixi.comms :as comms]))
+            [kixi.datastore.collect.command-handler :as ch]
+            [kixi.comms :as comms]
+            [com.stuartsierra.component :as component]
+            [taoensso.timbre :as log]))
 
 (s/def ::message sc/not-empty-string)
 (s/def ::groups  (s/coll-of :kixi.group/id))
@@ -15,4 +18,18 @@
   #{[:kixi.datastore.collect/collection-requested "1.0.0"]
     [:kixi.datastore.collect/collection-request-rejected "1.0.0"]})
 
-(defprotocol CollectAndShare)
+(defrecord CollectAndShare [metadatastore communications]
+  component/Lifecycle
+  (start [component]
+    (log/info "Starting Collect + Share")
+    ;;
+    (comms/attach-validating-command-handler!
+     communications
+     :kixi.datastore.collect/request-collection-handler
+     :kixi.datastore.collect/request-collection
+     "1.0.0"
+     (ch/create-request-collection-handler metadatastore))
+    component)
+  (stop [component]
+    (log/info "Stopping Collect + Share")
+    component))

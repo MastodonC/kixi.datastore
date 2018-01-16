@@ -1,5 +1,6 @@
 (ns kixi.datastore.collect.command-handler
   (:require [clojure.spec.alpha :as s]
+            [kixi.datastore.collect.commands]
             [kixi.datastore.metadatastore :as ms]
             [kixi.datastore.schemastore.utils :as sh]))
 
@@ -40,7 +41,13 @@
                   ::ms/id]} cmd
           bundle (ms/retrieve metadatastore id)]
       (cond
-        (not (s/valid? :kixi/command cmd)) (reject-collection-request :invalid-cmd)
-        (not (ms/bundle? bundle)) (reject-collection-request :incorrect-type)
-        (not (ms/authorised-fn metadatastore ::ms/meta-update id (:kixi.user/groups user))) (reject-collection-request :unauthorised)
+        (not (s/valid? :kixi/command cmd))
+        (reject-collection-request :invalid-cmd (with-out-str (s/explain :kixi/command cmd)))
+
+        (not (ms/bundle? bundle))
+        (reject-collection-request :incorrect-type)
+
+        (not (ms/authorised-fn metadatastore ::ms/meta-update id (:kixi.user/groups user)))
+        (reject-collection-request :unauthorised)
+
         :else (send-collection-request-event! user groups message id)))))
