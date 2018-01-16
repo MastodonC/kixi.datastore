@@ -195,20 +195,26 @@
   [conn table pks]
   (far/delete-item conn table (map-keys dynamo-col pks)))
 
-(defn get-item
+(defn get-item-ignore-tombstone
   ([conn table id-column id]
-   (get-item conn table id-column id nil))
+   (get-item-ignore-tombstone conn table id-column id nil))
   ([conn table id-column id options]
    (let [result (if options
                   (far/get-item conn table {id-column id}
                                 (options->db-opts (update options :projection
                                                           #(conj % (dynamo-col ::md/tombstone)))))
                   (far/get-item conn table {id-column id}
-                                {:consistent? true}))
-         inflated-result (inflate-map
-                          (map-keys name result))]
-     (when-not (::md/tombstone inflated-result)
-       inflated-result))))
+                                {:consistent? true}))]
+     (inflate-map
+      (map-keys name result)))))
+
+(defn get-item
+  ([conn table id-column id]
+   (get-item conn table id-column id nil))
+  ([conn table id-column id options]
+   (let [result (get-item-ignore-tombstone conn table id-column id options)]
+     (when-not (::md/tombstone result)
+       result))))
 
 (defn get-bulk
   [conn table pk-col ids]
