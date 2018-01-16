@@ -23,14 +23,15 @@
              {::c-reject/message message}))
     {:partition-key (uuid)}]))
 
-(defn send-collection-request-event!
+(defn create-collection-request-events
   [sender groups message id]
-  [{::event/type :kixi.datastore.collect/collection-requested
-    ::event/version "1.0.0"
-    ::c/message message
-    ::c/groups groups
-    ::c/sender sender}
-   {:partition-key id}])
+  [[{::event/type :kixi.datastore.collect/collection-requested
+     ::event/version "1.0.0"
+     ::c/message message
+     ::c/groups groups
+     ::c/sender sender
+     ::ms/id id}
+    {:partition-key id}]])
 
 (defn create-request-collection-handler
   [metadatastore]
@@ -50,4 +51,4 @@
         (not (ms/authorised-fn metadatastore ::ms/meta-update id (:kixi.user/groups user)))
         (reject-collection-request :unauthorised)
 
-        :else (send-collection-request-event! user groups message id)))))
+        :else (create-collection-request-events user groups message id)))))

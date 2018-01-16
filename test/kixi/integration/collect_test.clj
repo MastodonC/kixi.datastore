@@ -26,7 +26,8 @@
       (send-collection-request-cmd uid message groups (get-in dr [:body ::ms/id]))
       (let [event (wait-for-events uid :kixi.datastore.collect/collection-requested)]
         (is (= message (::c/message event)))
-        (is (= groups (::c/groups event)))))))
+        (is (= groups (::c/groups event)))
+        (is (= (get-in dr [:body ::ms/id]) (::ms/id event)))))))
 
 (deftest collect-request-invalid-cmd
   (let [uid (uuid)

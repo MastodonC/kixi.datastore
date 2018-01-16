@@ -4,6 +4,7 @@
             [kixi.datastore.collect.commands]
             [kixi.datastore.collect.events]
             [kixi.datastore.collect.command-handler :as ch]
+            [kixi.datastore.collect.event-handler :as eh]
             [kixi.comms :as comms]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :as log]))
@@ -29,6 +30,13 @@
      :kixi.datastore.collect/request-collection
      "1.0.0"
      (ch/create-request-collection-handler metadatastore))
+    ;;
+    (comms/attach-validating-event-handler!
+     communications
+     :kixi.datastore.collect/collection-requested-handler
+     :kixi.datastore.collect/collection-requested
+     "1.0.0"
+     (eh/create-collection-requested-handler metadatastore))
     component)
   (stop [component]
     (log/info "Stopping Collect + Share")
