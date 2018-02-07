@@ -5,7 +5,7 @@
             [kixi.metrics.reporters.json-console :as reporter]
             [metrics
              [core :refer [new-registry]]
-             [timers :refer [time! timer]]
+             [timers :refer [timer]]
              [meters :refer [mark! meter]]]
             [metrics.jvm.core :as jvm]
             [metrics.ring.expose :as expose]
