@@ -5,11 +5,12 @@
             [kixi.metrics.reporters.json-console :as reporter]
             [metrics
              [core :refer [new-registry]]
-             [histograms :refer [histogram update!]]
+             [timers :refer [time! timer]]
              [meters :refer [mark! meter]]]
             [metrics.jvm.core :as jvm]
             [metrics.ring.expose :as expose]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:import (java.util.concurrent TimeUnit)))
 
 (def upper-name 
   (memoize 
@@ -53,9 +54,8 @@
     (let [metric-name (request-ctx->metric-name ctx)
           met (meter registry (append-rates metric-name))]
       (when-let [start-time (get-in ctx [:metrics ky])]
-      ;On exception this won't get the modified context, i.e. the one with start time in it. This is due to the manifold chain and catch mechinism used.
-        (update! (histogram registry metric-name) 
-                 (- (now) start-time)))
+        ;On exception this won't get the modified context, i.e. the one with start time in it. This is due to the manifold chain and catch mechinism used.
+        (.update (timer registry metric-name) (- (now) start-time) TimeUnit/MILLISECONDS))
       (mark! met))
     ctx))
 
