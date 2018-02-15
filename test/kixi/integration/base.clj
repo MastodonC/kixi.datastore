@@ -915,21 +915,50 @@
    (send-add-files-to-bundle uid uid id bundled-ids))
   ([uid ugroups id bundled-ids]
    (send-add-files-to-bundle-cmd uid ugroups id bundled-ids)
-   (wait-for-events uid :kixi.datastore/files-added-to-bundle :kixi.datastore/files-add-to-bundle-rejected)))
+   (let [event (wait-for-events uid
+                                :kixi.datastore/files-added-to-bundle
+                                :kixi.datastore/files-add-to-bundle-rejected)]
+     (when (= :kixi.datastore/files-added-to-bundle
+              (or (:kixi.comms.event/key event)
+                  (::event/type event)))
+       (wait-for-pred #(let [metadata (:body (get-metadata ugroups id))
+                             bundled-ids (set (::ms/bundled-ids metadata))]
+                         (clojure.set/subset? (set (vec-if-not bundled-ids)) bundled-ids))))
+     event)))
 
 (defn send-remove-files-from-bundle
   ([uid id bundled-ids]
    (send-remove-files-from-bundle uid uid id bundled-ids))
   ([uid ugroups id bundled-ids]
    (send-remove-files-from-bundle-cmd uid ugroups id bundled-ids)
-   (wait-for-events uid :kixi.datastore/files-removed-from-bundle :kixi.datastore/files-remove-from-bundle-rejected)))
+   (let [event (wait-for-events uid
+                                :kixi.datastore/files-removed-from-bundle
+                                :kixi.datastore/files-remove-from-bundle-rejected)]
+     (when (= :kixi.datastore/files-removed-from-bundle
+              (or (:kixi.comms.event/key event)
+                  (::event/type event)))
+       (wait-for-pred #(let [metadata (:body (get-metadata ugroups id))
+                             bundled-ids (set (::ms/bundled-ids metadata))]
+                         (empty? (clojure.set/intersection bundled-ids (set (vec-if-not bundled-ids)))))))
+     event)))
 
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
    (update-metadata-sharing uid uid metadata-id change-type activity target-group))
   ([uid ugroup metadata-id change-type activity target-group]
    (send-metadata-sharing-change-cmd uid ugroup metadata-id change-type activity target-group)
-   (wait-for-events uid :kixi.datastore.metadatastore/sharing-change-rejected :kixi.datastore.file-metadata/updated)))
+   (let [event (wait-for-events uid
+                                :kixi.datastore.metadatastore/sharing-change-rejected
+                                :kixi.datastore.file-metadata/updated)]
+     (when (= :kixi.datastore.file-metadata/updated
+              (or (:kixi.comms.event/key event)
+                  (::event/type event)))
+       (wait-for-pred #(let [metadata (:body (get-metadata ugroup metadata-id))
+                             activity-set (set (get (::ms/sharing metadata) activity))]
+                         (case change-type
+                           ::ms/sharing-conj (contains? activity-set target-group)
+                           ::ms/sharing-disj ((complement contains?) activity-set target-group)))))
+     event)))
 
 (defn update-metadata
   ([uid metadata-id new-metadata]
