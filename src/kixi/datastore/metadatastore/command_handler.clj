@@ -21,6 +21,7 @@
 (sh/alias 'kc 'kixi.comms.command)
 (sh/alias 'mdu 'kixi.datastore.metadatastore.update)
 (sh/alias 'kdm 'kixi.datastore.metadatastore)
+(sh/alias 'msr 'kixi.datastore.metadatastore.relaxed)
 (sh/alias 'kdfm 'kixi.datastore.file-metadata)
 
 (sh/alias 'event 'kixi.event)
@@ -383,7 +384,7 @@ the generated 'update' specs.
   [:kixi.datastore/delete-bundle "1.0.0"]
   [_]
   #{[:kixi.datastore/bundle-deleted "1.0.0"]
-    [:kixi.datastore/bundle-delete-rejected "1.0.0"]})
+    [:kixi.datastore/bundle-delete-rejected "2.0.0"]})
 
 (defn invalid-bundle-delete
   ([cmd reason id]
@@ -391,9 +392,9 @@ the generated 'update' specs.
   ([cmd reason id explain]
    [(merge
      {::event/type :kixi.datastore/bundle-delete-rejected
-      ::event/version "1.0.0"
+      ::event/version "2.0.0"
       :reason reason
-      ::ms/id id}
+      ::msr/id id}
      (when explain
        {:spec-explain explain}))
     {:partition-key id}]))
@@ -422,23 +423,19 @@ the generated 'update' specs.
   [:kixi.datastore/add-files-to-bundle "1.0.0"]
   [_]
   #{[:kixi.datastore/files-added-to-bundle "1.0.0"]
-    [:kixi.datastore/files-add-to-bundle-rejected "1.0.0"]})
+    [:kixi.datastore/files-add-to-bundle-rejected "2.0.0"]})
 
 (defn reject-add-files-to-bundle
   ([cmd reason id bundled-ids]
-   [{::event/type :kixi.datastore/files-add-to-bundle-rejected
-     ::event/version "1.0.0"
-     :reason reason
-     ::ms/id id
-     ::ms/bundled-ids bundled-ids}
-    {:partition-key id}])
+   (reject-add-files-to-bundle cmd reason id bundled-ids nil))
   ([cmd reason id bundled-ids explain]
-   [{::event/type :kixi.datastore/files-add-to-bundle-rejected
-     ::event/version "1.0.0"
-     :reason reason
-     ::ms/id id
-     ::ms/bundled-ids bundled-ids
-     :spec-explain explain}
+   [(merge {::event/type :kixi.datastore/files-add-to-bundle-rejected
+            ::event/version "2.0.0"
+            :reason reason
+            ::msr/id id
+            ::msr/bundled-ids bundled-ids}
+           (when explain
+             {:spec-explain explain}))
     {:partition-key id}]))
 
 (defn create-add-files-to-bundle-handler

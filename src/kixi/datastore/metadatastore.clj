@@ -10,7 +10,10 @@
             [kixi.datastore.metadatastore.events]
             [kixi.datastore.metadatastore.commands]
             [kixi.datastore.schemastore.conformers :as sc]
+            [kixi.datastore.schemastore.utils :as sh]
             [clojure.spec.gen.alpha :as gen]))
+
+(sh/alias 'relaxed 'kixi.datastore.metadatastore.relaxed)
 
 (defn valid-file-name?
   "A file name should be at least one valid character long and only have valid characters and start with a digit or letter."
@@ -21,6 +24,7 @@
 (s/def ::type #{"stored" "bundle"})
 (s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
+(s/def ::relaxed/id string?)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
 (s/def ::name (s/with-gen (s/and sc/not-empty-string valid-file-name?)
@@ -48,6 +52,7 @@
 
 (s/def ::bundle-type #{"datapack"})
 (s/def ::bundled-ids (s/coll-of sc/uuid :kind set?))
+(s/def ::relaxed/bundled-ids (s/coll-of any?))
 
 (s/def :kixi/user
   (s/keys :req [:kixi.user/id
