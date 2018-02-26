@@ -24,7 +24,7 @@
 (s/def ::type #{"stored" "bundle"})
 (s/def ::file-type sc/not-empty-string)
 (s/def ::id sc/uuid)
-(s/def ::relaxed/id string?)
+(s/def ::relaxed/id any?)
 (s/def ::parent-id ::id)
 (s/def ::pieces-count int?)
 (s/def ::name (s/with-gen (s/and sc/not-empty-string valid-file-name?)
