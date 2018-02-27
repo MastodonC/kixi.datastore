@@ -7,6 +7,7 @@
 (sh/alias 'cmd 'kixi.command)
 (sh/alias 'user 'kixi.user)
 (sh/alias 'md 'kixi.datastore.metadatastore)
+(sh/alias 'mdr 'kixi.datastore.metadatastore.relaxed)
 
 (s/def ::spec-explain any?)
 
@@ -58,6 +59,13 @@
           :opt-un [::spec-explain]))
 
 (defmethod comms/event-payload
+  [:kixi.datastore/bundle-delete-rejected "2.0.0"]
+  [_]
+  (s/keys :req [::mdr/id]
+          :req-un [::dd-reject/reason]
+          :opt-un [::spec-explain]))
+
+(defmethod comms/event-payload
   [:kixi.datastore/files-added-to-bundle "1.0.0"]
   [_]
   (s/keys :req [::md/id
@@ -75,6 +83,14 @@
   [_]
   (s/keys :req [::md/id
                 ::md/bundled-ids]
+          :req-un [::fab-reject/reason]
+          :opt-un [::spec-explain]))
+
+(defmethod comms/event-payload
+  [:kixi.datastore/files-add-to-bundle-rejected "2.0.0"]
+  [_]
+  (s/keys :req [::mdr/id
+                ::mdr/bundled-ids]
           :req-un [::fab-reject/reason]
           :opt-un [::spec-explain]))
 
