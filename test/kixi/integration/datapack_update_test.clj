@@ -1,8 +1,6 @@
 (ns kixi.integration.datapack-update-test
   {:integration true}
   (:require [clojure.test :refer :all]
-            [clojure.spec.alpha :as s]
-            [kixi.comms :as c]
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]]
@@ -103,13 +101,6 @@
                              (is (= 1
                                     only-file-visible-cnt)))))))))
 
-(deftest bundle-delete-invalid-cmd-rejected
-  (let [response-event (binding [c/*validate-commands* false]
-                         (send-bundle-delete (uuid) "foobar"))]
-    (when-event-type response-event :kixi.datastore/bundle-delete-rejected
-                     (is (= :invalid-cmd
-                            (:reason response-event))))))
-
 (deftest bundle-delete-unauthorised-rejected
   (let [uid (uuid)
         datapack-resp (small-file-into-datapack uid)]
@@ -134,12 +125,6 @@
                          (is (= 200
                                 (:status (get-metadata uid file-meta-id)))))))))
 
-(deftest add-files-to-bundle-invalid-cmd-rejected
-  (let [response-event (binding [c/*validate-commands* false]
-                         (send-add-files-to-bundle (uuid) "12345" #{"foobar"}))] ;; invalid id
-    (when-event-type response-event :kixi.datastore/files-add-to-bundle-rejected
-                     (is (= :invalid-cmd
-                            (:reason response-event))))))
 
 (deftest ^:acceptance add-files-to-bundle-incorrect-type-rejected
   (let [uid (uuid)
