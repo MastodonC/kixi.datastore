@@ -23,6 +23,7 @@
 (sh/alias 'kdm 'kixi.datastore.metadatastore)
 (sh/alias 'msr 'kixi.datastore.metadatastore.relaxed)
 (sh/alias 'kdfm 'kixi.datastore.file-metadata)
+(sh/alias 'sharing-reject 'kixi.event.metadata.sharing-change.rejection)
 
 (sh/alias 'event 'kixi.event)
 (sh/alias 'command 'kixi.command)
@@ -52,10 +53,13 @@
                     :expected expected
                     ::ms/file-metadata metadata})))
 
-(spec/def ::sharing-change-cmd-payload
-  (spec/keys :req [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))
+(defmethod c/command-type->event-types
+  [:kixi.datastore/sharing-change "2.0.0"]
+  [_]
+  #{[:kixi.datastore/sharing-changed "1.0.0"]
+    [:kixi.datastore/sharing-change-rejected "2.0.0"]})
 
-(defn sharing-change-rejected
+(defn sharing-change-rejected-old
   [payload]
   {::ke/key ::kdm/sharing-change-rejected
    ::ke/version "1.0.0"
@@ -63,19 +67,47 @@
                           (get-in payload [:original ::ms/id]))
    ::ke/payload payload})
 
-(defn sharing-change-invalid
+(defn sharing-change-rejected
+  [payload]
+  [(merge {::event/type :kixi.datastore/sharing-change-rejected
+           ::event/version "2.0.0"}
+          payload)
+   {:partition-key (or (::ms/id payload)
+                       (get-in payload [::sharing-reject/original ::ms/id]))}])
+
+(defn sharing-change-invalid-old
   [{:keys [::kc/payload] :as cmd}]
-  (sharing-change-rejected {:reason :invalid
-                            :explanation (spec/explain-data
-                                          ::sharing-change-cmd-payload payload)
-                            :original payload
-                            :kixi/user (::kc/user cmd)}))
+  (sharing-change-rejected-old {:reason :invalid
+                                :explanation (spec/explain-data
+                                              ::ms/sharing-change-payload payload)
+                                :original payload
+                                :kixi/user (::kc/user cmd)}))
+
+(defn sharing-change-invalid
+  [payload]
+  (sharing-change-rejected {::sharing-reject/reason :invalid-cmd
+                            ::sharing-reject/explain (pr-str (spec/explain-data :kixi/command payload))
+                            ::sharing-reject/original payload}))
+
+(defn sharing-change-unauthorised-old
+  [{:keys [::kc/payload] :as cmd}]
+  (sharing-change-rejected-old {:reason :unauthorised
+                                ::ms/id (::ms/id payload)
+                                :kixi/user (::kc/user cmd)}))
 
 (defn sharing-change-unauthorised
-  [{:keys [::kc/payload] :as cmd}]
-  (sharing-change-rejected {:reason :unauthorised
-                            ::ms/id (::ms/id payload)
-                            :kixi/user (::kc/user cmd)}))
+  [payload]
+  (sharing-change-rejected {::sharing-reject/reason :unauthorised
+                            ::ms/id (::ms/id payload)}))
+
+(defn sharing-changed
+  [payload]
+  [(merge
+    {::event/type :kixi.datastore/sharing-changed
+     ::event/version "1.0.0"}
+    payload)
+   {:partition-key (or (::ms/id payload)
+                       (get-in payload [:original ::ms/id]))}])
 
 (defn update-rejected
   [payload]
@@ -180,17 +212,36 @@
                          ::cs/file-metadata-update-type
                          ::cs/file-metadata-created}))))
 
-(defn create-sharing-change-handler
+(defn create-sharing-change-handler-old
   [metadatastore]
   (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
     (fn [{:keys [::kc/payload] :as cmd}]
       (cond
-        (not (spec/valid? ::sharing-change-cmd-payload payload)) (sharing-change-invalid cmd)
-        (not (authorised (::ms/id payload) (get-user-groups cmd))) (sharing-change-unauthorised cmd)
+        (not (spec/valid? ::ms/sharing-change-payload payload)) (sharing-change-invalid-old cmd)
+        (not (authorised (::ms/id payload) (get-user-groups cmd))) (sharing-change-unauthorised-old cmd)
         :default (updated (merge {::cs/file-metadata-update-type
                                   ::cs/file-metadata-sharing-updated
                                   :kixi/user (::kc/user cmd)}
                                  payload))))))
+
+(defn get-spec-keys
+  [spec]
+  (->> spec
+       (s/get-spec)
+       (s/form)
+       (rest)
+       (drop 1)
+       (take-nth 2)
+       (reduce concat)))
+
+(defn create-sharing-change-handler
+  [metadatastore]
+  (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
+    (fn [cmd]
+      (cond
+        (not (spec/valid? :kixi/command cmd)) (sharing-change-invalid cmd)
+        (not (authorised (::ms/id cmd) (get-user-groups cmd))) (sharing-change-unauthorised cmd)
+        :default (sharing-changed (select-keys cmd (get-spec-keys ::ms/sharing-change-payload)))))))
 
 (defmulti metadata-update
   (fn [payload]
@@ -506,7 +557,7 @@ the generated 'update' specs.
 
 (defrecord MetadataCreator
     [communications filestore schemastore metadatastore
-     metadata-create-handler sharing-change-handler
+     metadata-create-handler sharing-change-handler sharing-change-handler-old
      metadata-update-handler bundle-create-handler
      delete-bundle-handler add-files-to-bundle-handler
      remove-files-from-bundle-handler delete-file-handler]
@@ -552,13 +603,20 @@ the generated 'update' specs.
                :kixi.datastore/remove-files-from-bundler
                :kixi.datastore/remove-files-from-bundle "1.0.0"
                (create-remove-files-from-bundle-handler metadatastore))})
-           (when-not sharing-change-handler
-             {:sharing-change-handler
+           (when-not sharing-change-handler-old
+             {:sharing-change-handler-old
               (c/attach-command-handler!
                communications
                :kixi.datastore/metadata-creator-sharing-change
                ::kdm/sharing-change
-               "1.0.0" (create-sharing-change-handler metadatastore))})
+               "1.0.0" (create-sharing-change-handler-old metadatastore))})
+           (when-not sharing-change-handler
+             {:sharing-change-handler
+              (c/attach-validating-command-handler!
+               communications
+               :kixi.datastore/metadata-creator-sharing-change-new
+               :kixi.datastore/sharing-change
+               "2.0.0" (create-sharing-change-handler metadatastore))})
            (when-not metadata-update-handler
              {:metadata-update-handler
               (c/attach-command-handler!

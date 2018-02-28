@@ -1,6 +1,7 @@
 (ns kixi.integration.metadata-update-test
   {:integration true}
   (:require [clojure.test :refer :all]
+            [kixi.comms :as c]
             [kixi.datastore
              [metadatastore :as ms]
              [schemastore :as ss]]
@@ -25,6 +26,26 @@
   cycle-system-fixture
   extract-comms)
 
+(deftest small-file-add-group-to-meta-read-command-validated-old
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (dissoc-in
+                            (create-metadata
+                             uid
+                             "./test-resources/metadata-one-valid.csv")
+                            [::ms/sharing ::ms/file-read]))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing-old
+                   uid "Invalid-Meta-ID"
+                   ::ms/sharing-conj
+                   ::ms/file-read
+                   new-group)]
+        (when-event-key event :kixi.datastore.metadatastore/sharing-change-rejected
+                        (is (= :invalid
+                               (get-in event [:kixi.comms.event/payload :reason]))))))))
+
 (deftest small-file-add-group-to-meta-read-command-validated
   (let [uid (uuid)
         metadata-response (send-file-and-metadata
@@ -36,14 +57,41 @@
     (when-success metadata-response
       (let [meta-id (get-in metadata-response [:body ::ms/id])
             new-group (uuid)
-            event (update-metadata-sharing
-                   uid "Invalid-Meta-ID"
+            event (binding [c/*validate-commands* false]
+                    (update-metadata-sharing
+                     uid "Invalid-Meta-ID"
+                     ::ms/sharing-conj
+                     ::ms/file-read
+                     new-group))]
+        (when-event-key event :kixi.datastore/sharing-change-rejected
+                        (is (= :invalid-cmd
+                               (:kixi.event.metadata.sharing-change.rejection/reason event))))))))
+
+(deftest small-file-add-group-to-meta-read-old
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing-old
+                   uid meta-id
                    ::ms/sharing-conj
-                   ::ms/file-read
+                   ::ms/meta-read
                    new-group)]
-        (when-event-key event :kixi.datastore.metadatastore/sharing-change-rejected
-                        (is (= :invalid
-                               (get-in event [:kixi.comms.event/payload :reason]))))))))
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= #{uid new-group}
+                                             (set (get-in metadata [:body ::ms/sharing ::ms/meta-read])))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid new-group}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
 
 (deftest small-file-add-group-to-meta-read
   (let [uid (uuid)
@@ -59,7 +107,7 @@
                    ::ms/sharing-conj
                    ::ms/meta-read
                    new-group)]
-        (when-event-key event :kixi.datastore.file-metadata/updated
+        (when-event-key event :kixi.datastore/sharing-changed
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (= #{uid new-group}
                                              (set (get-in metadata [:body ::ms/sharing ::ms/meta-read])))))
@@ -69,6 +117,34 @@
                           (is (= #{uid}
                                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
                           (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
+
+(deftest small-file-add-group-to-new-file-read-old
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (dissoc-in
+                            (create-metadata
+                             uid
+                             "./test-resources/metadata-one-valid.csv")
+                            [::ms/sharing ::ms/file-read]))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing-old
+                   uid meta-id
+                   ::ms/sharing-conj
+                   ::ms/file-read
+                   new-group)]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (= #{new-group}
+                                             (set (get-in metadata [:body ::ms/sharing ::ms/file-read])))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (= #{new-group}
                                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
 
 (deftest small-file-add-group-to-new-file-read
@@ -87,7 +163,7 @@
                    ::ms/sharing-conj
                    ::ms/file-read
                    new-group)]
-        (when-event-key event :kixi.datastore.file-metadata/updated
+        (when-event-key event :kixi.datastore/sharing-changed
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (= #{new-group}
                                              (set (get-in metadata [:body ::ms/sharing ::ms/file-read])))))
@@ -98,6 +174,32 @@
                                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
                           (is (= #{new-group}
                                  (set (get-in updated-metadata [:body ::ms/sharing ::ms/file-read]))))))))))
+
+(deftest small-file-remove-group-from-file-read-old
+  (let [uid (uuid)
+        metadata-response (send-file-and-metadata
+                           (create-metadata
+                            uid
+                            "./test-resources/metadata-one-valid.csv"))]
+    (when-success metadata-response
+      (let [meta-id (get-in metadata-response [:body ::ms/id])
+            new-group (uuid)
+            event (update-metadata-sharing-old
+                   uid meta-id
+                   ::ms/sharing-disj
+                   ::ms/file-read
+                   uid)]
+        (when-event-key event :kixi.datastore.file-metadata/updated
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (nil?
+                                           (get-in metadata [:body ::ms/sharing ::ms/file-read]))))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-read]))))
+                          (is (= #{uid}
+                                 (set (get-in updated-metadata [:body ::ms/sharing ::ms/meta-update]))))
+                          (is (nil?
+                               (get-in updated-metadata [:body ::ms/sharing ::ms/file-read])))))))))
 
 (deftest small-file-remove-group-from-file-read
   (let [uid (uuid)
@@ -113,7 +215,7 @@
                    ::ms/sharing-disj
                    ::ms/file-read
                    uid)]
-        (when-event-key event :kixi.datastore.file-metadata/updated
+        (when-event-key event :kixi.datastore/sharing-changed
                         (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
                                           (nil?
                                            (get-in metadata [:body ::ms/sharing ::ms/file-read]))))
@@ -138,11 +240,11 @@
                    uid meta-id
                    {:kixi.datastore.metadatastore.update/source-created {:set "20170615"}})]
         (when-event-key event :kixi.datastore.file-metadata/updated
-          (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
-                            (get-in metadata [:body ::ms/source-created])))
-          (let [updated-metadata (get-metadata uid meta-id)]
-            (is (= "20170615"
-                   (get-in updated-metadata [:body ::ms/source-created])))))))))
+                        (wait-for-pred #(let [metadata (get-metadata uid meta-id)]
+                                          (get-in metadata [:body ::ms/source-created])))
+                        (let [updated-metadata (get-metadata uid meta-id)]
+                          (is (= "20170615"
+                                 (get-in updated-metadata [:body ::ms/source-created])))))))))
 
 (deftest small-file-remove-metadata
   (let [uid (uuid)
