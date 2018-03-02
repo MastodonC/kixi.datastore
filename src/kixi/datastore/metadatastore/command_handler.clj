@@ -241,7 +241,7 @@
       (cond
         (not (spec/valid? :kixi/command cmd)) (sharing-change-invalid cmd)
         (not (authorised (::ms/id cmd) (get-user-groups cmd))) (sharing-change-unauthorised cmd)
-        :default (sharing-changed (select-keys cmd (get-spec-keys ::ms/sharing-change-payload)))))))
+        :default (sharing-changed (select-keys cmd [::ms/id ::ms/sharing-update :kixi.group/id ::ms/activity]))))))
 
 (defmulti metadata-update
   (fn [payload]

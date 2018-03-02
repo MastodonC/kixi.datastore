@@ -116,7 +116,7 @@
                            [::md/segmentations]
                            (:kixi.group/id update-event))))
 
-(defn update-sharing!
+(defn update-sharing
   [conn update-event]
   (info "Update Share: " update-event)
   (let [update-fn (case (::md/sharing-update update-event)
@@ -141,7 +141,7 @@
 
 (defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
   [conn update-event]
-  (update-sharing! conn update-event))
+  (update-sharing conn update-event))
 
 (defn dissoc-nonupdates
   [md]
@@ -165,7 +165,7 @@
 (defn sharing-changed-handler
   [client]
   (fn [event]
-    (update-sharing! client event)))
+    (update-sharing client event)))
 
 (defn file-deleted-handler
   [client]
@@ -362,7 +362,6 @@
                                  :kixi.datastore.file-metadata/updated
                                  "1.0.0"
                                  (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
-        ;;
         (c/attach-validating-event-handler! communications
                                             :kixi.datastore/metadatastore
                                             :kixi.datastore/sharing-changed
