@@ -16,7 +16,6 @@
 
 (s/def ::version (s/and string? #(re-matches #"\d+\.\d+\.\d+" %)))
 
-
 (defmulti file-metadata-updated-type ::file-metadata-update-type)
 
 (defmethod file-metadata-updated-type ::file-metadata-created

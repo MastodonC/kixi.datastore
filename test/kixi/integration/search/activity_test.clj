@@ -100,18 +100,56 @@
                  (search-metadata only-read-group [::ms/meta-read ::ms/file-read])
                  "activities should be AND'd together"))))
 
-(defn add-meta-read
+(defn add-meta-read-old
   [file-id uid new-group]
-  (let [event (base/update-metadata-sharing
+  (let [event (base/update-metadata-sharing-old
                uid uid
                file-id
-               ::ms/sharing-conj 
+               ::ms/sharing-conj
                ::ms/meta-read
                new-group)]
     (if (= (:kixi.comms.event/key event)
            :kixi.datastore.file-metadata/updated)
       {:status 200}
       event)))
+
+(defn add-meta-read
+  [file-id uid new-group]
+  (let [event (base/update-metadata-sharing
+               uid uid
+               file-id
+               ::ms/sharing-conj
+               ::ms/meta-read
+               new-group)]
+    (if (= (:kixi.event/type event)
+           :kixi.datastore/sharing-changed)
+      {:status 200}
+      event)))
+
+(deftest permissions-added-are-returned-by-search-old
+  (let [uid (uuid)
+        only-read-group (uuid)
+        metadata-response (send-file-and-metadata (create-metadata uid))]
+    (when-success metadata-response
+      (let [resp (search-metadata uid [::ms/meta-read ::ms/meta-update])]
+        (when-success resp
+          (is (first-item resp))
+          (is (= #{uid}
+                 (shares (first-item resp) ::ms/meta-read)))
+          (is (= #{uid}
+                 (shares (first-item resp) ::ms/meta-update)))))
+      (when-success (add-meta-read-old (::ms/id (:body metadata-response)) uid only-read-group)
+        (let [resp (search-metadata uid [::ms/meta-read])]
+          (when-success resp
+            (is (first-item resp))
+            (is (= #{uid only-read-group}
+                   (shares (first-item resp) ::ms/meta-read)))))
+
+        (let [resp (search-metadata only-read-group [::ms/meta-read])]
+          (when-success resp
+            (is (first-item resp))
+            (is (= #{uid only-read-group}
+                   (shares (first-item resp) ::ms/meta-read)))))))))
 
 (deftest permissions-added-are-returned-by-search
   (let [uid (uuid)
@@ -125,9 +163,7 @@
                  (shares (first-item resp) ::ms/meta-read)))
           (is (= #{uid}
                  (shares (first-item resp) ::ms/meta-update)))))
-      
       (when-success (add-meta-read (::ms/id (:body metadata-response)) uid only-read-group)
-        
         (let [resp (search-metadata uid [::ms/meta-read])]
           (when-success resp
             (is (first-item resp))
@@ -140,9 +176,9 @@
             (is (= #{uid only-read-group}
                    (shares (first-item resp) ::ms/meta-read)))))))))
 
-(defn remove-meta-read
+(defn remove-meta-read-old
   [file-id uid new-group]
-  (let [event (base/update-metadata-sharing
+  (let [event (base/update-metadata-sharing-old
                uid uid
                file-id
                ::ms/sharing-disj
@@ -152,6 +188,48 @@
            :kixi.datastore.file-metadata/updated)
       {:status 200}
       event)))
+
+(defn remove-meta-read
+  [file-id uid new-group]
+  (let [event (base/update-metadata-sharing
+               uid uid
+               file-id
+               ::ms/sharing-disj
+               ::ms/meta-read
+               new-group)]
+    (if (= (:kixi.event/type event)
+           :kixi.datastore/sharing-changed)
+      {:status 200}
+      event)))
+
+(deftest permissions-removed-no-longer-work-old
+  (let [uid (uuid)
+        only-read-group (uuid)
+        metadata-response (-> (create-metadata uid)
+                              (update-in
+                               [::ms/sharing ::ms/meta-read]
+                               conj only-read-group)
+                              send-file-and-metadata)]
+    (when-success metadata-response
+      (let [resp (search-metadata uid [::ms/meta-read])]
+        (when-success resp
+          (is (= #{uid only-read-group}
+                 (shares (first-item resp) ::ms/meta-read)))))
+      (let [resp (search-metadata only-read-group [::ms/meta-read])]
+        (when-success resp
+          (is (= #{uid only-read-group}
+                 (shares (first-item resp) ::ms/meta-read)))))
+
+      (when-success (remove-meta-read-old (::ms/id (:body metadata-response)) uid only-read-group)
+
+        (let [resp (search-metadata uid [::ms/meta-read])]
+          (when-success resp
+            (is (= #{uid}
+                   (shares (first-item resp) ::ms/meta-read)))))
+
+        (let [resp (search-metadata only-read-group [::ms/meta-read])]
+          (when-success resp
+            (is (nil? (first-item resp)))))))))
 
 (deftest permissions-removed-no-longer-work
   (let [uid (uuid)
@@ -170,9 +248,7 @@
         (when-success resp
           (is (= #{uid only-read-group}
                  (shares (first-item resp) ::ms/meta-read)))))
-      
-      (when-success (remove-meta-read (::ms/id (:body metadata-response)) uid only-read-group)    
-        
+      (when-success (remove-meta-read (::ms/id (:body metadata-response)) uid only-read-group)
         (let [resp (search-metadata uid [::ms/meta-read])]
           (when-success resp
             (is (= #{uid}
@@ -187,7 +263,7 @@
     (let [uid (uuid)
           activity->group (zipmap ms/activities
                                   (repeatedly uuid))
-          metadata (update-in 
+          metadata (update-in
                     (reduce
                      (fn [md act]
                        (assoc-in md [::ms/sharing act] [(act activity->group)]))

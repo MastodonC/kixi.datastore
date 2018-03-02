@@ -158,6 +158,9 @@
 
 (s/def ::sharing-update #{::sharing-conj ::sharing-disj})
 
+(s/def ::sharing-change-payload
+  (s/keys :req [::id ::sharing-update :kixi.group/id ::activity]))
+
 (defprotocol MetaDataStore
   (authorised
     [this action id user-groups])

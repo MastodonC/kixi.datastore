@@ -481,9 +481,9 @@
     (trim-file-name metadata)
     {:kixi.comms.command/partition-key uid})))
 
-(defn send-metadata-sharing-change-cmd
+(defn send-metadata-sharing-change-cmd-old
   ([uid metadata-id change-type activity target-group]
-   (send-metadata-cmd uid uid metadata-id change-type activity target-group))
+   (send-metadata-sharing-change-cmd-old uid uid metadata-id change-type activity target-group))
   ([uid ugroup metadata-id change-type activity target-group]
    (c/send-command!
     @comms
@@ -496,6 +496,22 @@
      ::ms/activity activity
      :kixi.group/id target-group}
     {:kixi.comms.command/partition-key uid})))
+
+(defn send-metadata-sharing-change-cmd
+  ([uid metadata-id change-type activity target-group]
+   (send-metadata-cmd uid uid metadata-id change-type activity target-group))
+  ([uid ugroup metadata-id change-type activity target-group]
+   (c/send-valid-command!
+    @comms
+    {:kixi.command/type :kixi.datastore/sharing-change
+     :kixi.command/version "2.0.0"
+     :kixi/user {:kixi.user/id uid
+                 :kixi.user/groups (vec-if-not ugroup)}
+     ::ms/id metadata-id
+     ::ms/sharing-update change-type
+     ::ms/activity activity
+     :kixi.group/id target-group}
+    {:partition-key uid})))
 
 (defn send-metadata-update-cmd
   ([uid metadata-id new-metadata]
@@ -942,15 +958,33 @@
                          (empty? (clojure.set/intersection bundled-ids (set (vec-if-not bundled-ids)))))))
      event)))
 
+(defn update-metadata-sharing-old
+  ([uid metadata-id change-type activity target-group]
+   (update-metadata-sharing-old uid uid metadata-id change-type activity target-group))
+  ([uid ugroup metadata-id change-type activity target-group]
+   (send-metadata-sharing-change-cmd-old uid ugroup metadata-id change-type activity target-group)
+   (let [event (wait-for-events uid
+                                :kixi.datastore.metadatastore/sharing-change-rejected
+                                :kixi.datastore.file-metadata/updated)]
+     (when (= :kixi.datastore.file-metadata/updated
+              (or (:kixi.comms.event/key event)
+                  (::event/type event)))
+       (wait-for-pred #(let [metadata (:body (get-metadata ugroup metadata-id))
+                             activity-set (set (get (::ms/sharing metadata) activity))]
+                         (case change-type
+                           ::ms/sharing-conj (contains? activity-set target-group)
+                           ::ms/sharing-disj ((complement contains?) activity-set target-group)))))
+     event)))
+
 (defn update-metadata-sharing
   ([uid metadata-id change-type activity target-group]
    (update-metadata-sharing uid uid metadata-id change-type activity target-group))
   ([uid ugroup metadata-id change-type activity target-group]
    (send-metadata-sharing-change-cmd uid ugroup metadata-id change-type activity target-group)
    (let [event (wait-for-events uid
-                                :kixi.datastore.metadatastore/sharing-change-rejected
-                                :kixi.datastore.file-metadata/updated)]
-     (when (= :kixi.datastore.file-metadata/updated
+                                :kixi.datastore/sharing-change-rejected
+                                :kixi.datastore/sharing-changed)]
+     (when (= :kixi.datastore/sharing-changed
               (or (:kixi.comms.event/key event)
                   (::event/type event)))
        (wait-for-pred #(let [metadata (:body (get-metadata ugroup metadata-id))
@@ -1080,7 +1114,8 @@
 
 (defmacro when-event-key
   [event k & rest]
-  `(let [k-val# (:kixi.comms.event/key ~event)]
+  `(let [k-val# (or (:kixi.comms.event/key ~event)
+                    (:kixi.event/type ~event))]
      (is (= ~k
             k-val#))
      (when (= ~k

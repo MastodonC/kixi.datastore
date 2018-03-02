@@ -28,3 +28,8 @@
   [_]
   (s/keys :req [::md/id
                 ::md/bundled-ids]))
+
+(defmethod comms/command-payload
+  [:kixi.datastore/sharing-change "2.0.0"]
+  [_]
+  ::md/sharing-change-payload)

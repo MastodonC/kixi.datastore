@@ -115,3 +115,27 @@
                 ::md/bundled-ids]
           :req-un [::fab-reject/reason]
           :opt-un [::spec-explain]))
+
+(sh/alias 'sharing-reject 'kixi.event.metadata.sharing-change.rejection)
+
+(s/def ::sharing-reject/reason
+  #{:unauthorised
+    :invalid-cmd})
+
+(s/def ::sharing-reject/explain string?)
+(s/def ::sharing-reject/original any?)
+
+(defmethod comms/event-payload
+  [:kixi.datastore/sharing-change-rejected "2.0.0"]
+  [_]
+  (s/keys :req [::sharing-reject/reason]
+          :opt [::sharing-reject/explain
+                ::sharing-reject/original
+                ::md/id]))
+
+;;
+
+(defmethod comms/event-payload
+  [:kixi.datastore/sharing-changed "1.0.0"]
+  [_]
+  ::md/sharing-change-payload)

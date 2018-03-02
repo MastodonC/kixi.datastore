@@ -30,7 +30,8 @@
       (and
        (.contains (name key) "rejected")
        (= :unauthorised (or (get-in event [:kixi.comms.event/payload :reason])
-                            (get event :reason))))
+                            (get event :reason)
+                            (get event :kixi.event.metadata.sharing-change.rejection/reason))))
       (= 401 (:status event)))))
 
 (defn get-file
@@ -53,12 +54,38 @@
   [schema-id file-id uid ugroups]
   (base/get-spec ugroups schema-id))
 
+(defn add-meta-read-old
+  [schema-id file-id uid ugroups]
+  (let [event (base/update-metadata-sharing-old
+               uid ugroups
+               file-id
+               ::ms/sharing-conj
+               ::ms/meta-read
+               (uuid))]
+    (if (= (:kixi.comms.event/key event)
+           :kixi.datastore.file-metadata/updated)
+      {:status 200}
+      event)))
+
 (defn add-meta-read
   [schema-id file-id uid ugroups]
   (let [event (base/update-metadata-sharing
                uid ugroups
                file-id
                ::ms/sharing-conj
+               ::ms/meta-read
+               (uuid))]
+    (if (= (:kixi.event/type event)
+           :kixi.datastore/sharing-changed)
+      {:status 200}
+      event)))
+
+(defn remove-meta-read-old
+  [schema-id file-id uid ugroups]
+  (let [event (base/update-metadata-sharing-old
+               uid ugroups
+               file-id
+               ::ms/sharing-disj
                ::ms/meta-read
                (uuid))]
     (if (= (:kixi.comms.event/key event)
@@ -74,8 +101,8 @@
                ::ms/sharing-disj
                ::ms/meta-read
                (uuid))]
-    (if (= (:kixi.comms.event/key event)
-           :kixi.datastore.file-metadata/updated)
+    (if (= (:kixi.event/type event)
+           :kixi.datastore/sharing-changed)
       {:status 200}
       event)))
 
@@ -122,11 +149,14 @@
      schema-id)
     ::ms/sharing {::ms/meta-read [ugroups]})))
 
+;; TODO add bundle-add test
 (def shares->authorised-actions
   {[[:file :sharing ::ms/file-read]] [get-file get-file-link]
    [[:file :sharing ::ms/meta-visible]] []
    [[:file :sharing ::ms/meta-read]] [get-metadata create-datapack-with]
-   [[:file :sharing ::ms/meta-update]] [add-meta-read remove-meta-read update-metadata delete-file]
+   [[:file :sharing ::ms/meta-update]] [add-meta-read-old remove-meta-read-old
+                                        add-meta-read remove-meta-read
+                                        update-metadata delete-file]
    [[:schema :sharing ::ss/read]] [get-spec]
    [[:schema :sharing ::ss/use]] [post-file-using-schema]})
 

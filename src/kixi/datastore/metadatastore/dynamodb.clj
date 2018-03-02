@@ -108,15 +108,15 @@
   [conn update-event]
   (info "Update: " update-event)
   (comment "This implementation is not idempotent, need a check to prevent repeat segement adds"
-    (db/append-list conn
-                    (primary-metadata-table (:profile conn))
-                    id-col
-                    (::md/id update-event)
-                    :add
-                    [::md/segmentations]
-                    (:kixi.group/id update-event))))
+           (db/append-list conn
+                           (primary-metadata-table (:profile conn))
+                           id-col
+                           (::md/id update-event)
+                           :add
+                           [::md/segmentations]
+                           (:kixi.group/id update-event))))
 
-(defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
+(defn update-sharing
   [conn update-event]
   (info "Update Share: " update-event)
   (let [update-fn (case (::md/sharing-update update-event)
@@ -139,6 +139,10 @@
                           (insert-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata))
       ::md/sharing-disj (remove-activity-row conn (:kixi.group/id update-event) (::md/activity update-event) metadata-id))))
 
+(defmethod update-metadata-processor ::cs/file-metadata-sharing-updated
+  [conn update-event]
+  (update-sharing conn update-event))
+
 (defn dissoc-nonupdates
   [md]
   (reduce
@@ -157,6 +161,11 @@
                   id-col
                   (::md/id update-event)
                   (dissoc-nonupdates update-event)))
+
+(defn sharing-changed-handler
+  [client]
+  (fn [event]
+    (update-sharing client event)))
 
 (defn file-deleted-handler
   [client]
@@ -353,6 +362,11 @@
                                  :kixi.datastore.file-metadata/updated
                                  "1.0.0"
                                  (comp response-event (partial update-metadata-processor client) :kixi.comms.event/payload))
+        (c/attach-validating-event-handler! communications
+                                            :kixi.datastore/metadatastore
+                                            :kixi.datastore/sharing-changed
+                                            "1.0.0"
+                                            (sharing-changed-handler client))
         (c/attach-validating-event-handler! communications
                                             :kixi.datastore/metadatastore-file-delete
                                             :kixi.datastore/file-deleted
