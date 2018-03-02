@@ -224,16 +224,6 @@
                                   :kixi/user (::kc/user cmd)}
                                  payload))))))
 
-(defn get-spec-keys
-  [spec]
-  (->> spec
-       (s/get-spec)
-       (s/form)
-       (rest)
-       (drop 1)
-       (take-nth 2)
-       (reduce concat)))
-
 (defn create-sharing-change-handler
   [metadatastore]
   (let [authorised (partial ms/authorised metadatastore ::ms/meta-update)]
