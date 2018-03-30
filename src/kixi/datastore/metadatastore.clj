@@ -127,7 +127,7 @@
 (defmulti file-metadata ::type)
 
 (s/def ::tags
-  (s/coll-of sc/not-empty-string :distinct true :into #{}))
+  (s/coll-of sc/not-empty-string :kind set))
 
 (defmethod file-metadata "stored"
   [_]
