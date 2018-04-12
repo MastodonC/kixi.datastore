@@ -112,4 +112,5 @@
                                             :metrics-level :NONE
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                             }}}
- :repl {:port 5002}}
+ :repl {:port 5002}
+ :collect-and-share {:enabled true}}

@@ -46,7 +46,6 @@
 (s/def ::author sc/not-empty-string)
 (s/def ::source sc/not-empty-string)
 
-(s/def :kixi.user-group/id sc/uuid)
 (s/def :kixi.group/id sc/uuid)
 (s/def :kixi.user/groups (s/coll-of sc/uuid))
 
@@ -70,7 +69,7 @@
 
 (s/def ::sharing
   (s/map-of (set activities)
-            (s/coll-of :kixi.user-group/id)))
+            (s/coll-of :kixi.group/id)))
 
 (s/def :kixi.datastore.request/type #{::seg/group-rows-by-column})
 
@@ -199,3 +198,6 @@
 (defn retrieve-fn
   [impl id]
   (retrieve impl id))
+
+(def bundle?
+  #(= "bundle" (get % ::type)))
