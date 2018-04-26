@@ -5,15 +5,19 @@
                              :alerts? true}
                    :prod {:region "eu-west-1"
                           :sns  "arn:aws:sns:eu-west-1:720433613167:witan-to-slack"
-                          :alerts? true}}
+                          :alerts? true}
+                   :kops-spike {:alerts? false}}
  :web-server #profile {:default {:port  #long #or [#env PORT "8080"]
                                  :request-logging? true}
                        :staging {:port 18080
                                  :request-logging? true}
                        :prod {:port 18080
+                              :request-logging? true}
+                       :kops-spike {:port 18080
                               :request-logging? true}}
  :metrics {:json-reporter {:seconds #profile {:staging 60
                                               :prod 60
+                                              :kops-spike 60
                                               :default 300
                                               :staging-jenkins 600}}}
  :logging {:level #profile {:default :info
@@ -32,6 +36,7 @@
                                    :local-kinesis {:dynamodb {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}}
                                    :staging-jenkins {:dynamodb {:endpoint "dynamodb.eu-central-1.amazonaws.com"}}
                                    :staging {:dynamodb {:endpoint "dynamodb.eu-central-1.amazonaws.com"}}
+                                   :kops-spike {:dynamodb {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}
                                    :prod {:dynamodb {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
  :filestore #profile {:default {:local {:base-dir "/kixi-datastore"}
                                 #_:s3 #_{:bucket "staging-witan-kixi-datastore-filestore-jenkins"
@@ -47,6 +52,9 @@
                       :staging {:s3 {:bucket "staging-witan-kixi-datastore-filestore"
                                      :endpoint "s3.eu-central-1.amazonaws.com"
                                      :link-expiration-mins 10}}
+                      :kops-spike {:s3 {:bucket "kops-spike-witan-kixi-datastore-filestore"
+                                        :endpoint "s3-eu-west-1.amazonaws.com"
+                                        :link-expiration-mins 10}}
                       :prod {:s3 {:bucket "prod-witan-kixi-datastore-filestore"
                                   :endpoint "s3-eu-west-1.amazonaws.com"
                                   :link-expiration-mins 10}}}
@@ -55,12 +63,14 @@
                                      :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                      :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                      :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
-                                     :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
+                                     :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}
+                                     :kops-spike {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
  :schemastore {:dynamodb #profile {:local {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                    :local-kinesis {:endpoint #or [#env DYNAMODB "http://localhost:8000"]}
                                    :staging-jenkins {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
                                    :staging {:endpoint "dynamodb.eu-central-1.amazonaws.com"}
-                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
+                                   :prod {:endpoint "dynamodb.eu-west-1.amazonaws.com"}
+                                   :kops-spike {:endpoint "dynamodb.eu-west-1.amazonaws.com"}}}
  :structural-validator {:enabled true}
  :communications #profile {:local {:coreasync {:app "kixi.datastore"
                                                :metrics-level :NONE}}
@@ -109,6 +119,17 @@
                                             :initial-lease-table-write-capacity 2
                                             :streams {:event "prod-witan-event"
                                                       :command "prod-witan-command"}
+                                            :metrics-level :NONE
+                                        ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
+                                            }}
+                           :kops-spike {:kinesis {:app "kixi.datastore"
+                                            :endpoint "kinesis.eu-west-1.amazonaws.com"
+                                            :region-name "eu-west-1"
+                                            :dynamodb-endpoint "dynamodb.eu-west-1.amazonaws.com"
+                                            :initial-lease-table-read-capacity 2
+                                            :initial-lease-table-write-capacity 2
+                                            :streams {:event "kops-spike-witan-event"
+                                                      :command "kops-spike-witan-command"}
                                             :metrics-level :NONE
                                         ;:idle-time-between-reads-in-millis #or [#env KINESIS_IDLE 200]
                                             }}}
