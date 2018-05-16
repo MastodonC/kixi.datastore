@@ -17,8 +17,10 @@
 (defn ensure-bucket
   [creds bucket]
   (when-not (s3/does-bucket-exist creds bucket)
-    (s3/create-bucket creds bucket)))
-
+    (let [rules [{:max-age-seconds 3000 :allowed-origins ["*"] :allowed-methods [:PUT] :exposed-headers ["etag"] :allowed-headers ["*"]}
+                 {:max-age-seconds 3000 :allowed-origins ["*"] :allowed-methods [:GET] :allowed-headers ["*"]}]]
+      (s3/create-bucket creds bucket)
+      (s3/set-bucket-cross-origin-configuration creds bucket {:rules rules}))))
 
 (defn init-multi-part-upload-creator
   [creds bucket]
