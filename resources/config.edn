@@ -16,14 +16,14 @@
                                               :prod 60
                                               :default 300
                                               :staging-jenkins 600}}}
- :logging {:level #profile {:default :info
+ :logging {:level #profile {:default :debug
                             :prod :error} ; e/o #{:trace :debug :info :warn :error :fatal :report}
            ;; Control log filtering by namespaces/patterns. Useful for turning off
            ;; logging in noisy libraries, etc.:
            ;;:ns-whitelist  ["whiner.*"] #_["my-app.foo-ns"]
            :ns-blacklist ["org.eclipse.jetty"]
            :kixi-comms-verbose-logging #profile {:default true
-                                                 :staging false
+                                                 :staging true
                                                  :prod false}
            :appender #profile {:default :println
                                :staging :json
