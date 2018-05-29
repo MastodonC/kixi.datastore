@@ -1,0 +1,338 @@
+* kixi.datastore
+
+**** May 2018
+
+/This document assumes familiarity with the Witan architecture, CQRS and event-sourcing./
+
+*kixi.datastore* (aka 'The Datastore') is the service concerned with /files/ and /metadata/. These two primitives form the basis for all of the Datastore's interactions.
+
+To clarify the abstractions, in the Datastore /files/ refer to the literal kind of computer file. A blob of specifically-formatted binary data, interpretable
+by any application which understands the format. One feature of the Datastore is to store these kinds of files, so that they can be distributed, downloaded
+or otherwise accessed in the pursuits of data science. Files, as they exist on a computer, do not have a standardised mechanism for transmitting metadata
+and therefore the Datastore provides this mechanism - known in the system simply as /metadata/. A /file/ always has an accompanying /metadata/. This /metadata/
+describes a multitude of things, from the file's name and time it was uploaded, to whom in the system is allowed to access it.
+
+Whilst it's true to say that a /file/ always has a /metadata/ (and in fact they share a UUID), the opposite is not true. The concept of /metadata/ has been expanded (and there are plans to
+expand it further) to include "/bundles/" - collections of other /metadata/. One such implementation of a /bundle/ is a /datapack/.
+
+** History
+
+The original concept for the Datastore was as a supplementary system, to simply facilitate getting files into a location from where we could run them
+through models or "workspaces". To this end there were some ambitious features, the relics of which are still present in the codebase - file segmentation
+(~kixi.datastore.segmentation~), schema store (~kixi.datastore.schemastore~), structural validation (~kixi.datastore.structural-validation~).
+These are abandoned parts of the code base now. Plans for the features involve independent services and in fact this delegation of responsibility is already
+coming to light in services such as `kixi.search` (will replace queries against metadata) and `kixi.collect` (coordinated collection of files from users).
+
+First versions of the Datastore's MetaDataStore component ran against an Elasticsearch backend, but this was dropped due to our inability to update ES
+indexes quickly enough for simple CRUD-like operations. The next iteration used a Cassandra backend, but at this was dropped due to our inability to
+confidently maintain an operational Cassandra cluster inside DCOS - our orchestration layer at the time. At that point we pivoted to DynamoDB for reasons
+of convenience. The FileStore component has always been backed by S3.
+
+Frustratingly, because  DataStore was initially considered an ancillary project by some (Models and Workspaces being the products of focus), there was
+experimentation in the code base For example, upon the release of ~clojure.spec~, we converted the Datastore to use it (prematurely, in hindsight). There
+is also excessive use of macros and code to generate data structures. This obviously makes debugging the application harder, as those data structures aren't
+realised in the source code. So, although the project is large, it's important to remember that it only really does two simple
+things - uploading and downloading /files/ and CRUD on /metadata/.
+
+** Component Diagrams
+
+*** System Overview
+
+#+BEGIN_SRC plantuml :file docs/components.png :results silent
+package "Witan Cluster" {
+  [kixi.datastore] #LightGreen
+  [witan.gateway]
+}
+
+cloud {
+  [witan.ui] #Pink
+}
+
+node "AWS" {
+
+database "kinesis" {
+  [streams]
+}
+
+database "dynamodb" {
+  [tables]
+}
+
+database "s3" {
+  [file bucket]
+}
+
+}
+
+User -> [witan.ui]
+[witan.ui] -> [witan.gateway]
+[witan.gateway] -> [streams] #Green
+[witan.gateway] --> [kixi.datastore]
+[streams] -> [witan.gateway] #Blue
+[streams] -> [kixi.datastore] #Blue
+[kixi.datastore] -> [streams] #Green
+[kixi.datastore] -> [tables]
+[kixi.datastore] -> [file bucket]
+[witan.ui] -> [file bucket]
+#+END_SRC
+
+[[file:docs/components.png]]
+
+The above diagram illustrates the Datastore's dependencies (not including components that depend on the Datastore. witan.ui and witan.gateway are included to demonstrate how traffic flows in from the Internet).
+
+*** Application Overview
+
+#+BEGIN_SRC plantuml :file docs/application.png :results silent
+top to bottom direction
+package "kixi.datastore" {
+  package "filestore" #LightGreen {
+    rectangle "filestore-backends" {
+      [::filestore/s3]
+      [::filestore/local]
+    }
+    [::filestore/commands]
+    [::filestore/command_handler]
+    [::filestore/events]
+    [::filestore/event_handler]
+    [::filestore/upload]
+    package "upload-cache" #PHYSICAL {
+
+        [::upload-cache/dynamodb]
+        [::upload-cache/inmemory]
+
+    }
+  }
+  package "metadatastore" #LightBlue {
+    rectangle "metadatastore-backends" {
+      [::metadatastore/dynamodb]
+      [::metadatastore/inmemory]
+    }
+    [::metadatastore/commands]
+    [::metadatastore/command_handler]
+    [::metadatastore/events]
+
+  rectangle "specs" {
+      [::metadatastore/geography]
+      [::metadatastore/license]
+      [::metadatastore/time]
+      [::metadatastore/updates]
+    }
+  }
+
+  rectangle "specs & protocols" {
+    [::metadatastore]
+    [::filestore]
+  }
+  [::web-server]
+  [::system]
+  [::repl]
+}
+
+database "kinesis" {
+  [commands]
+  [events]
+}
+
+database "dynamodb" {
+  [tables]
+}
+
+database "s3" {
+  [file bucket]
+}
+
+database "storage" {
+  [hdd]
+}
+
+component [witan.gateway] #Orchid
+
+[witan.gateway] -left-> [commands] #Purple : forwards messages
+[witan.gateway] -left-> [::web-server] #Purple : http, queries
+
+' Connections
+[commands] -right-> [::filestore/command_handler]
+[commands] -right-> [::metadatastore/command_handler]
+
+[::filestore/command_handler] -up-> [events]  #Blue
+[::metadatastore/command_handler] -up-> [events]  #Blue
+
+[events] -right-> [::filestore/event_handler] #Blue
+[events] -right-> [::metadatastore/dynamodb] #Blue
+[events] -right-> [::metadatastore/inmemory] #Blue
+
+[::system] -down-> filestore : creates
+[::system] -down-> metadatastore : creates
+[::filestore] ..> filestore : implemented by
+[::metadatastore] ..> metadatastore : implemented by
+
+[::web-server] -> [::filestore/s3] #Purple
+[::web-server] -> [::filestore/local] #Purple
+[::web-server] -> [::metadatastore/dynamodb] #Purple
+[::web-server] -> [::metadatastore/inmemory] #Purple
+
+[::upload-cache/dynamodb] -> [tables] #Green : rw
+[::metadatastore/dynamodb] -> [tables] #Green : rw
+
+[::filestore/s3] -> [file bucket] #Green : rw
+[::filestore/local] -> [hdd] #Green : rw
+
+[::filestore/event_handler] -> [::filestore/local]
+[::filestore/event_handler] -> [::filestore/s3]
+
+' Hidden Connections
+[::web-server] -[hidden]-> [::metadatastore/commands]
+[::filestore/events] -[hidden]-> [::metadatastore/commands]
+
+#+END_SRC
+
+[[file:docs/application.png]]
+
+The above diagram shows a more detailed layout of the Datastore's internal application design.
+
+*There are other software components that are not listed here, such as /segmentation/ and /schema/. These are not currently used by any part of the software and so have been omitted.
+Any components not mentioned in this document or labelled in the diagram should be considered redundant.*
+
+** Component Summary
+
+This section aims to address each of the three high-level components currently being used by the Datastore: System, FileStore and MetaDataStore.
+
+
+*** System
+
+| Key Namespaces                     | Desciption                                                           |
+|------------------------------------|----------------------------------------------------------------------|
+| kixi.datastore.application         | System atoms                                                         |
+| kixi.datastore.bootstrap           | Application entry point                                              |
+| kixi.datastore.communication-specs | Specs used for certain communications                                |
+| kixi.datastore.dynamodb            | Common DynamoDB functions                                            |
+| kixi.datastore.filestore           | Specs and protocol for FileStore and FileStoreUploadCache components |
+| kixi.datastore.kaylee              | Functions for Kaylee ops                                             |
+| kixi.datastore.metadatastore       | Specs and protocol for MetaDataStore component                       |
+| kixi.datastore.repl                | Componet for the embedded REPL (nREPL)                               |
+| kixi.datastore.system              | Component system definition and creation                             |
+| kixi.datastore.web-server          | Web server component and routes                                      |
+
+The System component describes all the parts of the Datastore essential to getting it up and running.
+As with all the Witan microservices, it uses [[https://github.com/stuartsierra/component][Stuart sierra's Component library]] to manage the start-up of service components and [[https://github.com/juxt/aero][Juxt's Aero]] to provide
+parameterised and environment-aware configuration.
+
+Once reified, the system can be accessed via a selection of atoms in the ~kixi.datastore.application~ namespace, although this is mainly intended to
+facilitate the functions in the ~kixi.datastore.kaylee~ namespace.
+
+~kixi.datastore.web-server~ provides an HTTP server component which facilitates a limited number of queries (GET requests) into the system. All queries
+accept and respond using the ~transit+json~ format. There are routes which direct to 'unused' components, such as file segmentation. These should be
+avoided. The REST API in Datastore is in the process of being deprecated, although it's still in use by other services such as ~witan.gateway~ and
+ ~witan.httpapi~. For general API access to the datastore, use ~witan.httpapi~. For querying facilities, use ~kixi.search~.
+
+*** FileStore
+
+| Key Namespaces                                 | Desciption                                                                 |
+|------------------------------------------------+----------------------------------------------------------------------------|
+| kixi.datastore.filestore.command-handler       | Handlers for incoming Commands, propagates Events                          |
+| kixi.datastore.filestore.commands              | Specs for Commands                                                         |
+| kixi.datastore.filestore.event-handler         | Handlers for incoming Events                                               |
+| kixi.datastore.filestore.events                | Specs for Events                                                           |
+| kixi.datastore.filestore.local                 | A FileStore implementation that stores files locally                       |
+| kixi.datastore.filestore.s3                    | A FileStore implementation that stores files in Amazon S3                  |
+| kixi.datastore.filestore.upload                | Specs for 'uploads'                                                        |
+| kixi.datastore.filestore.upload-cache.dynamodb | A FileStoreUploadCache implementation that records data in Amazon DynamoDB |
+| kixi.datastore.filestore.upload-cache.inmemory | A FileStoreUploadCache implementation that records data in an atom         |
+
+As its name suggests, the FileStore is the component responsible for handling /files/, specifically coordinating /uploads/ and /downloads/.
+In the case of an upload, it does not receive files, but manages uploads with S3 and provides addresses which clients use to upload there files directly.
+Similarly with downloads, an address is provided by S3 and clients are issued a redirect.
+
+The Commands and Events into this component surround 'initiating a file upload' and 'completing a file upload' which are, respectively, the start and
+end of the upload process.
+
+Downloads are provided via a GET ~/file/<id>/link~ (~kixi.datastore.web-server~)
+
+*** MetaDataStore
+
+| Key Namespaces                               | Desciption                                                          |
+|----------------------------------------------+---------------------------------------------------------------------|
+| kixi.datastore.metadatastore.command-handler | Handlers for incoming Commands, propagates Events                   |
+| kixi.datastore.metadatastore.commands        | Specs for Commands                                                  |
+| kixi.datastore.metadatastore.events          | Specs for Events                                                    |
+| kixi.datastore.metadatastore.dynamodb        | A MetaDataStore implementation that records data in Amazon DynamoDB |
+| kixi.datastore.metadatastore.inmemory        | A MetaDataStore implementation that records data in an atom         |
+| kixi.datastore.metadatastore.updates         | Functions to facilitate the generated ~update~ set of specs         |
+
+This component is responsible for managing /metadata/, which may be for a /file/ (type "stored") or a /bundle/ (type "bundle"). It stores its records
+in DynamoDB and has a comprehensive ~spec~ for the metadata structures, and generates further specs for updating these structures. There are several commands
+and events relating to updating various parts of the metadata. They're fairly inconsistent in style. ~witan.ui~ is a good place to start for [[https://github.com/MastodonC/witan.ui/blob/master/src/cljs/witan/ui/controllers/datastore.cljs#L383][examples]] on how
+to update the various different metadata fields. Unlike the FileStore, the MetaDataStore is more untidy. For example, event handler code is in the backend
+namespace (either ~kixi.datastore.metadatastore.dynamodb~ or ~kixi.datastore.metadatastore.inmemory~) - entirely different event handlers depending on your
+backend, which isn't ideal.
+
+Metadata can be retrieved with GET ~/metadata/<id>~ (~kixi.datastore.web-server~) although ~kixi.search~ is the preferable way to get this information.
+
+*** Migrations
+
+Components are encouraged to manage database migrations themselves which is why you will see ~migrators~ directories for both the FileStore and MetaDataStore code.
+We universally use Joplin for our migrations and the config is created by the component itself, rather than kept as a resource. This can be observed in the
+~start~ method of either component.
+
+*** Testing
+
+Unfortunately, the state of testing in the Datastore is fairly bleak. Whilst a strategy of maximum coverage is, in principle, a noble one, the
+implementation has produced a test suite that takes approximately an hour, even after several rounds of optimisation.
+
+Tests are split into two categories: unit and integration. The tests in these categories adhere to the usual standards of tests applied with these terms.
+*There are also tests for the abandoned components that could really do with being removed*.
+
+The tests are run on Jenkins, as two separate jobs: ~kixi.datastore-test~ and ~kixi.datastore-test_staging~. The ~kixi.datastore-test~ job runs both unit
+and integration tests, against a specific set of tables in DynamoDB. The ~kixi.datastore-test_staging~ test only runs the integration tests, but they're
+run /against the latest staging deployment of the Datastore/.
+
+*** Honourable Mentions
+
+**** kixi.comms
+
+The Datastore uses our library, ~kixi.comms~ to connect to Kinesis, to send and receive messages from the queue.
+
+**** kixi.spec
+
+Although the Datastore *does not* use ~kixi.spec~ many of the specs found in Datastore are duplicated there. Some effort should be made, at some point, to
+eliminate this duplication.
+** Future
+
+*** Adding new features
+
+**** Are you sure?
+
+The Datastore is largely considered legacy technology and therefore adding features is not ideal. Currently, queries are being better served by ~kixi.search~
+which provides an Elasticsearch backend for metadata search. Other new product features are manifesting as separate services, such as ~kixi.collect~. If a
+new feature doesn't fit in the context of these two projects then adding a new separate service should be the preference. However, there could be a time when
+just adding it to the Datastore is quicker/simpler/cheaper.
+
+**** I'm sure.
+
+Like the majority of systems in the cluster, Datastore uses our own CQRS system to implement features. It's important that it continues to use this system,
+as there is a dependence on 'event sourcing' for disaster recovery. The FileStore component is the most complete in the Datastore and therefore should be
+used an example to follow.
+
+**** Commands
+
+New components should attempt to separate their command definitions (~commands.clj~) and their command handlers (~command_handler.clj~).
+In the case of the FileStore the handlers are backend-agnostic which is preferable. Commands *should not update the aggregates* - please brush
+up on [[https://martinfowler.com/bliki/CQRS.html][CQRS/ES]] if this is confusing for you (commands read aggregates and transmit events; events update aggregates). Commands are also required
+to describe the events they are allowed to transmit (this requirement is enforced by ~kixi.comms~); in Datastore these are expressed alongside the
+component protocols (~filestore.clj~).
+
+**** Events
+
+Similarly, events are separated into their definitions (~events.clj~) and their event handlers (~event_handler.clj~). These should also aim to be
+backend-agnostic. Events *should not need to query aggregates*. All the information they require to change the aggregates should already be encoded in the
+event itself - if this is not the case then perhaps consider adding more in your command handler.
+
+**** Queries
+
+The entry-point for new queries is in ~web_server.clj~. All queries follow traditional REST patterns and are expressed in the ~yada~ framework - there are
+numerous examples in this file. Queries *should not cause side-effects* - again, the event source model depends on it. There are examples of POST routes in
+the web server but these are unused, legacy etc.
+*** Long-term plan
+
+The long-term plan for the Datastore is to cut away all the legacy and unused code, reducing it to just the file handling parts (FileStore etc). Other
+services will replace other features - search, schema checking, previews etc.
