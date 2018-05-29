@@ -330,7 +330,7 @@ event itself - if this is not the case then perhaps consider adding more in your
 **** Queries
 
 The entry-point for new queries is in ~web_server.clj~. All queries follow traditional REST patterns and are expressed in the ~yada~ framework - there are
-numerous examples in this file. Queries *should not update the aggregates* - again, the event source model depends on it. There are examples of POST routes in
+numerous examples in this file. Queries *should not cause side-effects* - again, the event source model depends on it. There are examples of POST routes in
 the web server but these are unused, legacy etc.
 *** Long-term plan
 
